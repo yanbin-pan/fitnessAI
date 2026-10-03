@@ -28,9 +28,12 @@ export function buildApp(deps: AppDeps): FastifyInstance {
 
   // Fail closed: everything under /api/ except the health probe needs the owner's
   // Access token (spec §13). A refusal carries no body, so a caller learns nothing.
+  // The router decodes percent-escapes and absolute-form targets before matching
+  // ("/%61pi/x" reaches /api/x), so the matched route counts as well as the raw path.
   app.addHook("onRequest", async (req, reply) => {
-    const path = pathOf(req.url);
-    if (!path.startsWith("/api/") || path === "/api/health") return;
+    const route = req.routeOptions.url;
+    if (route === "/api/health") return;
+    if (!route?.startsWith("/api/") && !pathOf(req.url).startsWith("/api/")) return;
     const header = req.headers["cf-access-jwt-assertion"];
     try {
       req.identity = await deps.verifier.verify(typeof header === "string" ? header : "");

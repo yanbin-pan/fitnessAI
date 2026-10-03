@@ -1,8 +1,9 @@
 import fs from "node:fs";
+import http from "node:http";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { cacheControlFor } from "../src/app.ts";
-import { tempDir, testApp } from "./helpers.ts";
+import { buildApp, cacheControlFor } from "../src/app.ts";
+import { makeAccess, NOW, openTestDb, tempDir, testApp } from "./helpers.ts";
 import type { TestApp } from "./helpers.ts";
 
 let ctx: TestApp | undefined;
@@ -39,6 +40,65 @@ describe("authentication", () => {
   it("does not let a query string borrow the health exemption", async () => {
     ctx = await testApp();
     expect((await ctx.app.inject({ method: "GET", url: "/api/anything?next=/api/health" })).statusCode).toBe(401);
+  });
+});
+
+describe("authentication, however the request spells the path", () => {
+  // The router decodes percent-escapes and strips an absolute-form "http://host"
+  // prefix before matching, so these spellings must not slip past the auth hook.
+  async function appWithSecret() {
+    const auth = await makeAccess();
+    const database = openTestDb();
+    const app = buildApp({ db: database.db, verifier: auth.verifier, now: () => NOW, webDist: null });
+    const probe = {
+      app,
+      auth,
+      served: 0,
+      close: async () => {
+        await app.close();
+        database.close();
+      },
+    };
+    app.get("/api/secret", async () => {
+      probe.served += 1;
+      return { secret: true };
+    });
+    return probe;
+  }
+
+  it("guards API routes reached through percent-escapes", async () => {
+    const probe = await appWithSecret();
+    try {
+      for (const url of ["/%61pi/secret", "/a%70i/secret", "/api/%73ecret"]) {
+        const res = await probe.app.inject({ method: "GET", url });
+        expect([401, 404], url).toContain(res.statusCode);
+      }
+      expect(probe.served).toBe(0);
+      const owner = { "cf-access-jwt-assertion": await probe.auth.token() };
+      expect((await probe.app.inject({ method: "GET", url: "/api/secret", headers: owner })).statusCode).toBe(200);
+      expect(probe.served).toBe(1);
+    } finally {
+      await probe.close();
+    }
+  });
+
+  it("guards API routes reached through an absolute-form request target", async () => {
+    const probe = await appWithSecret();
+    try {
+      const address = await probe.app.listen({ host: "127.0.0.1", port: 0 });
+      const status = await new Promise<number | undefined>((resolve, reject) => {
+        http
+          .get({ agent: false, host: "127.0.0.1", port: new URL(address).port, path: `${address}/api/secret` }, (res) => {
+            res.resume();
+            resolve(res.statusCode);
+          })
+          .on("error", reject);
+      });
+      expect([401, 404]).toContain(status);
+      expect(probe.served).toBe(0);
+    } finally {
+      await probe.close();
+    }
   });
 });
 
