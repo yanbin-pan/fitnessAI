@@ -155,7 +155,7 @@ SQLite. Timestamps are UTC ISO-8601 strings. `date` columns are local calendar d
 (`YYYY-MM-DD`) in the profile's timezone. Rows created from the phone use client-generated
 UUIDs so that repeated submissions are idempotent.
 
-**`profile`** — exactly one row.
+**`profile`** — exactly one row (`id` = 1).
 
 | Column | Notes |
 |---|---|
@@ -280,17 +280,19 @@ and ticking again removes it.
 | `date` | derived from `sent_at` in the profile timezone |
 | `role` | `user` / `assistant` / `note` (non-AI notices such as "Logged usual breakfast") |
 | `text` | |
-| `photo_ids` | JSON array |
+| `photo_ids` | JSON array — added in milestone 2, with photos |
 | `cards` | JSON references to logged entries, drafts, measurements and check-ins |
+| `reply_to` | on an assistant or note message: the id of the user message it answers (unique, so a repeated message returns its stored reply) |
 | `status`, `error_code` | user messages: `pending` / `done` / `failed` |
 | `sent_at`, `created_at` | |
 
-**`coach_threads`** — `date` (primary key), `prefix` (the frozen system prompt and context
-blocks), `created_at`.
+**`coach_threads`** — `date` (primary key), `system` (the frozen system prompt and context
+blocks — the day's "prefix", §6.2), `created_at`.
 
 **`coach_turns`** — the exact Claude API turns, replayed append-only: `id`, `date`, `seq`,
 `role` (`user` / `assistant`), `blocks` (JSON content blocks exactly as sent or received,
-including tool calls, tool results and thinking blocks), `created_at`.
+including tool calls, tool results and thinking blocks), `message_id` (the user message
+whose processing produced the turn), `created_at`.
 
 **`photos`** — `id` (random 128-bit hex), `message_id`, `path`, `media_type`, `bytes`,
 `created_at`, `purged_at`.
