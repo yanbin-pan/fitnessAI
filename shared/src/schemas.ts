@@ -1,0 +1,120 @@
+import { z } from "zod";
+import { isIsoDate } from "./dates.ts";
+import {
+  ACTIVITY_LEVEL_KEYS, BODY_GOALS, EXERCISE_CATEGORIES, FOOD_GROUPS, MUSCLES, MUSCLE_ROLES, SEXES,
+} from "./vocab.ts";
+
+// Request bodies the API accepts. Each schema's parsed output (defaults filled in)
+// is exported as a type of the same name.
+
+export const IsoDate = z.string().refine(isIsoDate, { message: "Expected a date as YYYY-MM-DD" });
+export const TIME_HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+export function isTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-GB", { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const amount = z.number().nonnegative();
+const optionalPositive = z.number().positive().nullable().default(null);
+
+export const FoodGroupPortion = z.object({ group: z.enum(FOOD_GROUPS), portions: z.number().positive() });
+export const MuscleWork = z.object({ muscle: z.enum(MUSCLES), role: z.enum(MUSCLE_ROLES) });
+
+export const FoodItemInput = z.object({
+  name: z.string().trim().min(1).max(200),
+  quantity: z.string().trim().max(200).default(""),
+  grams: z.number().positive().nullable().default(null),
+  kcal: amount,
+  protein_g: amount,
+  carbs_g: amount,
+  fat_g: amount,
+  fibre_g: amount.default(0),
+  saturated_fat_g: amount.default(0),
+  sugars_g: amount.default(0),
+  salt_g: amount.default(0),
+  fluid_ml: amount.default(0),
+  alcohol_units: amount.default(0),
+  assumption: z.string().max(500).default(""),
+  groups: z.array(FoodGroupPortion).max(FOOD_GROUPS.length).default([]),
+});
+export type FoodItemInput = z.infer<typeof FoodItemInput>;
+
+export const ExerciseItemInput = z.object({
+  name: z.string().trim().min(1).max(200),
+  category: z.enum(EXERCISE_CATEGORIES),
+  duration_min: optionalPositive,
+  sets: optionalPositive,
+  reps: optionalPositive,
+  weight_kg: optionalPositive,
+  distance_km: optionalPositive,
+  avg_hr: optionalPositive,
+  met: z.number().min(1).max(25).nullable().default(null),
+  /** Active kcal. When null, the server derives it from `met` and `duration_min`. */
+  kcal: amount.nullable().default(null),
+  assumption: z.string().max(500).default(""),
+  muscles: z.array(MuscleWork).max(MUSCLES.length * 2).default([]),
+});
+export type ExerciseItemInput = z.infer<typeof ExerciseItemInput>;
+
+const items = {
+  foods: z.array(FoodItemInput).max(30).default([]),
+  exercises: z.array(ExerciseItemInput).max(30).default([]),
+};
+const hasItems = (value: { foods: unknown[]; exercises: unknown[] }) => value.foods.length + value.exercises.length > 0;
+const NEEDS_ITEMS = { message: "An entry needs at least one item" };
+
+export const ManualEntryInput = z
+  .object({
+    id: z.uuid(),
+    date: IsoDate,
+    time: z.string().regex(TIME_HHMM).nullable().default(null),
+    ...items,
+  })
+  .refine(hasItems, NEEDS_ITEMS);
+export type ManualEntryInput = z.infer<typeof ManualEntryInput>;
+
+export const EntryPatch = z.object(items).refine(hasItems, NEEDS_ITEMS);
+export type EntryPatch = z.infer<typeof EntryPatch>;
+
+const override = z.number().nonnegative().nullable().default(null);
+
+export const ProfileInput = z.object({
+  sex: z.enum(SEXES),
+  birth_date: IsoDate,
+  height_cm: z.number().min(100).max(250),
+  weight_kg: z.number().min(30).max(300),
+  activity_level: z.enum(ACTIVITY_LEVEL_KEYS),
+  goal: z.enum(BODY_GOALS),
+  goal_rate_kg_week: z.number().min(0).max(1),
+  body_goal_priority: z.enum(["high", "normal"]).default("high"),
+  protein_g_per_kg: z.number().min(0.5).max(3.5).default(1.8),
+  fat_pct: z.number().min(15).max(50).default(30),
+  fibre_g: z.number().min(0).max(80).default(30),
+  add_back_pct: z.number().min(0).max(100).default(50),
+  override_kcal: override,
+  override_protein_g: override,
+  override_carbs_g: override,
+  override_fat_g: override,
+  override_fibre_g: override,
+  timezone: z.string().refine(isTimeZone, { message: "Unknown timezone" }).default("Europe/London"),
+  units_mass: z.enum(["kg", "st_lb"]).default("kg"),
+  units_length: z.enum(["cm", "in"]).default("cm"),
+  context_days: z.number().int().min(1).max(14).default(5),
+  goal_notes: z.enum(["on", "off"]).default("on"),
+});
+/** What a client sends: fields with defaults may be omitted. */
+export type ProfileInput = z.input<typeof ProfileInput>;
+/** A stored profile, every field present. */
+export type Profile = z.output<typeof ProfileInput>;
+
+export const MessageInput = z.object({
+  id: z.uuid(),
+  sent_at: z.string().datetime(),
+  text: z.string().trim().min(1).max(4000),
+});
+export type MessageInput = z.infer<typeof MessageInput>;
