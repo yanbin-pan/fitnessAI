@@ -3,13 +3,14 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "shared"
+    "shared",
+    "server"
   ],
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "typecheck": "tsc -p shared",
+    "typecheck": "tsc -p shared && tsc -p server",
     "lint": "eslint .",
     "test": "npm run test --workspaces --if-present"
   },
