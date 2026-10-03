@@ -1,0 +1,24 @@
+{
+  "name": "fitnessai",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "shared"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc -p shared",
+    "lint": "eslint .",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^24.19.1",
+    "eslint": "^9.39.5",
+    "globals": "^17.13.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.0"
+  }
+}
