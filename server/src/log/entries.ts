@@ -83,27 +83,38 @@ function insertItems(sql: Sql, entryId: string, foods: FoodItemData[], exercises
   });
 }
 
-/** Inserts an entry with its items. Run inside a transaction. */
+/** Inserts an entry with its items, all or nothing (a savepoint inside a caller's transaction). */
 export function insertEntry(sql: Sql, entry: NewEntry, nowIso: string): void {
   const { foods, exercises, ...columns } = entry;
-  sql.insert(entries).values({ ...columns, edited: false, created_at: nowIso, updated_at: nowIso }).run();
-  insertItems(sql, entry.id, foods, exercises);
+  sql.transaction((tx) => {
+    tx.insert(entries).values({ ...columns, edited: false, created_at: nowIso, updated_at: nowIso }).run();
+    insertItems(tx, entry.id, foods, exercises);
+  });
 }
 
-/** Swaps all of an entry's items for new ones and marks it edited. Run inside a transaction. */
+/** Swaps all of a live entry's items for new ones and marks it edited, all or nothing. */
 export function replaceEntryItems(
   sql: Sql, entryId: string, foods: FoodItemData[], exercises: ExerciseItemData[], nowIso: string,
 ): boolean {
-  const existing = sql.select({ id: entries.id }).from(entries).where(eq(entries.id, entryId)).get();
-  if (!existing) return false;
-  sql.delete(foodItems).where(eq(foodItems.entry_id, entryId)).run();
-  sql.delete(exerciseItems).where(eq(exerciseItems.entry_id, entryId)).run();
-  insertItems(sql, entryId, foods, exercises);
-  sql.update(entries).set({ edited: true, updated_at: nowIso }).where(eq(entries.id, entryId)).run();
-  return true;
+  return sql.transaction((tx) => {
+    const existing = tx
+      .select({ id: entries.id })
+      .from(entries)
+      .where(and(eq(entries.id, entryId), isNull(entries.deleted_at)))
+      .get();
+    if (!existing) return false;
+    tx.delete(foodItems).where(eq(foodItems.entry_id, entryId)).run();
+    tx.delete(exerciseItems).where(eq(exerciseItems.entry_id, entryId)).run();
+    insertItems(tx, entryId, foods, exercises);
+    tx.update(entries).set({ edited: true, updated_at: nowIso }).where(eq(entries.id, entryId)).run();
+    return true;
+  });
 }
 
-/** Items, groups and muscles go with it (ON DELETE CASCADE). */
+/**
+ * Items, groups and muscles go with it (ON DELETE CASCADE). From milestone 3,
+ * apple_health entries must be tombstoned (deleted_at) instead (spec §5, §12).
+ */
 export function deleteEntry(sql: Sql, entryId: string): boolean {
   return sql.delete(entries).where(eq(entries.id, entryId)).run().changes > 0;
 }
