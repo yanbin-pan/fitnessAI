@@ -45,13 +45,24 @@ export async function api<T>(path: string, options: { method?: string; json?: un
   }
 
   if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400) || res.status === 401) {
-    for (const listener of signedOutListeners) listener();
+    for (const listener of signedOutListeners) {
+      try {
+        listener();
+      } catch {
+        // A failing listener must not hide the sign-out or starve the listeners after it.
+      }
+    }
     throw new ApiError("signed_out", res.status, "signed_out", "Signed out");
   }
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new ApiError("http", res.status, body.error ?? "http_error", `Request failed (${res.status})`);
+    const body = (await res.json().catch(() => null)) as { error?: unknown } | null;
+    const code = typeof body?.error === "string" ? body.error : "http_error";
+    throw new ApiError("http", res.status, code, `Request failed (${res.status})`);
   }
   if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  try {
+    return (await res.json()) as T;
+  } catch {
+    throw new ApiError("http", res.status, "bad_response", "The server sent something that is not JSON.");
+  }
 }
