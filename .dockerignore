@@ -10,3 +10,7 @@ web/dev-dist
 **/*.test.ts
 **/*.test.tsx
 *.md
+.env*
+.superpowers
+coverage
+**/.DS_Store

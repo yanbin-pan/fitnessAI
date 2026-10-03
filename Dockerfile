@@ -1,7 +1,8 @@
 # ---- build: install everything, build the PWA, then drop dev dependencies ----
 FROM node:24-slim AS build
 WORKDIR /app
-# better-sqlite3 normally downloads a prebuilt binary; the toolchain is the fallback.
+# npm ci still runs better-sqlite3's node-gyp step, so python3 and make are required
+# (Node headers are downloaded); g++ only matters if no prebuild matches the platform.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 make g++ \
  && rm -rf /var/lib/apt/lists/*
@@ -12,9 +13,9 @@ COPY web/package.json web/
 RUN npm ci
 COPY tsconfig.base.json ./
 COPY shared shared
-COPY server server
 COPY web web
 RUN npm run build
+COPY server server
 RUN npm prune --omit=dev
 
 # ---- runtime: Node runs the server's TypeScript directly (type stripping) ----
