@@ -53,6 +53,24 @@ describe("metrics", () => {
     expect((await fetch(`http://127.0.0.1:${port}/api/health`)).status).toBe(404);
     server.close();
   });
+
+  it("can be bound to one address, so a development server stays off the network", async () => {
+    const server = await serveMetrics(createMetrics(), 0, "127.0.0.1");
+    try {
+      expect(server.address()).toMatchObject({ address: "127.0.0.1" });
+    } finally {
+      server.close();
+    }
+  });
+
+  it("listen on every interface unless told otherwise, so the cluster can scrape the pod", async () => {
+    const server = await serveMetrics(createMetrics(), 0);
+    try {
+      expect(server.address()).toMatchObject({ address: "0.0.0.0" });
+    } finally {
+      server.close();
+    }
+  });
 });
 
 describe("runNightlySnapshot", () => {

@@ -10,6 +10,8 @@ import { createMetrics, serveMetrics } from "./metrics.ts";
 import { getProfile } from "./profile/profile.ts";
 
 const config = loadConfig(process.env);
+// The development sign-in bypass must never be reachable from the network.
+const host = config.devAuthEmail ? "127.0.0.1" : "0.0.0.0";
 const snapshotDir = path.join(config.dataDir, "snapshots");
 const database = openDatabase({ file: path.join(config.dataDir, "fitness.db"), snapshotDir });
 failInterrupted(database.db);
@@ -38,8 +40,8 @@ const job = startNightlySnapshot({
   timeZone: getProfile(database.db)?.timezone ?? "Europe/London",
   log: app.log,
 });
-const metricsServer = await serveMetrics(metrics, config.metricsPort);
-await app.listen({ host: "0.0.0.0", port: config.port });
+const metricsServer = await serveMetrics(metrics, config.metricsPort, host);
+await app.listen({ host, port: config.port });
 if (!ai) app.log.warn("ANTHROPIC_API_KEY is not set: the coach is off; manual logging still works");
 
 let stopping = false;

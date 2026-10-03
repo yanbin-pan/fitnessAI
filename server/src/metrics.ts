@@ -44,7 +44,7 @@ export function recordCoach(metrics: Metrics | undefined, result: ProcessOutcome
 }
 
 /** Prometheus scrapes this port; no Ingress routes to it, so it is never public (spec §13). */
-export function serveMetrics(metrics: Metrics, port: number): Promise<http.Server> {
+export function serveMetrics(metrics: Metrics, port: number, host = "0.0.0.0"): Promise<http.Server> {
   const server = http.createServer((req, res) => {
     if (req.url !== "/metrics") {
       res.statusCode = 404;
@@ -64,7 +64,7 @@ export function serveMetrics(metrics: Metrics, port: number): Promise<http.Serve
   });
   return new Promise((resolve, reject) => {
     server.once("error", reject);
-    server.listen(port, "0.0.0.0", () => {
+    server.listen(port, host, () => {
       server.off("error", reject);
       resolve(server);
     });
