@@ -64,6 +64,13 @@ async function loadProfile(): Promise<ProfileView | null> {
   }
 }
 
+function saveError(error: unknown): string {
+  if (error instanceof ApiError && error.kind === "offline") return "You're offline, so that didn't save.";
+  if (error instanceof ApiError && error.kind === "signed_out") return "You're signed out. Sign in again, then save.";
+  if (error instanceof ApiError && error.code === "invalid_request") return "Couldn't save. Check that every value is filled in and in range.";
+  return "Couldn't save. Try again.";
+}
+
 const inputClass = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base dark:border-slate-700 dark:bg-slate-900";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -123,7 +130,10 @@ export function SettingsPage() {
 
   const bind = (field: Field) => ({
     value: form[field],
-    onChange: (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [field]: event.target.value }),
+    onChange: (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      if (!save.isPending) save.reset();
+      setForm({ ...form, [field]: event.target.value });
+    },
   });
   const hint = (key: keyof MacroTargets, unit: string) =>
     calculated ? `${key === "kcal" ? kcal10(calculated.kcal) : Math.round(calculated[key])} ${unit} calculated` : "";
@@ -134,6 +144,20 @@ export function SettingsPage() {
   }
 
   if (profile.isPending) return <main className="p-6 text-slate-500">Loading…</main>;
+  // No stored profile is `null` (404 no_profile). `undefined` after the load settled means it failed: do not show the blank form,
+  // because saving it would write the defaults over the stored profile.
+  if (profile.data === undefined) {
+    return (
+      <main className="mx-auto max-w-xl p-6">
+        <p role="alert" className="text-sm text-red-600">
+          Couldn't load your settings.
+        </p>
+        <button type="button" onClick={() => void profile.refetch()} className="mt-3 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+          Try again
+        </button>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto max-w-xl px-4 pb-24 pt-[calc(env(safe-area-inset-top)_+_1rem)]">
@@ -148,13 +172,13 @@ export function SettingsPage() {
         </Section>
         <Section title="Body goal">
           <SelectField label="Goal" options={BODY_GOALS} {...bind("goal")} />
-          {form.goal !== "maintain" && <TextField label="Rate (kg per week)" type="number" step="0.05" {...bind("goal_rate_kg_week")} />}
+          {form.goal !== "maintain" && <TextField label="Rate (kg per week)" type="number" step="0.05" required {...bind("goal_rate_kg_week")} />}
         </Section>
         <Section title="Targets">
-          <TextField label="Protein (g per kg)" type="number" step="0.1" {...bind("protein_g_per_kg")} />
-          <TextField label="Fat (% of calories)" type="number" {...bind("fat_pct")} />
-          <TextField label="Fibre (g)" type="number" {...bind("fibre_g")} />
-          <TextField label="Exercise calories added back (%)" type="number" {...bind("add_back_pct")} />
+          <TextField label="Protein (g per kg)" type="number" step="0.1" required {...bind("protein_g_per_kg")} />
+          <TextField label="Fat (% of calories)" type="number" required {...bind("fat_pct")} />
+          <TextField label="Fibre (g)" type="number" required {...bind("fibre_g")} />
+          <TextField label="Exercise calories added back (%)" type="number" required {...bind("add_back_pct")} />
           <p className="text-xs text-slate-500">An override replaces the calculated value. Leave it blank to use the calculation.</p>
           <TextField label="Calories override" type="number" placeholder={hint("kcal", "kcal")} {...bind("override_kcal")} />
           <TextField label="Protein override (g)" type="number" placeholder={hint("protein_g", "g")} {...bind("override_protein_g")} />
@@ -163,11 +187,11 @@ export function SettingsPage() {
           <TextField label="Fibre override (g)" type="number" placeholder={hint("fibre_g", "g")} {...bind("override_fibre_g")} />
         </Section>
         <Section title="Time">
-          <TextField label="Timezone" {...bind("timezone")} />
+          <TextField label="Timezone" required {...bind("timezone")} />
         </Section>
         {save.isError && (
           <p role="alert" className="text-sm text-red-600">
-            Couldn't save. Check that every value is filled in and in range.
+            {saveError(save.error)}
           </p>
         )}
         {save.isSuccess && (
