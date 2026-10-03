@@ -25,11 +25,14 @@ export function loadTurns(sql: Sql, date: string): AiMessage[] {
     .map((row) => ({ role: row.role as AiMessage["role"], content: row.blocks as AiMessage["content"] }));
 }
 
+/** Appends one message's turns, all or nothing: a half-written turn would break the day's thread. */
 export function appendTurns(sql: Sql, date: string, messageId: string, turns: AiMessage[], nowIso: string): void {
-  const last = sql.select({ seq: max(coachTurns.seq) }).from(coachTurns).where(eq(coachTurns.date, date)).get();
-  let seq = (last?.seq ?? -1) + 1;
-  for (const turn of turns) {
-    const blocks = typeof turn.content === "string" ? [{ type: "text", text: turn.content }] : turn.content;
-    sql.insert(coachTurns).values({ date, seq: seq++, role: turn.role, blocks, message_id: messageId, created_at: nowIso }).run();
-  }
+  sql.transaction((tx) => {
+    const last = tx.select({ seq: max(coachTurns.seq) }).from(coachTurns).where(eq(coachTurns.date, date)).get();
+    let seq = (last?.seq ?? -1) + 1;
+    for (const turn of turns) {
+      const blocks = typeof turn.content === "string" ? [{ type: "text", text: turn.content }] : turn.content;
+      tx.insert(coachTurns).values({ date, seq: seq++, role: turn.role, blocks, message_id: messageId, created_at: nowIso }).run();
+    }
+  });
 }

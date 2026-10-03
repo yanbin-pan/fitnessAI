@@ -85,7 +85,7 @@ export const COACH_TOOLS: AiTool[] = [
   {
     name: "log_items",
     description:
-      "Record food, drink and/or exercise that the person states they had or did. Call it once per message with every item from that message. Never use it for questions or hypotheticals.",
+      "Record food, drink and/or exercise that the person states they had or did. Call it once for each distinct date and time in the message, with every item that belongs to it. Never use it for questions or hypotheticals.",
     strict: true,
     input_schema: strictJsonSchema(LogItemsInput) as AiTool["input_schema"],
   },
