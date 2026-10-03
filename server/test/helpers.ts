@@ -116,3 +116,20 @@ export function sampleEntry(overrides: Partial<NewEntry> = {}): NewEntry {
     message_id: null, foods: [sampleFood()], exercises: [], ...overrides,
   };
 }
+
+/** A complete food item as Claude sends it to log_items. */
+export const TOOL_EGGS = {
+  name: "Scrambled eggs", quantity: "2 eggs", grams: 120, kcal: 180, protein_g: 13, carbs_g: 1, fat_g: 14,
+  fibre_g: 0, saturated_fat_g: 4, sugars_g: 0.5, salt_g: 0.5, fluid_ml: 0, alcohol_units: 0,
+  groups: [], assumption: "cooked with a little butter",
+};
+
+/** A complete exercise item as Claude sends it: 30 minutes at MET 9 is 320 active kcal at 80 kg. */
+export const TOOL_RUN = {
+  name: "Run", category: "cardio", duration_min: 30, met: 9, sets: null, reps: null, weight_kg: null,
+  distance_km: 5, muscles: [{ muscle: "quads", role: "primary" }], assumption: "steady pace",
+};
+
+export function logItemsInput(overrides: Record<string, unknown> = {}) {
+  return { date: null, time: null, foods: [TOOL_EGGS], exercises: [], ...overrides };
+}
