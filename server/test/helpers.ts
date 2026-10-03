@@ -1,3 +1,7 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { openDatabase } from "../src/db/open.ts";
 import { ProfileInput } from "../src/shared.ts";
 import type { Profile } from "../src/shared.ts";
 
@@ -13,4 +17,13 @@ export function makeProfile(overrides: Partial<ProfileInput> = {}): Profile {
     goal_rate_kg_week: 0.5,
     ...overrides,
   });
+}
+
+export function tempDir(): string {
+  return fs.mkdtempSync(path.join(os.tmpdir(), "fitnessai-"));
+}
+
+/** A migrated database in a fresh temporary directory. Call `.close()` when done. */
+export function openTestDb() {
+  return openDatabase({ file: path.join(tempDir(), "fitness.db"), snapshotDir: null });
 }

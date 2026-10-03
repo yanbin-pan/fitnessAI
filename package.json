@@ -12,7 +12,8 @@
   "scripts": {
     "typecheck": "tsc -p shared && tsc -p server",
     "lint": "eslint .",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "db:generate": "npm run db:generate --workspace server"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
