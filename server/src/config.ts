@@ -5,7 +5,7 @@ export interface AccessConfig {
   teamDomain: string;
   audience: string;
   ownerEmail: string;
-  /** A JSON key set that replaces Cloudflare's — tests only; always null in production. */
+  /** A JSON key set that replaces Cloudflare's — for tests and local development; always null in production. */
   testJwks: string | null;
 }
 

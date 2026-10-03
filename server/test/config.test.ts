@@ -31,6 +31,9 @@ describe("loadConfig", () => {
 
   it("only honours DEV_AUTH_EMAIL in development", () => {
     expect(() => loadConfig({ ...production, DEV_AUTH_EMAIL: "dev@localhost" })).toThrow(ConfigError);
+    expect(() => loadConfig({ ...production, NODE_ENV: "test", DEV_AUTH_EMAIL: "dev@localhost" })).toThrow(ConfigError);
+    expect(() => loadConfig({ ...production, NODE_ENV: undefined, DEV_AUTH_EMAIL: "dev@localhost" })).toThrow(ConfigError);
+    expect(() => loadConfig({ ...production, NODE_ENV: "dev", DEV_AUTH_EMAIL: "dev@localhost" })).toThrow(ConfigError);
     const dev = loadConfig({ NODE_ENV: "development", DEV_AUTH_EMAIL: "Dev@Localhost" });
     expect(dev.devAuthEmail).toBe("dev@localhost");
     expect(dev.access).toBeNull();
@@ -46,8 +49,19 @@ describe("loadConfig", () => {
     expect(c.anthropic).toEqual({ apiKey: "k", model: "claude-sonnet-5-5", effort: "low" });
   });
 
+  it("reads the port, path and budget overrides", () => {
+    const c = loadConfig({
+      ...production, PORT: "9000", METRICS_PORT: "9100", DATA_DIR: "/data", WEB_DIST: "/app/web/dist",
+      COACH_BUDGET_MS: "60000", SNAPSHOT_KEEP: "3",
+    });
+    expect(c).toMatchObject({ port: 9000, metricsPort: 9100, dataDir: "/data", webDist: "/app/web/dist", coachBudgetMs: 60_000, snapshotKeep: 3 });
+  });
+
   it("rejects an unknown effort level and a bad port", () => {
     expect(() => loadConfig({ ...production, ANTHROPIC_EFFORT: "extreme" })).toThrow(ConfigError);
     expect(() => loadConfig({ ...production, PORT: "eighty" })).toThrow(ConfigError);
+    expect(() => loadConfig({ ...production, PORT: "0" })).toThrow(ConfigError);
+    expect(() => loadConfig({ ...production, METRICS_PORT: "-1" })).toThrow(ConfigError);
+    expect(() => loadConfig({ ...production, SNAPSHOT_KEEP: "2.5" })).toThrow(ConfigError);
   });
 });
