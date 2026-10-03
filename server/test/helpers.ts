@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { openDatabase } from "../src/db/open.ts";
 import { ProfileInput } from "../src/shared.ts";
 import type { Profile } from "../src/shared.ts";
@@ -8,6 +9,7 @@ import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { createVerifier } from "../src/auth/access.ts";
 import type { AccessConfig } from "../src/config.ts";
 import { buildApp } from "../src/app.ts";
+import type { ExerciseItemData, FoodItemData, NewEntry } from "../src/log/entries.ts";
 
 /** A complete profile: male, 35 on 2026-10-03, 180 cm, 80 kg, light activity, losing 0.5 kg a week. */
 export function makeProfile(overrides: Partial<ProfileInput> = {}): Profile {
@@ -91,3 +93,26 @@ export async function testApp(opts: { now?: Date; webDist?: string | null } = {}
 }
 
 export type TestApp = Awaited<ReturnType<typeof testApp>>;
+
+export function sampleFood(overrides: Partial<FoodItemData> = {}): FoodItemData {
+  return {
+    name: "Eggs", quantity: "2 large", grams: 120, kcal: 156, protein_g: 13, carbs_g: 1, fat_g: 11, fibre_g: 0,
+    saturated_fat_g: 3.3, sugars_g: 0.4, salt_g: 0.4, fluid_ml: 0, alcohol_units: 0,
+    assumption: "", saved_food_id: null, groups: [], ...overrides,
+  };
+}
+
+export function sampleExercise(overrides: Partial<ExerciseItemData> = {}): ExerciseItemData {
+  return {
+    name: "Run", category: "cardio", duration_min: 30, sets: null, reps: null, weight_kg: null,
+    distance_km: 5, avg_hr: null, met: 9, kcal: 320, kcal_measured: false, assumption: "",
+    muscles: [{ muscle: "quads", role: "primary" }], ...overrides,
+  };
+}
+
+export function sampleEntry(overrides: Partial<NewEntry> = {}): NewEntry {
+  return {
+    id: randomUUID(), date: "2026-10-03", logged_at: "2026-10-03T07:00:00.000Z", source: "manual",
+    message_id: null, foods: [sampleFood()], exercises: [], ...overrides,
+  };
+}
