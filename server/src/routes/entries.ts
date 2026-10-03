@@ -24,11 +24,12 @@ export function registerEntryRoutes(app: FastifyInstance, deps: AppDeps): void {
     const now = deps.now();
     const nowIso = now.toISOString();
     const today = todayIn(profile.timezone, now);
-    if (input.date > today) return reply.code(400).send({ error: "future_date" });
-    if (daysBetween(input.date, today) > MAX_BACKDATE_DAYS) return reply.code(400).send({ error: "too_old" });
 
-    // The id is made on the phone, so sending the same entry twice is harmless.
+    // The id is made on the phone, so sending the same entry twice is harmless:
+    // a repeat gets the stored entry, even after its date has left the window.
     if (!getEntry(deps.db, input.id)) {
+      if (input.date > today) return reply.code(400).send({ error: "future_date" });
+      if (daysBetween(input.date, today) > MAX_BACKDATE_DAYS) return reply.code(400).send({ error: "too_old" });
       const loggedAt =
         input.time !== null ? zonedTimeToInstant(input.date, input.time, profile.timezone)
         : input.date === today ? now
