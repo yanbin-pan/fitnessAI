@@ -42,7 +42,8 @@ export function anthropicClient(opts: {
   maxRetries?: number;
   fetch?: (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 }): AiClient {
-  const client = new Anthropic({ apiKey: opts.apiKey, maxRetries: opts.maxRetries ?? 1, timeout: 60_000, fetch: opts.fetch });
+  // logLevel "off": the SDK must never log request bodies (spec §13), whatever ANTHROPIC_LOG says.
+  const client = new Anthropic({ apiKey: opts.apiKey, maxRetries: opts.maxRetries ?? 1, timeout: 60_000, fetch: opts.fetch, logLevel: "off" });
   return {
     async complete(request, signal) {
       try {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anthropicClient, buildRequest } from "../src/ai/anthropic.ts";
+import { anthropicClient, buildRequest, toAiError } from "../src/ai/anthropic.ts";
 import { AiError } from "../src/ai/client.ts";
 import type { AiRequest } from "../src/ai/client.ts";
 
@@ -48,7 +48,10 @@ describe("anthropicClient", () => {
     const beta = new Headers(seen.init?.headers).get("anthropic-beta");
     expect(beta).toContain("server-side-fallback-2026-07-01");
     expect(beta).toContain("thinking-binding-controls-2026-08-01");
-    expect(JSON.parse(String(seen.init?.body))).toMatchObject({ fallbacks: "default", output_config: { effort: "medium" } });
+    const sent = JSON.parse(String(seen.init?.body));
+    expect(sent).toMatchObject({ fallbacks: "default", output_config: { effort: "medium" }, max_tokens: 16000, tools: [], messages: request.messages });
+    expect(sent).not.toHaveProperty("tool_choice");
+    expect(result.content).toEqual(OK_REPLY.content);
   });
 
   it("reports a rate limit as AiError rate_limited", async () => {
@@ -70,5 +73,20 @@ describe("anthropicClient", () => {
     const failure = await client.complete(request, controller.signal).catch((err: unknown) => err);
     expect(failure).toBeInstanceOf(AiError);
     expect(failure).toMatchObject({ code: "timeout" });
+  });
+
+  it("reports the SDK's own request timeout as a timeout", async () => {
+    const fetch = async (): Promise<Response> => {
+      throw new DOMException("The operation was aborted.", "AbortError");
+    };
+    const client = anthropicClient({ apiKey: "k", model: "m", effort: "medium", maxRetries: 0, fetch });
+    await expect(client.complete(request, new AbortController().signal)).rejects.toMatchObject({ name: "AiError", code: "timeout" });
+  });
+});
+
+describe("toAiError", () => {
+  it("passes unexpected errors through untouched", () => {
+    const bug = new TypeError("bug");
+    expect(toAiError(bug, new AbortController().signal)).toBe(bug);
   });
 });

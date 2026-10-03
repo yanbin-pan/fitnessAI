@@ -15,6 +15,8 @@ export function fakeAi(steps: FakeStep[]): FakeAi {
   return {
     requests,
     async complete(request, signal) {
+      // Like the real client, a call made after the budget ran out fails at once.
+      if (signal.aborted) throw new AiError("timeout", "aborted");
       requests.push(structuredClone(request));
       const step = steps[next++];
       if (step === undefined) throw new Error(`fakeAi: no scripted response for call ${next}`);
@@ -32,17 +34,17 @@ function block(value: Record<string, unknown>): AiContentBlock {
 }
 
 export function textReply(text: string): AiResponse {
-  return { content: [block({ type: "text", text, citations: null })], stop_reason: "end_turn", model: "claude-opus-5-5", usage };
+  return { content: [block({ type: "text", text, citations: null })], stop_reason: "end_turn", model: "claude-opus-5-5", usage: { ...usage } };
 }
 
 export function toolCall(calls: { name: string; input: unknown }[], text = ""): AiResponse {
   const content: AiContentBlock[] = text ? [block({ type: "text", text, citations: null })] : [];
   for (const call of calls) content.push(block({ type: "tool_use", id: `toolu_${++toolIds}`, name: call.name, input: call.input }));
-  return { content, stop_reason: "tool_use", model: "claude-opus-5-5", usage };
+  return { content, stop_reason: "tool_use", model: "claude-opus-5-5", usage: { ...usage } };
 }
 
 export function stopWith(reason: "refusal" | "max_tokens"): AiResponse {
-  return { content: [], stop_reason: reason, model: "claude-opus-5-5", usage };
+  return { content: [], stop_reason: reason, model: "claude-opus-5-5", usage: { ...usage } };
 }
 
 /** A call that only ends when the coach's time budget aborts it. */
