@@ -4,17 +4,20 @@
   "type": "module",
   "workspaces": [
     "shared",
-    "server"
+    "server",
+    "web"
   ],
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "typecheck": "tsc -p shared && tsc -p server",
+    "typecheck": "tsc -p shared && tsc -p server && tsc -p web",
+    "build": "npm run build --workspace web",
     "lint": "eslint .",
     "test": "npm run test --workspaces --if-present",
     "db:generate": "npm run db:generate --workspace server",
-    "dev:server": "npm run dev --workspace server"
+    "dev:server": "npm run dev --workspace server",
+    "dev:web": "npm run dev --workspace web"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
