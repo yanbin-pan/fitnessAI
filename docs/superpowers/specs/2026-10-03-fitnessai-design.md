@@ -4,6 +4,7 @@
 |---|---|
 | **Date** | 2026-10-03 |
 | **Status** | Draft — awaiting owner review |
+| **Revision** | 2 — holistic goals and habits added |
 | **Repository** | <https://github.com/yanbin-pan/fitnessAI> (public) |
 | **Deploys to** | <https://github.com/yanbin-pan/home-cluster> — k3s on four Raspberry Pi 4s |
 | **Reference app** | <https://github.com/yanbin-pan/tea-cabinet> — same deployment shape |
@@ -13,19 +14,26 @@
 ## 1. Summary
 
 fitnessAI is a single-user, mobile-first web app (PWA) that is both a **nutrition and
-training logbook** and an **AI nutritionist**.
+training logbook** and a **holistic AI coach**.
 
 One composer accepts text — including the phone keyboard's dictation, which is how voice
 works — and photos. A Claude-powered coach **logs what you state as fact** (meals,
-workouts, body measurements) and **answers questions in context**: today in full, the
-previous five days, your training and your body measurements. When you ask about food you
-haven't eaten ("should I have a Big Mac? I'm in a deficit"), it answers and offers a
-**"Log it"** card; nothing is written unless you tap it.
+workouts, body measurements, habit check-ins) and **answers questions in context**: today
+in full, the previous five days, your training, your body measurements and **all your
+goals**. When you ask about food you haven't eaten ("should I have a Big Mac? I'm in a
+deficit"), it answers and offers a **"Log it"** card; nothing is written unless you tap it.
+
+Goals are holistic and written in your own words — "lower my LDL cholesterol", "clearer
+facial skin" — alongside the body-composition goal (lose, maintain or gain). For each goal
+the coach proposes measurable **habits** (saturated fat ≤ 20 g a day, oily fish twice a
+week, 2 L of fluids, sunscreen daily) that you approve, and it keeps every goal in mind as
+you log: a short note when something helps or hurts a goal, and trade-offs explained when
+you ask.
 
 Daily calorie, protein, carb, fat and fibre targets are calculated from your profile and
 adjusted for the exercise you do. Apple Watch workouts and body metrics arrive
 automatically through the Health Auto Export iOS app. Every day starts with a fresh page;
-history, trends, weekly training goals and streaks are built from what you log.
+trends, habit progress and streaks are built from what you log.
 
 It runs as one container on the home cluster at `fitness.minipi.net`, behind Cloudflare
 Access, deployed by Flux from this repository.
@@ -36,12 +44,14 @@ Access, deployed by Flux from this repository.
 
 ### Goals (v1)
 
-- Log food, exercise and body measurements in natural language or by photo, with as
-  little friction as possible.
+- Log food, exercise, body measurements and habit check-ins in natural language or by
+  photo, with as little friction as possible.
+- Set holistic goals alongside the body-composition goal, turn each into measurable
+  habits, and get advice that keeps all of them in mind.
 - Consult the coach about food choices with full context, without hypotheticals ever
   entering the log unconfirmed.
 - Calculate daily targets and adjust them for exercise.
-- A fresh day page every day, plus history, trends, weekly training goals and streaks.
+- A fresh day page every day, plus trends, habit progress and streaks.
 - Automatic Apple Watch workout and body-metric sync.
 - Installable on iPhone; logging keeps working offline.
 - Deployed by GitOps like the owner's other apps; no data loss from a node failure.
@@ -51,10 +61,11 @@ Access, deployed by Flux from this repository.
 - Multiple users, sharing, social features.
 - Native iOS or Android apps (a native HealthKit companion is a possible later upgrade).
 - In-app audio recording or transcription — keyboard dictation covers voice.
-- Medical advice or diagnosis.
+- Medical advice, diagnosis or medication guidance.
 - Barcode scanning, meal planning, recipes.
 - A body-weight goal — measurements get trend charts only.
-- Blood test results — planned for a later version (§18).
+- Tracking goal *outcomes* (blood markers, sleep data, skin progress photos). Habits track
+  the inputs; outcomes are discussed with the coach. Planned for later (§18).
 
 ---
 
@@ -67,8 +78,8 @@ Access, deployed by Flux from this repository.
 | D3 | Claude API, model set by environment (default `claude-opus-5-5`) | Best estimates; runs fine from a Pi. Switching to `claude-sonnet-5-5` roughly halves cost. |
 | D4 | Voice through phone keyboard dictation | The Claude API accepts text, images and PDFs but not audio; on-cluster Whisper would be slow on Pi 4s. |
 | D5 | One composer; the coach decides whether to log or advise | The owner wants to log ("I ate this for lunch") and consult ("should I have a Big Mac?") in the same place. |
-| D6 | Statements of fact are logged immediately with Undo; questions and hypotheticals produce a "Log it" draft | Owner preference: save immediately, edit later. Hypotheticals never pollute the log. |
-| D7 | Coach context: today in full, the previous 5 days in brief, a body summary | Advice should reflect the recent picture, with today weighted most. |
+| D6 | Statements of fact are logged immediately with Undo; questions, hypotheticals and goal plans produce drafts | Owner preference: save immediately, edit later. Hypotheticals never pollute the log, and nothing changes your goals without approval. |
+| D7 | Coach context: today in full, the previous 5 days in brief, a body summary, all goals with habit progress | Advice should reflect the recent picture and every goal, with today weighted most. |
 | D8 | One coach thread per day; the thread's prefix is frozen at its first message | Bounded context and cost. History stays append-only, which current Claude models require and which keeps the prompt cache warm. |
 | D9 | Photos kept for 48 hours | They only matter while the conversation that references them is live. |
 | D10 | Targets: Mifflin-St Jeor × activity (excluding workouts) + goal rate, every value overridable; add back 50 % (configurable) of workout calories | Standard and explainable. Calorie-burn estimates run high, so only part is added back. |
@@ -76,6 +87,9 @@ Access, deployed by Flux from this repository.
 | D12 | Apple Health through Health Auto Export → `POST /api/ingest/health`, authenticated with a Cloudflare Access service token | No code on the phone; documented JSON with stable workout IDs; authentication enforced at Cloudflare's edge. |
 | D13 | Weight used for targets: 7-day average of weigh-ins, falling back to profile weight | Smooths out daily water swings. |
 | D14 | Deploy like tea-cabinet: arm64 image on GHCR, CI pins the tag in `k8s/`, Flux watches this repository | The owner's established pattern; no cluster credentials in GitHub. |
+| D15 | Holistic goals in your own words, each with measurable habits (nutrients, fluids, food groups, training, check-ins) that the coach proposes and you approve | Advice can be measured against numbers; the coach can't change goals on its own. |
+| D16 | Every food item also gets saturated fat, sugars, salt, fluid, alcohol units and food-group portions — from milestone 1 | A goal added later still has the full history behind it. |
+| D17 | Goal notes while logging: at most one short note, only when something clearly moves a goal; can be switched off | Goal-aware coaching without nagging. |
 
 ---
 
@@ -111,11 +125,12 @@ Each module has one job and can be tested on its own.
 | `auth` | Verifies the Access JWT: owner email for app routes, service token for ingest | `jose` |
 | `db` | Drizzle schema, migrations at startup, connection settings (§14.4) | better-sqlite3 |
 | `targets` | Pure functions: BMR, baseline, overrides, exercise adjustment | nothing |
-| `days` | Day rows and snapshots, totals, burn, weekly goals, streaks | `db`, `targets` |
+| `days` | Day rows and snapshots, daily totals, burn | `db`, `targets` |
+| `goals` | Goals, habits and check-ins; habit progress and streaks | `db`, `days` |
 | `log` | Create, edit and delete entries and items; merge and split | `db` |
 | `measurements` | Body measurements; weight averaging | `db` |
 | `foods` | Saved foods and alias matching | `db` |
-| `coach` | Thread assembly, context building, the tool loop, tool execution | `ai`, `log`, `days`, `measurements`, `foods` |
+| `coach` | Thread assembly, context building, the tool loop, tool execution | `ai`, `log`, `days`, `goals`, `measurements`, `foods` |
 | `ai` | Thin wrapper over the Anthropic SDK — the only module that talks to Claude; replaced by a fake in tests | `@anthropic-ai/sdk` |
 | `ingest` | Health Auto Export parsing and upserts | `log`, `measurements`, `db` |
 | `photos` | Store, serve and purge photos | filesystem |
@@ -148,7 +163,8 @@ UUIDs so that repeated submissions are idempotent.
 | `birth_date`, `height_cm` | |
 | `weight_kg` | fallback when there are no recent weigh-ins (§7.4) |
 | `activity_level` | `sedentary` 1.2 · `light` 1.375 · `moderate` 1.55 · `very` 1.725 — day-to-day activity **excluding workouts** |
-| `goal`, `goal_rate_kg_week` | `lose` / `maintain` / `gain`; rate 0–1 kg per week |
+| `goal`, `goal_rate_kg_week` | the body-composition goal: `lose` / `maintain` / `gain`; rate 0–1 kg per week |
+| `body_goal_priority` | `high` / `normal`, default `high` — how the coach weighs it against holistic goals |
 | `protein_g_per_kg` | default 1.8 |
 | `fat_pct` | default 30 |
 | `fibre_g` | default 30 (UK guideline) |
@@ -157,6 +173,7 @@ UUIDs so that repeated submissions are idempotent.
 | `timezone` | default `Europe/London` |
 | `units_mass`, `units_length` | `kg` / `st_lb`, `cm` / `in` — display only |
 | `context_days` | default 5 |
+| `goal_notes` | `on` / `off`, default `on` (§6.1) |
 
 **`days`**
 
@@ -181,9 +198,21 @@ UUIDs so that repeated submissions are idempotent.
 | `deleted_at` | tombstone, used only for `apple_health` entries so re-sent data can't resurrect them; other entries are deleted outright |
 | `created_at`, `updated_at` | |
 
-**`food_items`** — `id`, `entry_id`, `position`, `name`, `quantity` (text), `grams`
-(nullable), `kcal`, `protein_g`, `carbs_g`, `fat_g`, `fibre_g`, `assumption` (text),
-`saved_food_id` (nullable).
+**`food_items`**
+
+| Column | Notes |
+|---|---|
+| `id`, `entry_id`, `position` | |
+| `name`, `quantity` (text), `grams` (nullable) | |
+| `kcal`, `protein_g`, `carbs_g`, `fat_g`, `fibre_g` | |
+| `saturated_fat_g`, `sugars_g`, `salt_g` | sugars are total sugars, as on UK labels |
+| `fluid_ml` | volume of non-alcoholic drinks (water, tea, coffee, milk, juice, soft drinks); 0 for foods |
+| `alcohol_units` | UK units (10 ml of pure alcohol) |
+| `assumption` | text |
+| `saved_food_id` | nullable |
+
+**`food_item_groups`** — `food_item_id`, `food_group` (§5.1), `portions` (may be
+fractional, e.g. 0.5).
 
 **`exercise_items`** — `id`, `entry_id`, `position`, `name`, `category`
 (`strength` / `cardio` / `mobility` / `sport`), `duration_min`, `sets`, `reps`,
@@ -202,15 +231,46 @@ unit), `unit` and `label` (custom metrics only), `source`
 `updated_at`.
 
 **`saved_foods`** — `id`, `name`, `aliases` (JSON array, normalised to lowercase), `items`
-(JSON array of food items), `use_count`, `last_used_at`, `created_at`.
+(JSON array of food items, same shape as `food_items` including food groups),
+`use_count`, `last_used_at`, `created_at`.
 
-**`drafts`** — `id`, `message_id`, `date`, `payload` (JSON foods and exercises),
-`committed_entry_id` (nullable), `created_at`.
+**`goals`** — holistic goals, written in the owner's words.
 
-**`goals`** — `id`, `type`
-(`workouts_per_week` / `cardio_minutes_per_week` / `sets_per_muscle_per_week` /
-`daily_burn_kcal`), `target`, `muscle` (nullable — a sets goal with no muscle applies to
-every muscle), `active`, `created_at`.
+| Column | Notes |
+|---|---|
+| `id` | |
+| `title` | e.g. "Lower LDL cholesterol" |
+| `details` | context, e.g. "4.1 mmol/L in August; GP wants it under 3.0" |
+| `outcome` | optional, e.g. "LDL < 3.0 mmol/L" |
+| `target_date` | nullable |
+| `priority` | `high` / `normal` |
+| `status` | `active` / `paused` / `achieved` |
+| `created_at`, `updated_at` | |
+
+The body-composition goal stays in `profile` because it drives the calorie maths (§7); it
+is shown and edited alongside these goals.
+
+**`habits`** — measurable targets, linked to a goal or standalone.
+
+| Column | Notes |
+|---|---|
+| `id` | |
+| `goal_id` | nullable — standalone habits (e.g. training targets) have none |
+| `name` | display label, e.g. "Saturated fat ≤ 20 g" |
+| `metric` | §5.1 |
+| `arg` | a muscle for `muscle_sets` (null = every muscle), a food group for `food_group`; otherwise null |
+| `period` | `day` / `week` |
+| `comparison` | `at_least` / `at_most` |
+| `target` | number |
+| `active` | boolean |
+| `created_at` | |
+
+**`checkins`** — `id`, `habit_id`, `date`, `source` (`coach` / `manual`), `message_id`
+(nullable), `created_at`. Unique on (`habit_id`, `date`): a check-in is a yes for that day,
+and ticking again removes it.
+
+**`drafts`** — `id`, `message_id`, `date`, `kind` (`entry` / `goal_plan` / `habits`),
+`payload` (JSON), `committed_ref` (the created entry or goal; nullable), `created_at`.
 
 **`messages`** — the conversation as the owner sees it.
 
@@ -221,7 +281,7 @@ every muscle), `active`, `created_at`.
 | `role` | `user` / `assistant` / `note` (non-AI notices such as "Logged usual breakfast") |
 | `text` | |
 | `photo_ids` | JSON array |
-| `cards` | JSON references to logged entries, drafts and measurements |
+| `cards` | JSON references to logged entries, drafts, measurements and check-ins |
 | `status`, `error_code` | user messages: `pending` / `done` / `failed` |
 | `sent_at`, `created_at` | |
 
@@ -243,21 +303,55 @@ including tool calls, tool results and thinking blocks), `created_at`.
 
 ### 5.1 Fixed vocabularies
 
-- **Muscles (12):** `chest`, `upper_back`, `lats`, `shoulders`, `biceps`, `triceps`,
-  `forearms`, `core`, `glutes`, `quads`, `hamstrings`, `calves`.
-- **Measurement metrics:** `weight_kg`, `body_fat_pct`, `fat_mass_kg`, `lean_mass_kg`,
-  `skeletal_muscle_kg`, `visceral_fat_level`, `body_water_pct`, `neck_cm`, `chest_cm`,
-  `waist_cm`, `hips_cm`, `arm_left_cm`, `arm_right_cm`, `thigh_left_cm`, `thigh_right_cm`,
-  `custom`.
-
-Both lists are enums in the coach's tool schemas, so Claude can only choose from them and
+These are enums in the coach's tool schemas, so Claude can only choose from them and
 charts never split across synonyms.
+
+**Muscles (12):** `chest`, `upper_back`, `lats`, `shoulders`, `biceps`, `triceps`,
+`forearms`, `core`, `glutes`, `quads`, `hamstrings`, `calves`.
+
+**Food groups**, with the reference portion the coach counts against:
+
+| Group | One portion |
+|---|---|
+| `vegetables` | 80 g |
+| `fruit` | 80 g (30 g dried) |
+| `legumes` | 80 g cooked |
+| `wholegrains` | one serving (e.g. 40 g oats, one slice of wholemeal bread) |
+| `nuts_seeds` | 30 g |
+| `oily_fish` | 140 g |
+| `red_meat` | 70 g cooked |
+| `processed_meat` | 70 g |
+| `ultra_processed` | one item or serving |
+| `sugary_drinks` | 330 ml |
+| `fried_food` | one serving |
+
+**Habit metrics:**
+
+| Metric | Unit | Measured from |
+|---|---|---|
+| `saturated_fat_g`, `sugars_g`, `salt_g` | g | food items |
+| `alcohol_units` | UK units | food items |
+| `fluid_ml` | ml | food items |
+| `food_group` | portions of `arg` | `food_item_groups` |
+| `workouts` | count | exercise entries totalling at least 10 minutes; a merged pair counts once |
+| `cardio_minutes` | minutes | cardio items; the watch duration for merged pairs |
+| `muscle_sets` | sets | per muscle: primary sets + 0.5 × secondary sets, from strength items only |
+| `burn_kcal` | kcal | the watch's active energy for the day when present, otherwise workout kcal |
+| `checkin` | days ticked | `checkins` |
+
+Calories, protein, carbs, fat and fibre are body targets (§7), not habit metrics. The coach
+can suggest changing one of them in Settings.
+
+**Measurement metrics:** `weight_kg`, `body_fat_pct`, `fat_mass_kg`, `lean_mass_kg`,
+`skeletal_muscle_kg`, `visceral_fat_level`, `body_water_pct`, `neck_cm`, `chest_cm`,
+`waist_cm`, `hips_cm`, `arm_left_cm`, `arm_right_cm`, `thigh_left_cm`, `thigh_right_cm`,
+`custom`.
 
 ### 5.2 Derived, never stored
 
-Adjusted targets, daily totals, remaining budget, burn, weekly goal progress, streaks and
-muscle volume are recomputed from the stored facts on every read, so nothing can drift out
-of sync.
+Adjusted targets, daily totals, remaining budget, burn, habit progress, streaks and muscle
+volume are recomputed from the stored facts on every read, so nothing can drift out of
+sync.
 
 ---
 
@@ -270,24 +364,40 @@ goes to the coach, which acts through tools:
 
 | Tool | Effect |
 |---|---|
-| `log_items` | Creates an entry with foods and/or exercises. Optional `date` (within the last 7 days), `logged_at`, and `attach_to_entry_id` to attach details to a watch workout. |
+| `log_items` | Creates an entry with foods and/or exercises. Food items carry every column of `food_items` and their food groups. Optional `date` (within the last 7 days), `logged_at`, and `attach_to_entry_id` to attach details to a watch workout. |
 | `draft_items` | Creates a "Log it" draft card. Writes nothing to the log. |
 | `update_entry` | Replaces an entry's items — corrections such as "it was 2 eggs, not 3". |
 | `log_measurements` | Records body measurements. |
+| `log_checkin` | Ticks an existing check-in habit for a date ("sunscreen on", "did my skincare routine"). If no habit matches, the coach can offer one through `propose_habits`. |
+| `propose_goal` | Creates a draft card with a new goal and 3–5 habits, each with a toggle. Nothing is saved until the owner taps **Add**. |
+| `propose_habits` | Creates a draft card that adds, adjusts or retires habits — for an existing goal, or standalone (e.g. "4 workouts a week"). |
 | `save_food` | Saves foods, or an existing entry, as a saved food with aliases. |
 | `get_day` | Returns one day in full. |
-| `get_history` | Returns daily summaries and muscle volume for a date range. |
+| `get_history` | Returns daily summaries — including habit metrics — and muscle volume for a date range. |
 | `get_measurements` | Returns one metric over a date range. |
 
 Rules in the coach's instructions:
 
-- A statement of fact ("I had…", "just did…", "weighed…") is logged immediately.
-- Questions, hypotheticals and anything ambiguous get an answer and, where useful, a
-  draft — never a log entry.
-- When you describe a workout that matches a synced watch workout, the coach attaches the
-  details to it (§10.3) rather than creating a duplicate.
-- The coach never deletes; deleting is the owner's Undo.
-- It gives general nutrition and training guidance and does not diagnose.
+- **Logging:** a statement of fact ("I had…", "just did…", "weighed…", "sunscreen
+  on") is logged immediately. Questions, hypotheticals and anything ambiguous get an answer
+  and, where useful, a draft — never a log entry.
+- **Watch workouts:** when you describe a workout that matches a synced watch workout, the
+  coach attaches the details to it (§10.3) rather than creating a duplicate.
+- **Goal notes while logging:** when `goal_notes` is on, a logging reply may carry **at
+  most one short note**, and only when something you logged clearly helps or hurts an
+  active goal or habit — for example "Oats and berries: good soluble fibre for your LDL
+  goal ✓" or "That's 14 g of saturated fat, 70 % of today's limit — maybe fish or veg
+  tonight?". Otherwise, no note.
+- **Advising:** weigh every active goal, body goal included, by priority; name the
+  trade-offs; and where possible suggest an option that fits more of them.
+- **Proposing habits:** evidence-based, measurable, 3–5 per goal; prefer habits that can
+  be measured from what's logged anyway, and use check-ins for levers outside food and
+  training (sleep, sunscreen, skincare).
+- **Health boundaries:** general nutrition, training and lifestyle guidance only; no
+  diagnosis or medication advice. When a goal touches a clinical matter (LDL, a persistent
+  skin condition), the coach says once, when the goal is created, that diet and habits
+  support it but clinical decisions belong with the GP or a dermatologist.
+- **The coach never deletes.** Deleting is the owner's Undo.
 
 Every write appears in the feed as a card with **Undo**. Every item shows its `assumption`
 (for example "medium latte, whole milk, ~350 ml") so a wrong guess is visible and one tap
@@ -302,9 +412,13 @@ the day, so it is cached:
 
 - the coach's instructions;
 - the profile and how today's targets are derived;
+- **every active goal** — the body goal and each holistic goal, with its details, outcome,
+  target date and priority — and **every active habit**;
 - saved foods (names, aliases, macros);
-- the previous `context_days` days (default 5), each with totals against targets, one line
-  per food item (name, kcal, protein, carbs, fat) and an exercise summary (kcal, muscles);
+- the previous `context_days` days (default 5), each with totals against targets, habit
+  numbers (saturated fat, sugars, salt, fluid, alcohol, food-group portions, check-ins), one
+  line per food item (name, kcal, protein, carbs, fat) and an exercise summary (kcal,
+  muscles);
 - a body summary: the latest value of each metric, the 7-day average weight and the
   30-day change;
 - muscles not trained for 7 or more days.
@@ -313,16 +427,17 @@ the day, so it is cached:
 
 - local date and time;
 - today's adjusted targets, totals and remaining budget;
-- every entry today in full: time, items, macros, assumptions, watch workouts and their
-  merge state;
-- today's measurements;
-- weekly goal progress and streaks;
-- anything that changed since the prefix was frozen: saved foods, measurements, profile,
-  edits to past days.
+- **habit progress** for today and this week (value against target, met, over) and
+  streaks;
+- every entry today in full: time, items, macros and extra nutrients, food groups,
+  assumptions, watch workouts and their merge state;
+- today's measurements and check-ins;
+- anything that changed since the prefix was frozen: goals, habits, saved foods,
+  measurements, profile, edits to past days.
 
-The instructions say that today is what the coach is advising on and the previous days are
-the pattern. History is append-only: earlier turns are replayed exactly as stored in
-`coach_turns` and never edited.
+The instructions say that today is what the coach is advising on, the previous days are
+the pattern, and the goals are what all of it is for. History is append-only: earlier turns
+are replayed exactly as stored in `coach_turns` and never edited.
 
 ### 6.3 Processing a message (`POST /api/messages`)
 
@@ -340,8 +455,8 @@ the pattern. History is append-only: earlier turns are replayed exactly as store
    where needed); the server computes active kcal (§7.3).
 6. Save the assistant message and its cards, the raw turns and the `ai_usage` row; mark
    the user message `done`.
-7. Respond with the assistant message, changed entries, drafts and measurements, and the
-   updated day summary.
+7. Respond with the assistant message, changed entries, drafts, measurements and
+   check-ins, and the updated day summary.
 
 Any failure — timeout, API error, refusal, an invalid tool call — marks the message
 `failed` with an error code. Its text and photos are kept, and the UI offers **Retry**
@@ -357,8 +472,8 @@ Any failure — timeout, API error, refusal, an invalid tool call — marks the 
   `server-side-fallback-2026-07-01`).
 - Prompt caching covers the frozen prefix and the growing thread.
 - Estimated cost: about $0.02–0.05 per message on Opus 5.5, roughly $10–20 a month at 15
-  messages a day; about half that on Sonnet 5.5. Tracked in `ai_usage` and exported as
-  metrics.
+  messages a day; about half that on Sonnet 5.5. Goals and habits add a few hundred tokens
+  of mostly cached context. Tracked in `ai_usage` and exported as metrics.
 - `AI_DAILY_CALL_CAP` (default 200) limits Claude API calls — each model call in a tool
   loop counts — per local day, guarding against a runaway retry loop.
 
@@ -426,25 +541,40 @@ snapshot as `weight_kg_used`.
 
 ---
 
-## 8. Goals and streaks
+## 8. Goals, habits and streaks
 
-Weeks run Monday to Sunday in the profile timezone.
+### 8.1 Goals
 
-| Goal type | How it's measured |
-|---|---|
-| `workouts_per_week` | exercise entries totalling at least 10 minutes; a merged pair counts once |
-| `cardio_minutes_per_week` | total duration of cardio items, using the watch duration for merged pairs |
-| `sets_per_muscle_per_week` | per muscle: primary sets + 0.5 × secondary sets, from strength items only; the target applies to one muscle or to every muscle |
-| `daily_burn_kcal` | the watch's active energy for the day when present, otherwise workout kcal |
+- Added on the Goals tab or by telling the coach ("I want to lower my LDL"). Either way,
+  the coach replies with a `goal_plan` draft — the goal plus 3–5 proposed habits, each
+  toggleable — and nothing is saved until the owner taps **Add**. A goal added from the
+  Goals tab is sent to the coach as a message.
+- For example, "lower LDL" might come back with: saturated fat ≤ 20 g a day; legumes at
+  least 4 portions a week; oily fish at least 2 portions a week; nuts and seeds at least 5
+  portions a week. Each habit measures one thing (§5.1).
+- Goals can be edited, paused or marked achieved on the Goals tab. Changing habits through
+  the coach goes through a `habits` draft.
+- Standalone habits (no goal) cover training targets such as "4 workouts a week" or
+  "10 sets per muscle a week", and a daily burn target.
 
-Streaks are calculated, not stored:
+### 8.2 Habit evaluation
 
-- **Logging:** at least one food item that day.
-- **Protein:** protein eaten at or above the adjusted protein target.
-- **Calories:** within ±10 % of the adjusted calorie target.
-- **Burn:** daily burn target met (only when that goal exists).
+- Weeks run Monday to Sunday in the profile timezone.
+- A habit's **value** for a period is the sum of its metric over that day or week (§5.1).
+  For `muscle_sets` with no muscle, every muscle must reach the target.
+- **Met:** `at_least` → value ≥ target; `at_most` → value ≤ target.
+- **Current period:** an `at_least` habit shows progress ("3 of 5") and counts as met as
+  soon as it's reached. An `at_most` habit shows how much of the limit is used, turns "over"
+  if exceeded, and is only judged met when the period ends.
 
-Today extends a streak once it's achieved and never breaks one before the day is over.
+### 8.3 Streaks
+
+Calculated, not stored.
+
+- **Built-in:** logging (at least one food item that day), protein (at or above the
+  adjusted protein target), calories (within ±10 % of the adjusted calorie target).
+- **Per habit:** consecutive periods met — days for daily habits, weeks for weekly ones.
+- The current period extends a streak once it's met and never breaks one before it ends.
 
 ---
 
@@ -524,26 +654,37 @@ One mechanism: `entries.merged_into_entry_id`.
 
 ### 11.1 Screens
 
-Tabs: **Today · History · Trends · Body · Settings**.
+Tabs: **Today · Trends · Goals · Body · Settings**.
 
 - **Today:**
+  - **‹ › arrows and a calendar** to move between days. Past days show their thread
+    read-only; their entries can still be edited. This replaces a separate History screen.
   - A summary header that collapses on scroll: calories eaten against the adjusted target
-    (with the add-back shown), protein / carbs / fat / fibre bars, and burn against its
-    target.
+    (with the add-back shown), protein / carbs / fat / fibre bars, and burn.
+  - A row of **habit chips** for the day's and week's habits — e.g. `Sat fat 12/20 g` ·
+    `Fluids 1.2/2 L` · `Fruit & veg 3/5` · `Sunscreen ✓`. Tapping a check-in chip ticks or
+    unticks it.
   - One feed mixing coach messages and cards: food, exercise (with a watch badge),
-    measurements and drafts, each with Undo, edit or Split as appropriate.
+    measurements, check-ins and drafts (entries and goal plans), each with Undo, edit, Add
+    or Split as appropriate.
   - A **"Log only"** switch that hides the conversation and leaves a clean logbook.
   - The composer pinned at the bottom, with **"+ Add manually"** (name, kcal, macros) for
     when the AI is unavailable.
-- **History:** past days with a small summary each. A day opens read-only (its thread);
-  its entries can still be edited.
-- **Trends:** over 7, 30 or 90 days — calories against the adjusted target, macros, burn, a
-  muscle-by-week grid coloured by sets against target, goal progress and streaks.
+- **Trends:** over 7, 30 or 90 days — calories against the adjusted target, macros, burn,
+  the extra nutrients your habits track, a muscle-by-week grid coloured by sets against
+  target, habit adherence (share of days or weeks met) and streaks.
+- **Goals:**
+  - the body goal at the top (lose, maintain or gain; rate; priority);
+  - each holistic goal as a card with its habits, today's and this week's progress, and
+    streaks; edit, pause or mark achieved;
+  - standalone habits (training targets, burn);
+  - **"+ Add goal"**: a title and a sentence of context, sent to the coach, which replies
+    with a draft plan.
 - **Body:** §9.
 - **Settings:** profile; targets with calculated values shown beside any override;
-  add-back %; goals; the saved-foods library; units; the coach's context days; today's AI
-  calls against the cap and the month-to-date cost estimate; Apple Health sync status (last
-  received, counts).
+  add-back %; the saved-foods library; units; the coach (context days, goal notes on or
+  off, today's AI calls against the cap, month-to-date cost estimate); Apple Health sync
+  status (last received, counts).
 
 Stack: React, Vite, TypeScript, React Router, TanStack Query, Tailwind and Recharts. Dark
 mode follows the system setting.
@@ -558,7 +699,7 @@ mode follows the system setting.
   IndexedDB and shown in the feed as queued. They are sent in order when the app opens, when
   the connection returns, and on a retry schedule that backs off. iOS gives web apps no
   background sync, so the outbox empties while the app is open.
-- Edits, Undo, "Log it" and Split need a connection.
+- Edits, Undo, "Log it", Add, Split and check-in ticks need a connection.
 
 ### 11.3 Staying signed in behind Access
 
@@ -577,18 +718,20 @@ mode follows the system setting.
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/health` | Liveness; registered before authentication; returns `{ok:true}` only |
-| `GET` | `/api/days/:date` | Day view (`:date` may be `today`): base and adjusted targets, totals, entries, messages, drafts, measurements, burn |
-| `GET` | `/api/days?from=&to=` | Day summaries for History |
+| `GET` | `/api/days/:date` | Day view (`:date` may be `today`): base and adjusted targets, totals, habit progress, entries, messages, drafts, measurements, check-ins, burn |
+| `GET` | `/api/days?from=&to=` | Day summaries for the calendar |
 | `POST` | `/api/messages` | Send a message (multipart: `id`, `sent_at`, `text`, `photos[]`) |
 | `POST` | `/api/messages/:id/retry` | Retry a failed message |
-| `POST` | `/api/drafts/:id/commit` | "Log it" |
+| `POST` | `/api/drafts/:id/commit` | "Log it" or "Add" — commits an entry, goal plan or habits draft; for a goal plan, the request says which proposed habits are toggled on |
 | `POST` | `/api/entries` | Add an entry manually |
 | `PATCH` | `/api/entries/:id` | Edit an entry's items |
 | `DELETE` | `/api/entries/:id` | Undo or delete (tombstone for `apple_health`) |
 | `POST` | `/api/entries/:id/split` | Undo a merge |
-| `GET`, `PUT` | `/api/profile` | Profile and settings |
-| `GET`, `POST`, `PATCH`, `DELETE` | `/api/goals[/:id]` | Goals |
-| `GET` | `/api/trends?from=&to=` | Aggregates for charts |
+| `GET`, `PUT` | `/api/profile` | Profile, body goal and settings |
+| `GET`, `POST`, `PATCH`, `DELETE` | `/api/goals[/:id]` | Holistic goals |
+| `GET`, `POST`, `PATCH`, `DELETE` | `/api/habits[/:id]` | Habits |
+| `PUT`, `DELETE` | `/api/checkins/:habitId/:date` | Tick or untick a check-in |
+| `GET` | `/api/trends?from=&to=` | Aggregates for charts, habit adherence and streaks |
 | `GET`, `POST`, `PATCH`, `DELETE` | `/api/measurements[/:id]` | Body measurements |
 | `GET`, `POST`, `PATCH`, `DELETE` | `/api/saved-foods[/:id]` | Saved foods |
 | `GET` | `/api/photos/:id` | A stored photo |
@@ -623,9 +766,11 @@ mode follows the system setting.
 - **Exposure:**
   - Metrics are on a separate port with no Ingress route.
   - Photos are reachable only through the authenticated API, with unguessable IDs.
-  - Logs record request metadata only — never message text, photos or health values.
+  - Logs record request metadata only — never message text, photos, goals or health
+    values.
 - **Prompt injection** (for example, text inside a photo): the coach's tools only touch the
-  owner's own log, and every write is visible with Undo. Accepted.
+  owner's own log, every write is visible with Undo, and goal or habit changes always need
+  the owner's tap. Accepted.
 - **Public repository:** no real health data is committed. The Health Auto Export test
   payload is anonymised.
 
@@ -706,7 +851,9 @@ No DNS or tunnel changes in either.
   - the targets engine against reference values — BMR, the BMR floor, overrides,
     add-back, strength-day protein;
   - weight averaging;
-  - goals and streaks;
+  - habit evaluation — every metric, `day` and `week` periods, `at_least` and `at_most`,
+    the current-period rules, `muscle_sets` with and without a muscle;
+  - streaks, built-in and per habit;
   - timezone boundaries — the GMT/BST changeovers, and a message sent at 23:55 that uploads
     after midnight;
   - Health Auto Export parsing — anonymised sample payload, unit conversion, envelope
@@ -719,14 +866,18 @@ No DNS or tunnel changes in either.
   - replaying the same message ID;
   - back-dated outbox messages;
   - re-sent sync payloads;
+  - committing each kind of draft, including a goal plan with some habits toggled off;
+  - check-in tick and untick;
   - the saved-food shortcut and the AI cap.
 - **Coach:** in CI the `ai` module is replaced by a fake that returns recorded tool calls,
   so tests need no network and cost nothing. Tool executors are tested directly.
-- **Coach evaluation set** (run manually before changing prompts or models): about 30
-  realistic messages checking log-or-advise decisions, portion estimates, muscle mapping and
-  measurement extraction. A run costs cents.
-- **Web:** Testing Library for the outbox, signed-out detection and the feed; a few
-  Playwright smoke tests at phone size against the built container with the fake AI.
+- **Coach evaluation set** (run manually before changing prompts or models): about 40
+  realistic messages checking log-or-advise decisions, portion and extra-nutrient
+  estimates, food groups, muscle mapping, measurement extraction, **when a goal note should
+  and shouldn't appear**, and the quality of proposed habits for sample goals. A run costs
+  cents.
+- **Web:** Testing Library for the outbox, signed-out detection, the feed and habit chips;
+  a few Playwright smoke tests at phone size against the built container with the fake AI.
 - **CI image boot test** (§14.1).
 - **On the owner's iPhone (milestone 1):** install to the home screen, the Access re-login
   test (§16), keyboard dictation, the camera.
@@ -739,7 +890,9 @@ No DNS or tunnel changes in either.
 |---|---|
 | The Access login inside an installed iPhone web app may store its cookie in Safari's storage instead of the app's, so signing in again fails | A test on the real phone in milestone 1. Fallback: pair the phone once with a Cloudflare service token that the service worker attaches to every request — a long-lived credential on the phone, revocable in Cloudflare. |
 | Health Auto Export only syncs while the phone is unlocked | Accepted. The widget improves reliability; sync status is shown in Settings. |
-| AI portion estimates are wrong | Assumption notes on every item, direct edits, corrections through the coach, label photos, saved foods. |
+| AI portion estimates are wrong; saturated fat, sugar and salt estimates are rougher still | Assumption notes on every item, direct edits, corrections through the coach, label photos, saved foods. |
+| The coach nags | At most one note per logging reply, only when something clearly moves a goal; notes can be switched off; the evaluation set checks when notes should *not* appear. |
+| Health advice overreaches (LDL, skin) | General guidance only; no diagnosis or medication advice; a one-time pointer to the GP or a dermatologist when such a goal is created. |
 | AI costs drift upward | `ai_usage` table, metrics, month-to-date cost in Settings, daily cap, model switch by environment variable. |
 | SQLite corruption on NFS | One replica, `ReadWriteOnce`, `Recreate`, exclusive locking, rollback journal, nightly consistent snapshots. |
 | Coach replies approach Cloudflare's 100-second timeout | A 90-second budget, after which the message is `failed` with Retry. |
@@ -752,16 +905,19 @@ No DNS or tunnel changes in either.
 Each milestone ends deployed and usable.
 
 1. **Foundation and logging:** scaffolding; schema and migrations; profile, targets and the
-   day lifecycle; the coach with `log_items` and `update_entry` (text only); manual add,
-   edit and Undo; the Today screen; Access verification; CI/CD; `k8s/`; the home-cluster
-   pull request (Flux and the app's Access application); database snapshots; the iPhone
-   test.
-2. **Full coach and photos:** advice and drafts; context assembly (frozen prefix and
-   per-turn block); photos (upload, vision, purge); `log_measurements`; the `get_*` tools;
-   the AI cap and usage tracking; the evaluation set.
-3. **Watch, history, goals and body:** the ingest endpoint and the service-token Access
-   application; workout mapping, merge and split; daily active energy; History and Trends;
-   goals and streaks; the Body page; display units.
+   day lifecycle; the coach with `log_items` and `update_entry` (text only), with food
+   items carrying the extra nutrients and food groups from the start; manual add, edit and
+   Undo; the Today screen with day navigation; Access verification; CI/CD; `k8s/`; the
+   first home-cluster pull request; database snapshots; the iPhone test.
+2. **Full coach, photos, goals and habits:** advice and drafts; context assembly (frozen
+   prefix and per-turn block); photos (upload, vision, purge); `log_measurements`; the
+   `get_*` tools; the AI cap and usage tracking; goals, habits and check-ins
+   (`propose_goal`, `propose_habits`, `log_checkin`); goal notes; the Goals tab; habit
+   chips on Today; the evaluation set. The burn habit uses workout calories until watch
+   data arrives in milestone 3.
+3. **Watch, trends and body:** the ingest endpoint and the second home-cluster pull
+   request; workout mapping, merge and split; daily active energy; Trends, including habit
+   adherence and streaks; the Body page; display units.
 4. **Offline and saved foods:** the outbox and offline viewing; the signed-out flow;
    saved foods (`save_food`, the alias shortcut, the library screen).
 
@@ -770,8 +926,11 @@ Each milestone ends deployed and usable.
 ## 18. Later versions
 
 - **Blood test results:** a `lab_results` table, upload by photo or PDF (the Claude API
-  reads PDFs), and a `get_lab_results` tool. The coach discusses out-of-range values and
-  recommends seeing a doctor rather than diagnosing.
+  reads PDFs), and a `get_lab_results` tool. Results link to goal outcomes — an LDL goal's
+  outcome becomes measurable. The coach discusses out-of-range values and recommends
+  seeing a doctor rather than diagnosing.
+- **Other goal outcomes:** sleep from Apple Health; skin progress photos kept long-term
+  (an exception to the 48-hour rule, opted into per goal).
 - Streaming coach replies.
 - A native iOS companion app (HealthKit background delivery) replacing Health Auto Export.
 - Voice transcription on the cluster.
