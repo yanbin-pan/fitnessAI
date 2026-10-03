@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fitnessai
+  labels:
+    app: fitnessai
+spec:
+  replicas: 1
+  # Recreate, never RollingUpdate: a rolling update would briefly run two pods
+  # holding the same SQLite file.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: fitnessai
+  template:
+    metadata:
+      labels:
+        app: fitnessai
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9464"
+        prometheus.io/path: /metrics
+    spec:
+      # Lets an in-flight coach message (up to 90 s) finish during a deploy.
+      terminationGracePeriodSeconds: 100
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: fitnessai
+          image: ghcr.io/yanbin-pan/fitnessai:latest
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: metrics
+              containerPort: 9464
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "8080"
+            - name: METRICS_PORT
+              value: "9464"
+            - name: DATA_DIR
+              value: /data
+            - name: WEB_DIST
+              value: /app/web/dist
+            # The app verifies the Access assertion itself and refuses to start
+            # without these. ACCESS_AUD is an identifier, not a secret.
+            - name: ACCESS_TEAM_DOMAIN
+              value: jolly-fire-e5fd.cloudflareaccess.com
+            - name: ACCESS_AUD
+              value: "__FITNESS_AUD__"
+            - name: OWNER_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: fitnessai-secrets
+                  key: OWNER_EMAIL
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: fitnessai-secrets
+                  key: ANTHROPIC_API_KEY
+                  optional: true
+            - name: ANTHROPIC_MODEL
+              value: claude-opus-5-5
+            - name: ANTHROPIC_EFFORT
+              value: medium
+            - name: SNAPSHOT_KEEP
+              value: "7"
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          # Three minutes for the database lock a crashed predecessor may still hold (spec §14.4).
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 384Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: fitnessai-data
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fitnessai
+spec:
+  selector:
+    app: fitnessai
+  # Only the app port: metrics are scraped from the pod and never routed.
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

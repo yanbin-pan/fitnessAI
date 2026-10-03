@@ -1,0 +1,14 @@
+# ssd is the NFS-backed class on rpi-01's SSD, backed up nightly to R2.
+# ReadWriteOnce together with strategy: Recreate guarantees one pod per SQLite
+# file: two writers over NFS would corrupt it (spec §14.4).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fitnessai-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ssd
+  resources:
+    requests:
+      storage: 2Gi

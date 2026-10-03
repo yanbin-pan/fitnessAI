@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: fitnessai
+
+resources:
+  - 00-namespace.yaml
+  - 10-pvc.yaml
+  - 30-app.yaml
+  - 50-ingress.yaml
+  - 60-rate-limits.yaml
+  - 80-secrets.sops.yaml
+
+# newTag IS WRITTEN BY CI: .github/workflows/ci.yaml pins the commit it just built,
+# so a deploy is reproducible and a rollback is a plain `git revert`.
+images:
+  - name: ghcr.io/yanbin-pan/fitnessai
+    newTag: latest
