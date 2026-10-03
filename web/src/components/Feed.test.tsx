@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { dayLabel } from "../format.ts";
 import { dayView, entry, foodItem, message } from "../test/fixtures.ts";
 import { Feed, buildFeed } from "./Feed.tsx";
 
@@ -51,5 +52,24 @@ describe("Feed", () => {
     expect(screen.queryByText("Entry removed")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(onUndo).toHaveBeenCalledWith(["back"]);
+  });
+
+  it("labels a linked entry by its distance from today, not from the day on screen", () => {
+    // Viewing 1 Oct while it is 3 Oct, a reply says "yesterday": 30 Sep, which is not "Yesterday" to the reader.
+    const backDated = entry({ id: "back", date: "2026-09-30", message_id: "m1", source: "coach", foods: [foodItem({ id: "f-back", name: "Scrambled eggs" })] });
+    const reply = message({ id: "m2", date: "2026-10-01", role: "assistant", status: null, reply_to: "m1", cards: [{ type: "entry", id: "back" }] });
+    const view = dayView({ date: "2026-10-01", today: "2026-10-03", linked_entries: [backDated], messages: [message({ id: "m1", date: "2026-10-01" }), reply] });
+    render(<Feed view={view} logOnly={false} onRetry={vi.fn()} />);
+    expect(screen.getByText(`Logged to ${dayLabel("2026-09-30", "2026-10-03")}`)).toBeInTheDocument();
+    expect(screen.queryByText("Logged to Yesterday")).not.toBeInTheDocument();
+  });
+
+  it("disables Retry for the message that is being retried, and for no other", () => {
+    const failed = (id: string, createdAt: string) => message({ id, status: "failed", error_code: "timeout", created_at: createdAt });
+    const view = dayView({ messages: [failed("m8", "2026-10-03T07:08:00.000Z"), failed("m9", "2026-10-03T07:09:00.000Z")] });
+    render(<Feed view={view} logOnly={false} onRetry={vi.fn()} retrying="m9" />);
+    const [first, second] = screen.getAllByRole("button", { name: "Retry" });
+    expect(first).toBeEnabled();
+    expect(second).toBeDisabled();
   });
 });

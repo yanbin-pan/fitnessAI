@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { buildDayView, ensureDay, getDay, refreshDay } from "../src/days/days.ts";
+import type { Sql } from "../src/db/types.ts";
 import { insertEntry } from "../src/log/entries.ts";
+import { insertReply, insertUserMessage } from "../src/messages/messages.ts";
 import { getProfile, saveProfile } from "../src/profile/profile.ts";
 import { makeProfile, openTestDb, sampleEntry, sampleExercise, sampleFood } from "./helpers.ts";
 
@@ -106,5 +108,45 @@ describe("buildDayView", () => {
     expect(view.targets.add_back_kcal).toBe(200);
     // Strength-day protein: min(0.2 g/kg × the frozen 80 kg, add-back ÷ 4) = 16 g.
     expect(view.targets.adjusted.protein_g - view.targets.base.protein_g).toBeCloseTo(16, 9);
+  });
+});
+
+describe("linked entries (a reply that recorded something for another day)", () => {
+  /** Today's conversation: a question, and the coach's reply with one card pointing at `entryId`. */
+  function converse(sql: Sql, entryId: string) {
+    insertUserMessage(sql, { id: "m1", date: "2026-10-03", text: "yesterday I did a workout", sentAt: NOW_ISO, nowIso: NOW_ISO });
+    insertReply(sql, { id: "m2", replyTo: "m1", date: "2026-10-03", text: "Logged.", cards: [{ type: "entry", id: entryId }], nowIso: NOW_ISO });
+  }
+
+  it("never count towards the day they travel with, only towards their own", () => {
+    db = openTestDb();
+    const profile = makeProfile();
+    ensureDay(db.db, profile, "2026-10-03", NOW_ISO);
+    db.db.transaction((tx) => {
+      insertEntry(tx, sampleEntry({
+        id: "lifting", date: "2026-10-02", logged_at: "2026-10-02T17:00:00.000Z", source: "coach", message_id: "m1",
+        foods: [], exercises: [sampleExercise({ category: "strength", kcal: 400 })],
+      }), NOW_ISO);
+      converse(tx, "lifting");
+    });
+    const today = buildDayView(db.db, profile, "2026-10-03", "2026-10-03", NOW_ISO);
+    expect(today.linked_entries.map((e) => e.id)).toEqual(["lifting"]); // it travels with today's reply...
+    expect(today.entries).toEqual([]);
+    expect(today.targets.workout_kcal).toBe(0); // ...but is not today's workout
+    expect(today.targets.add_back_kcal).toBe(0);
+    expect(today.targets.adjusted).toEqual(today.targets.base); // no add-back, no strength-day protein
+    // The day it is dated for does count it.
+    expect(buildDayView(db.db, profile, "2026-10-02", "2026-10-03", NOW_ISO).targets.workout_kcal).toBe(400);
+  });
+
+  it("stay empty when every card of a reply is an entry of its own day", () => {
+    db = openTestDb();
+    db.db.transaction((tx) => {
+      insertEntry(tx, sampleEntry({ id: "eggs", source: "coach", message_id: "m1" }), NOW_ISO);
+      converse(tx, "eggs");
+    });
+    const view = buildDayView(db.db, makeProfile(), "2026-10-03", "2026-10-03", NOW_ISO);
+    expect(view.entries.map((e) => e.id)).toEqual(["eggs"]);
+    expect(view.linked_entries).toEqual([]);
   });
 });

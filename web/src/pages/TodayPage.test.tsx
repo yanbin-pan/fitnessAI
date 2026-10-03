@@ -278,4 +278,62 @@ describe("TodayPage", () => {
     expect(await screen.findByText("Sat 26 Sept")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
+
+  it("keeps Retry from being tapped again while the first retry is still running", async () => {
+    const failed = message({ id: "m9", text: "porridge", status: "failed", error_code: "timeout" });
+    const done = message({ id: "m9", text: "porridge", status: "done" });
+    const reply = message({ id: "r9", role: "assistant", status: null, reply_to: "m9", text: "Logged porridge." });
+    let finish: (response: Response) => void = () => {};
+    const fetchMock = mockFetch((_url, init) =>
+      init?.method === "POST" ? new Promise<Response>((resolve) => (finish = resolve)) : jsonResponse(dayView({ messages: [failed] })),
+    );
+    renderDay();
+    await userEvent.click(await screen.findByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Retry" })).toBeDisabled());
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+    finish(jsonResponse({ user: done, reply, day: dayView({ messages: [done, reply] }) }));
+    expect(await screen.findByText("Logged porridge.")).toBeInTheDocument();
+  });
+
+  it("a second Retry that finds the message already restarted shows no alert and looks at the day again", async () => {
+    const failed = message({ id: "m9", text: "porridge", status: "failed", error_code: "timeout" });
+    const done = message({ id: "m9", text: "porridge", status: "done" });
+    const reply = message({ id: "r9", role: "assistant", status: null, reply_to: "m9", text: "Logged porridge." });
+    const calls: string[] = [];
+    let online = true;
+    let restarted = false;
+    mockFetch((url, init) => {
+      const method = init?.method ?? "GET";
+      calls.push(`${method} ${url}`);
+      if (method === "POST") {
+        if (!restarted) {
+          // The first tap: the retry ran on the server, but the connection dropped before the reply came back.
+          restarted = true;
+          online = false;
+          throw new TypeError("Failed to fetch");
+        }
+        online = true; // back in range, and the screen still offers Retry: the server says it is no longer failed
+        return jsonResponse({ error: "not_failed" }, 409);
+      }
+      if (!online) throw new TypeError("Failed to fetch");
+      return jsonResponse(dayView({ messages: restarted ? [done, reply] : [failed] }));
+    });
+    renderDay();
+    await userEvent.click(await screen.findByRole("button", { name: "Retry" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("offline");
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByText("Logged porridge.")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(calls).toEqual([
+      "GET /api/days/today", "POST /api/messages/m9/retry", "GET /api/days/today", "POST /api/messages/m9/retry", "GET /api/days/today",
+    ]);
+  });
+
+  it("still shows the day when an older server leaves linked_entries out", async () => {
+    const view = dayView({ entries: [eggs], messages: [question, { ...answer, cards: [{ type: "entry", id: "a" }] }] });
+    mockFetch(() => jsonResponse({ ...view, linked_entries: undefined }));
+    renderDay();
+    expect(await screen.findByText("Scrambled eggs")).toBeInTheDocument();
+  });
 });

@@ -24,11 +24,13 @@ interface FeedProps {
   onEdit?: (entry: Entry) => void;
   /** Deletes what a reply logged (spec §6.1: Undo is a delete). */
   onUndo?: (entryIds: string[]) => void;
+  /** The message whose retry is on its way: its Retry stays disabled until the request ends. */
+  retrying?: string | null;
 }
 
 function Bubble({
-  message, entries, date, today, onRetry, onEdit, onUndo,
-}: { message: ChatMessage; entries: Map<string, Entry>; date: string; today: string } & Pick<FeedProps, "onRetry" | "onEdit" | "onUndo">) {
+  message, entries, date, today, onRetry, onEdit, onUndo, retrying,
+}: { message: ChatMessage; entries: Map<string, Entry>; date: string; today: string } & Pick<FeedProps, "onRetry" | "onEdit" | "onUndo" | "retrying">) {
   if (message.role === "user") {
     return (
       <div className="ml-10 flex flex-col items-end">
@@ -37,7 +39,7 @@ function Bubble({
         {message.status === "failed" && (
           <span className="mt-1 text-xs text-red-600">
             {failureText(message.error_code)}{" "}
-            <button type="button" className="font-semibold underline" onClick={() => onRetry(message.id)}>
+            <button type="button" disabled={retrying === message.id} className="font-semibold underline disabled:opacity-40" onClick={() => onRetry(message.id)}>
               Retry
             </button>
           </span>
@@ -81,10 +83,11 @@ function Bubble({
   );
 }
 
-export function Feed({ view, logOnly, onRetry, onEdit, onUndo }: FeedProps) {
+export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying }: FeedProps) {
   const items = buildFeed(view, logOnly);
   // A card can point at an entry dated another day (back-dated), which travels in linked_entries.
-  const entries = new Map([...view.entries, ...view.linked_entries].map((e) => [e.id, e]));
+  // (An older server does not send the field yet.)
+  const entries = new Map([...view.entries, ...(view.linked_entries ?? [])].map((e) => [e.id, e]));
   if (items.length === 0) {
     return (
       <p className="px-4 py-10 text-center text-sm text-slate-500">
@@ -101,7 +104,7 @@ export function Feed({ view, logOnly, onRetry, onEdit, onUndo }: FeedProps) {
           </li>
         ) : (
           <li key={`m-${item.message.id}`}>
-            <Bubble message={item.message} entries={entries} date={view.date} today={view.today} onRetry={onRetry} onEdit={onEdit} onUndo={onUndo} />
+            <Bubble message={item.message} entries={entries} date={view.date} today={view.today} onRetry={onRetry} onEdit={onEdit} onUndo={onUndo} retrying={retrying} />
           </li>
         ),
       )}

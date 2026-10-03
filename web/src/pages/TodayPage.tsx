@@ -30,7 +30,12 @@ export function TodayPage() {
   const retry = useMutation({
     mutationFn: (id: string) => api<MessageResult>(`/api/messages/${id}/retry`, { method: "POST" }),
     onSuccess: (result) => storeDay(client, result.day),
-    onError: refresh,
+    onError: (error) => {
+      refresh();
+      // 409 not_failed: the message was restarted in the meantime (an earlier tap, another tab). That retry is
+      // doing the work, so there is nothing to report; the fresh fetch shows where it has got to.
+      if (error instanceof ApiError && error.code === "not_failed") retry.reset();
+    },
   });
   const undo = useMutation({
     mutationFn: async (ids: string[]) => {
@@ -77,6 +82,7 @@ export function TodayPage() {
       <Feed
         view={view}
         logOnly={logOnly}
+        retrying={retry.isPending ? retry.variables : null}
         onRetry={(id) => {
           undo.reset();
           retry.mutate(id);
