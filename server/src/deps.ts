@@ -1,6 +1,7 @@
 import type { AiClient } from "./ai/client.ts";
 import type { Verifier } from "./auth/access.ts";
 import type { Sql } from "./db/types.ts";
+import type { Metrics } from "./metrics.ts";
 
 /** Everything the HTTP layer needs, injected so tests can replace any of it. */
 export interface AppDeps {
@@ -14,4 +15,5 @@ export interface AppDeps {
   /** Total time one coach message may take; under Cloudflare's 100 s proxy timeout. */
   coachBudgetMs: number;
   logger?: boolean;
+  metrics?: Metrics;
 }

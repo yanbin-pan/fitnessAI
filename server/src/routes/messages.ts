@@ -4,21 +4,24 @@ import type { ProcessOutcome } from "../coach/process.ts";
 import { buildDayView, ensureDay } from "../days/days.ts";
 import type { AppDeps } from "../deps.ts";
 import { getMessage, getReply, insertUserMessage, setMessageStatus, toChatMessage } from "../messages/messages.ts";
+import { recordCoach } from "../metrics.ts";
 import { getProfile } from "../profile/profile.ts";
 import { MAX_BACKDATE_DAYS, MessageInput, daysBetween } from "../shared.ts";
 import type { MessageResult } from "../shared.ts";
 import { localDate, todayIn } from "../time.ts";
 import { parseBody } from "./http.ts";
 
-/** Coach failures are recorded on the message; only an unexpected crash lands here. */
+/** Coach failures are recorded on the message; only an unexpected crash lands in the catch. */
 async function runSafely(deps: AppDeps, id: string, log: FastifyBaseLogger): Promise<ProcessOutcome | null> {
+  let outcome: ProcessOutcome | null = null;
   try {
-    return await processMessage({ db: deps.db, ai: deps.ai, now: deps.now, budgetMs: deps.coachBudgetMs }, id);
+    outcome = await processMessage({ db: deps.db, ai: deps.ai, now: deps.now, budgetMs: deps.coachBudgetMs }, id);
   } catch (err) {
     log.error({ err }, "coach processing failed");
     setMessageStatus(deps.db, id, "failed", "internal");
-    return null;
   }
+  recordCoach(deps.metrics, outcome);
+  return outcome;
 }
 
 function messageResult(deps: AppDeps, id: string): MessageResult {

@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "dev": "NODE_ENV=development DEV_AUTH_EMAIL=dev@localhost DATA_DIR=../.data node --watch src/main.ts",
+    "start": "node --disable-warning=ExperimentalWarning src/main.ts"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
@@ -15,8 +17,10 @@
     "@anthropic-ai/sdk": "^0.131.0",
     "@fastify/static": "^10.1.5",
     "better-sqlite3": "^13.0.3",
+    "croner": "^10.0.1",
     "drizzle-orm": "^0.45.3",
     "fastify": "^5.12.5",
-    "jose": "^6.2.12"
+    "jose": "^6.2.12",
+    "prom-client": "^15.1.3"
   }
 }

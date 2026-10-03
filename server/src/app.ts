@@ -4,6 +4,7 @@ import type { FastifyInstance } from "fastify";
 import fs from "node:fs";
 import type { Identity } from "./auth/access.ts";
 import type { AppDeps } from "./deps.ts";
+import { LOGGER } from "./logging.ts";
 import { registerRoutes } from "./routes/index.ts";
 
 declare module "fastify" {
@@ -28,8 +29,16 @@ export function cacheControlFor(filePath: string): string {
 }
 
 export function buildApp(deps: AppDeps): FastifyInstance {
-  const app = Fastify({ logger: deps.logger ?? false, bodyLimit: 1_048_576 });
+  const app = Fastify({ logger: deps.logger ? LOGGER : false, bodyLimit: 1_048_576 });
   app.decorateRequest("identity", null);
+
+  if (deps.metrics) {
+    const requests = deps.metrics.httpRequests;
+    app.addHook("onResponse", async (req, reply) => {
+      // The route pattern, not the URL, keeps label cardinality bounded.
+      requests.inc({ method: req.method, route: req.routeOptions.url ?? "unmatched", status: String(reply.statusCode) });
+    });
+  }
 
   // Fail closed: everything under /api except the health probe needs the owner's
   // Access token (spec §13). A refusal carries no body.
