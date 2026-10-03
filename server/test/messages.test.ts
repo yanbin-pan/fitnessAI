@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { sql } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 import { AiError } from "../src/ai/client.ts";
 import { coachTurns } from "../src/db/schema.ts";
@@ -146,5 +147,55 @@ describe("failInterrupted", () => {
     insertUserMessage(app.db, { id: "m1", date: "2026-10-03", text: "x", sentAt: NOW.toISOString(), nowIso: NOW.toISOString() });
     expect(failInterrupted(app.db)).toBe(1);
     expect(getMessage(app.db, "m1")).toMatchObject({ status: "failed", error_code: "interrupted" });
+  });
+});
+
+describe("a crash while committing", () => {
+  // Each trigger fails one statement of the final commit after the earlier ones have run, so only
+  // the transaction can keep the entry, the turns and the reply from surviving a failed message.
+  const failures: [string, string][] = [
+    ["the reply", "CREATE TRIGGER boom BEFORE INSERT ON messages WHEN NEW.role = 'assistant' BEGIN SELECT RAISE(ABORT, 'boom'); END"],
+    ["the second turn", "CREATE TRIGGER boom BEFORE INSERT ON coach_turns WHEN NEW.seq = 1 BEGIN SELECT RAISE(ABORT, 'boom'); END"],
+    ["the done status", "CREATE TRIGGER boom BEFORE UPDATE ON messages WHEN NEW.status = 'done' BEGIN SELECT RAISE(ABORT, 'boom'); END"],
+  ];
+  for (const [what, trigger] of failures) {
+    it(`on ${what} leaves only a failed message, and Retry logs exactly once`, async () => {
+      const { app } = await appWith([
+        toolCall([{ name: "log_items", input: logItemsInput() }]), textReply("Logged."),
+        toolCall([{ name: "log_items", input: logItemsInput() }]), textReply("Logged."),
+      ]);
+      app.db.run(sql.raw(trigger));
+      const first = await send(app, "2 scrambled eggs");
+      expect(first.statusCode).toBe(201);
+      expect(first.json().user).toMatchObject({ status: "failed", error_code: "internal" });
+      expect(first.json().reply).toBeNull();
+      expect(first.json().day.entries).toEqual([]);
+      expect(app.db.select().from(coachTurns).all()).toEqual([]);
+      app.db.run(sql.raw("DROP TRIGGER boom"));
+      const retried = await retry(app, first.json().user.id);
+      expect(retried.json().user).toMatchObject({ status: "done", error_code: null });
+      expect(retried.json().day.entries).toHaveLength(1);
+      expect(app.db.select().from(coachTurns).all()).toHaveLength(4);
+    });
+  }
+});
+
+describe("the message's day is the local day it was sent (spec 7.5)", () => {
+  it("keeps a message typed at 23:55 on its day when it arrives after midnight", async () => {
+    // 22:55Z is 23:55 BST on 2 Oct; the server clock reads 13:00 BST on 3 Oct.
+    const { app } = await appWith([toolCall([{ name: "log_items", input: logItemsInput() }]), textReply("Logged.")]);
+    const res = await send(app, "2 scrambled eggs", randomUUID(), "2026-10-02T22:55:00.000Z");
+    expect(res.json().user).toMatchObject({ date: "2026-10-02", status: "done" });
+    expect(res.json().day).toMatchObject({ date: "2026-10-02", today: "2026-10-03" });
+    expect(res.json().day.entries[0]).toMatchObject({ date: "2026-10-02", logged_at: "2026-10-02T22:55:00.000Z" });
+  });
+
+  it("uses the profile timezone, not UTC, and allows seven days back but not eight", async () => {
+    const { app } = await appWith([textReply("a"), textReply("b")]);
+    // 23:30Z on 2 Oct is 00:30 BST on 3 Oct.
+    expect((await send(app, "x", randomUUID(), "2026-10-02T23:30:00.000Z")).json().user.date).toBe("2026-10-03");
+    // 00:30 BST on 26 Sep is seven days back; 23:59 BST on 25 Sep is eight.
+    expect((await send(app, "x", randomUUID(), "2026-09-25T23:30:00.000Z")).statusCode).toBe(201);
+    expect((await send(app, "x", randomUUID(), "2026-09-25T22:59:00.000Z")).json()).toEqual({ error: "too_old" });
   });
 });
