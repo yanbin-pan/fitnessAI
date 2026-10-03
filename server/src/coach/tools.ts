@@ -109,6 +109,7 @@ export function amountIssues(input: { foods: FoodToolItem[]; exercises: Exercise
   const issues: string[] = [];
   if (input.foods.length + input.exercises.length === 0) issues.push("at least one food or exercise is required");
   input.foods.forEach((food, i) => {
+    if (!food.name.trim()) issues.push(`foods.${i}.name must not be empty`);
     for (const key of FOOD_AMOUNTS) if (food[key] < 0) issues.push(`foods.${i}.${key} must not be negative`);
     if (food.grams !== null && food.grams <= 0) issues.push(`foods.${i}.grams must be positive or null`);
     food.groups.forEach((g, j) => {
@@ -116,8 +117,9 @@ export function amountIssues(input: { foods: FoodToolItem[]; exercises: Exercise
     });
   });
   input.exercises.forEach((item, i) => {
-    if (item.duration_min <= 0) issues.push(`exercises.${i}.duration_min must be positive`);
-    if (item.met < 1) issues.push(`exercises.${i}.met must be at least 1`);
+    if (!item.name.trim()) issues.push(`exercises.${i}.name must not be empty`);
+    if (item.duration_min <= 0 || item.duration_min > 1440) issues.push(`exercises.${i}.duration_min must be more than 0 and at most 1440`);
+    if (item.met < 1 || item.met > 25) issues.push(`exercises.${i}.met must be between 1 and 25`);
     for (const key of EXERCISE_OPTIONALS) {
       const value = item[key];
       if (value !== null && value <= 0) issues.push(`exercises.${i}.${key} must be positive or null`);

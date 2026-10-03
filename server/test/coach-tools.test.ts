@@ -155,3 +155,80 @@ describe("executeTool and applyStaging", () => {
     expect(getDay(db.db, "2026-10-03")).not.toBeNull();
   });
 });
+
+describe("staging guarantees", () => {
+  it("does not touch a stored entry until applyStaging runs", () => {
+    db.db.transaction((tx) => insertEntry(tx, sampleEntry({ id: "stored-1" }), NOW_ISO));
+    const before = getEntry(db.db, "stored-1");
+    const ctx = context();
+    executeTool("update_entry", { entry_id: "stored-1", foods: [{ ...TOOL_EGGS, name: "changed" }], exercises: [] }, ctx);
+    expect(getEntry(db.db, "stored-1")).toEqual(before); // staged, not written
+  });
+
+  it("limits a stored-entry update to 7 days back and prices it at that day's weight", () => {
+    db.db.transaction((tx) => {
+      insertEntry(tx, sampleEntry({ id: "old", date: "2026-09-25", logged_at: "2026-09-25T07:00:00.000Z" }), NOW_ISO);
+      insertEntry(tx, sampleEntry({ id: "edge", date: "2026-09-26", logged_at: "2026-09-26T07:00:00.000Z" }), NOW_ISO);
+    });
+    const ctx = context({ weightKg: (date) => (date === "2026-09-26" ? 70 : 80) });
+    const update = (id: string) => executeTool("update_entry", { entry_id: id, foods: [], exercises: [TOOL_RUN] }, ctx);
+    expect(update("old").isError).toBe(true);
+    expect(update("edge").isError).toBe(false);
+    expect(ctx.staging.updates.get("edge")?.exercises[0].kcal).toBe(280); // (9 - 1) x 70 kg x 0.5 h
+  });
+
+  it("prices exercise at the weight frozen for the entry's own day, on create and on a same-message edit", () => {
+    const ctx = context({ weightKg: (date) => (date === "2026-10-02" ? 70 : 80) });
+    executeTool("log_items", logItemsInput({ date: "2026-10-02", foods: [], exercises: [TOOL_RUN] }), ctx);
+    expect(ctx.staging.creates[0].exercises[0].kcal).toBe(280);
+    executeTool("update_entry", { entry_id: ctx.staging.creates[0].id, foods: [], exercises: [{ ...TOOL_RUN, duration_min: 60 }] }, ctx);
+    expect(ctx.staging.creates[0].exercises[0].kcal).toBe(560);
+  });
+
+  it("refuses an update that would empty an entry or carries a bad amount", () => {
+    const ctx = context();
+    executeTool("log_items", logItemsInput(), ctx);
+    const id = ctx.staging.creates[0].id;
+    expect(executeTool("update_entry", { entry_id: id, foods: [], exercises: [] }, ctx).isError).toBe(true);
+    expect(executeTool("update_entry", { entry_id: id, foods: [{ ...TOOL_EGGS, kcal: -1 }], exercises: [] }, ctx).isError).toBe(true);
+    expect(ctx.staging.creates[0].foods[0].kcal).toBe(180);
+  });
+
+  it("keeps the sent time when an offline message from an earlier day logs without a date", () => {
+    const ctx = context({ messageDate: "2026-10-02", sentAt: new Date("2026-10-02T22:55:00.000Z") });
+    executeTool("log_items", logItemsInput(), ctx);
+    expect(ctx.staging.creates[0]).toMatchObject({ date: "2026-10-02", logged_at: "2026-10-02T22:55:00.000Z" });
+  });
+
+  it("returns an error, not an exception, for an impossible date", () => {
+    for (const date of ["2026-02-30", "2026-1-3"]) {
+      expect(executeTool("log_items", logItemsInput({ date }), context()).isError).toBe(true);
+    }
+  });
+
+  it("gives no card to an entry deleted while the coach was thinking", () => {
+    db.db.transaction((tx) => insertEntry(tx, sampleEntry({ id: "stored-1" }), NOW_ISO));
+    const ctx = context();
+    executeTool("log_items", logItemsInput(), ctx);
+    executeTool("update_entry", { entry_id: "stored-1", foods: [TOOL_EGGS], exercises: [] }, ctx);
+    db.sqlite.prepare("delete from entries where id = ?").run("stored-1");
+    const ids = db.db.transaction((tx) => applyStaging(tx, ctx.staging, ctx.profile, NOW_ISO));
+    expect(ids).toEqual(["entry-1"]);
+    expect(getEntry(db.db, "stored-1")).toBeNull();
+  });
+
+  it.each([
+    ["negative fluid", { foods: [{ ...TOOL_EGGS, fluid_ml: -1 }] }],
+    ["zero grams", { foods: [{ ...TOOL_EGGS, grams: 0 }] }],
+    ["zero portions", { foods: [{ ...TOOL_EGGS, groups: [{ group: "vegetables", portions: 0 }] }] }],
+    ["a blank food name", { foods: [{ ...TOOL_EGGS, name: "  " }] }],
+    ["zero duration", { foods: [], exercises: [{ ...TOOL_RUN, duration_min: 0 }] }],
+    ["more than a day of exercise", { foods: [], exercises: [{ ...TOOL_RUN, duration_min: 1441 }] }],
+    ["a MET below 1", { foods: [], exercises: [{ ...TOOL_RUN, met: 0.5 }] }],
+    ["a MET above 25", { foods: [], exercises: [{ ...TOOL_RUN, met: 26 }] }],
+    ["zero sets", { foods: [], exercises: [{ ...TOOL_RUN, sets: 0 }] }],
+    ["a blank exercise name", { foods: [], exercises: [{ ...TOOL_RUN, name: "" }] }],
+  ])("refuses %s", (_label, overrides) => {
+    expect(executeTool("log_items", logItemsInput(overrides), context()).isError).toBe(true);
+  });
+});

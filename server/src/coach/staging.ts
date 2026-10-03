@@ -131,10 +131,15 @@ export function executeTool(name: string, input: unknown, ctx: ToolContext): Too
 
 /** Writes everything staged. Run inside the message's final transaction. */
 export function applyStaging(sql: Sql, staging: Staging, profile: Profile, nowIso: string): string[] {
+  const changed: string[] = [];
   for (const entry of staging.creates) {
     ensureDay(sql, profile, entry.date, nowIso);
     insertEntry(sql, entry, nowIso);
+    changed.push(entry.id);
   }
-  for (const [id, items] of staging.updates) replaceEntryItems(sql, id, items.foods, items.exercises, nowIso);
-  return [...staging.creates.map((e) => e.id), ...staging.updates.keys()];
+  // An entry deleted while the coach was thinking stays deleted, and gets no card.
+  for (const [id, items] of staging.updates) {
+    if (replaceEntryItems(sql, id, items.foods, items.exercises, nowIso)) changed.push(id);
+  }
+  return changed;
 }
