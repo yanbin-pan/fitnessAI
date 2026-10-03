@@ -86,15 +86,34 @@ describe("authentication, however the request spells the path", () => {
     const probe = await appWithSecret();
     try {
       const address = await probe.app.listen({ host: "127.0.0.1", port: 0 });
-      const status = await new Promise<number | undefined>((resolve, reject) => {
-        http
-          .get({ agent: false, host: "127.0.0.1", port: new URL(address).port, path: `${address}/api/secret` }, (res) => {
-            res.resume();
-            resolve(res.statusCode);
-          })
-          .on("error", reject);
+      const get = (headers: Record<string, string>) =>
+        new Promise<number | undefined>((resolve, reject) => {
+          http
+            .get({ agent: false, host: "127.0.0.1", port: new URL(address).port, path: `${address}/api/secret`, headers }, (res) => {
+              res.resume();
+              resolve(res.statusCode);
+            })
+            .on("error", reject);
+        });
+      expect([401, 404]).toContain(await get({}));
+      expect(probe.served).toBe(0);
+      expect(await get({ "cf-access-jwt-assertion": await probe.auth.token() })).toBe(200);
+      expect(probe.served).toBe(1);
+    } finally {
+      await probe.close();
+    }
+  });
+
+  it("guards a route at exactly /api", async () => {
+    const probe = await appWithSecret();
+    try {
+      probe.app.get("/api", async () => {
+        probe.served += 1;
+        return {};
       });
-      expect([401, 404]).toContain(status);
+      for (const url of ["/api", "/api?x=1", "/%61pi"]) {
+        expect([401, 404], url).toContain((await probe.app.inject({ method: "GET", url })).statusCode);
+      }
       expect(probe.served).toBe(0);
     } finally {
       await probe.close();
@@ -124,6 +143,17 @@ describe("serving the PWA", () => {
     const res = await ctx.app.inject({ method: "GET", url: "/assets/app-abc123.js" });
     expect(res.statusCode).toBe(200);
     expect(res.headers["cache-control"]).toBe("public, max-age=31536000, immutable");
+  });
+
+  it("still guards the API when a web build is mounted", async () => {
+    ctx = await testApp({ webDist: webDist() });
+    const anonymous = await ctx.app.inject({ method: "GET", url: "/api/anything" });
+    expect(anonymous.statusCode).toBe(401);
+    expect(anonymous.body).toBe("");
+    const owner = await ctx.app.inject({ method: "GET", url: "/api/anything", headers: ctx.headers });
+    expect(owner.statusCode).toBe(404);
+    expect(owner.json()).toEqual({ error: "not_found" });
+    expect((await ctx.app.inject({ method: "GET", url: "/day/today" })).statusCode).toBe(200);
   });
 
   it("answers 404 when there is no web build", async () => {
