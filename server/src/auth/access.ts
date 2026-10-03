@@ -30,9 +30,10 @@ export function createVerifier(access: AccessConfig, keys: JWTVerifyGetKey = key
   const issuer = `https://${access.teamDomain}`;
   return {
     async verify(token) {
-      // Checks the signature, issuer, audience and expiry. Skipping the issuer would
-      // accept a correctly signed token minted for a different Access team.
-      const { payload } = await jwtVerify(token, keys, { issuer, audience: access.audience });
+      // Checks the signature, issuer, audience and expiry, and refuses a token with no
+      // expiry at all. Skipping the issuer would accept a correctly signed token minted
+      // for a different Access team.
+      const { payload } = await jwtVerify(token, keys, { issuer, audience: access.audience, requiredClaims: ["exp"] });
       const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
       if (!email) throw new AuthError("the token carries no email claim");
       // Even if the Access policy is ever loosened, only the owner gets in.

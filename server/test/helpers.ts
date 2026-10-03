@@ -36,7 +36,8 @@ export interface TokenClaims {
   email?: string | null;
   aud?: string;
   iss?: string;
-  exp?: string | number;
+  /** `null` leaves the claim out entirely. */
+  exp?: string | number | null;
 }
 
 /** A local Access stand-in: a key pair, the matching config, and a token minter. */
@@ -51,13 +52,13 @@ export async function makeAccess(ownerEmail = "owner@example.com") {
   };
   async function token(claims: TokenClaims = {}): Promise<string> {
     const email = claims.email === undefined ? ownerEmail : claims.email;
-    return new SignJWT(email === null ? {} : { email })
+    const jwt = new SignJWT(email === null ? {} : { email })
       .setProtectedHeader({ alg: "RS256", kid: "test-key" })
       .setIssuer(claims.iss ?? `https://${access.teamDomain}`)
       .setAudience(claims.aud ?? access.audience)
-      .setIssuedAt()
-      .setExpirationTime(claims.exp ?? "5m")
-      .sign(privateKey);
+      .setIssuedAt();
+    if (claims.exp !== null) jwt.setExpirationTime(claims.exp ?? "5m");
+    return jwt.sign(privateKey);
   }
   return { access, token, verifier: createVerifier(access) };
 }
