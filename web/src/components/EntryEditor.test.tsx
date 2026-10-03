@@ -58,4 +58,125 @@ describe("EntryEditor", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Entries can only be added up to 7 days back.");
   });
+
+  it("keeps the id when a Save is pressed again after a lost reply, so the server stores the entry once", async () => {
+    let calls = 0;
+    const fetchMock = mockFetch(() => {
+      calls += 1;
+      if (calls === 1) throw new TypeError("Failed to fetch"); // the reply was lost; the server may have stored it
+      const created = entry({ id: "new" });
+      return jsonResponse({ entry: created, day: dayView({ entries: [created] }) }, 201);
+    });
+    const onClose = vi.fn();
+    renderWithProviders(<EntryEditor date="2026-10-02" entry={null} onClose={onClose} />);
+    await userEvent.type(screen.getByLabelText("Food"), "Apple");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    const ids = fetchMock.mock.calls.map(([, init]) => JSON.parse(String(init?.body)).id);
+    expect(ids).toHaveLength(2);
+    expect(ids[1]).toBe(ids[0]);
+  });
+
+  it("uses a new id once the entry was changed after the failed Save", async () => {
+    let calls = 0;
+    const fetchMock = mockFetch(() => {
+      calls += 1;
+      if (calls === 1) throw new TypeError("Failed to fetch");
+      const created = entry({ id: "new" });
+      return jsonResponse({ entry: created, day: dayView({ entries: [created] }) }, 201);
+    });
+    const onClose = vi.fn();
+    renderWithProviders(<EntryEditor date="2026-10-02" entry={null} onClose={onClose} />);
+    await userEvent.type(screen.getByLabelText("Food"), "Apple");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("Food"), "s");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    const ids = fetchMock.mock.calls.map(([, init]) => JSON.parse(String(init?.body)).id);
+    expect(ids[1]).not.toBe(ids[0]);
+  });
+
+  it("keeps an exercise's hidden fields, and sends null (not 0) for a cleared optional number", async () => {
+    const sample = entry({
+      foods: [],
+      exercises: [{
+        id: "x1", position: 0, name: "Outdoor run", category: "cardio", duration_min: 30, sets: null, reps: null, weight_kg: null,
+        distance_km: 5, avg_hr: null, met: 9.8, kcal: 287.4, kcal_measured: false, assumption: "easy pace",
+        muscles: [{ muscle: "quads", role: "primary" }],
+      }],
+    });
+    const fetchMock = mockFetch(() => jsonResponse({ entry: sample, day: dayView({ entries: [sample] }) }));
+    const onClose = vi.fn();
+    renderWithProviders(<EntryEditor date="2026-10-03" entry={sample} onClose={onClose} />);
+    await userEvent.clear(screen.getByLabelText("Minutes"));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).exercises).toEqual([{
+      name: "Outdoor run", category: "cardio", duration_min: null, sets: null, reps: null, weight_kg: null, distance_km: 5,
+      avg_hr: null, met: 9.8, kcal: 287.4, assumption: "easy pace", muscles: [{ muscle: "quads", role: "primary" }],
+    }]);
+  });
+
+  it("does not delete when the confirmation is declined", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    const fetchMock = mockFetch(() => jsonResponse({ day: dayView() }));
+    const onClose = vi.fn();
+    renderWithProviders(<EntryEditor date="2026-10-03" entry={entry()} onClose={onClose} />);
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(confirm).toHaveBeenCalledWith("Delete this entry?");
+    await waitFor(() => expect(fetchMock).not.toHaveBeenCalled());
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  describe("says why a save or delete failed", () => {
+    async function failWith(handler: () => Response, action: "save" | "delete") {
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+      mockFetch(handler);
+      renderWithProviders(<EntryEditor date="2026-10-02" entry={action === "delete" ? entry() : null} onClose={vi.fn()} />);
+      if (action === "save") {
+        await userEvent.type(screen.getByLabelText("Food"), "Apple");
+        await userEvent.click(screen.getByRole("button", { name: "Save" }));
+      } else {
+        await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+      }
+      return screen.findByRole("alert");
+    }
+    const offline = () => {
+      throw new TypeError("Failed to fetch");
+    };
+
+    it("offline", async () => expect(await failWith(offline, "save")).toHaveTextContent("You're offline, so that didn't go through."));
+    it("signed out", async () => expect(await failWith(() => new Response(null, { status: 401 }), "save")).toHaveTextContent("You're signed out"));
+    it("a refusal of the numbers keeps the advice about them", async () =>
+      expect(await failWith(() => jsonResponse({ error: "invalid_request" }, 400), "save")).toHaveTextContent("Check every item has a name"));
+    it("a failed delete says delete, not save", async () =>
+      expect(await failWith(() => jsonResponse({ error: "internal" }, 500), "delete")).toHaveTextContent("Couldn't delete this entry"));
+
+    it("shows the reason for the latest failure, not for an earlier one", async () => {
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+      mockFetch((_url, init) => (init?.method === "DELETE" ? jsonResponse({ error: "internal" }, 500) : offline()));
+      renderWithProviders(<EntryEditor date="2026-10-03" entry={entry()} onClose={vi.fn()} />);
+      await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't delete this entry");
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("You're offline"));
+    });
+
+    it("clears an earlier save error while a delete is on its way", async () => {
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+      let finishDelete: (response: Response) => void = () => {};
+      mockFetch((_url, init) => (init?.method === "DELETE" ? new Promise<Response>((resolve) => (finishDelete = resolve)) : offline()));
+      const onClose = vi.fn();
+      renderWithProviders(<EntryEditor date="2026-10-03" entry={entry()} onClose={onClose} />);
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("You're offline");
+      await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+      await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+      finishDelete(jsonResponse({ day: dayView() }));
+      await waitFor(() => expect(onClose).toHaveBeenCalled());
+    });
+  });
 });

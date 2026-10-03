@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { ApiError, api } from "../api.ts";
 import { storeDay } from "../queries.ts";
@@ -117,17 +117,33 @@ function replaceAt<T>(list: T[], index: number, value: T): T[] {
   return list.map((item, i) => (i === index ? value : item));
 }
 
+/** Why a save or delete failed. Only a refusal by the server is about what was typed. */
+function failureText(error: unknown, deleting: boolean): string {
+  if (error instanceof ApiError) {
+    if (error.kind === "offline") return "You're offline, so that didn't go through.";
+    if (error.kind === "signed_out") return "You're signed out, so that didn't go through.";
+    if (error.code === "too_old") return `Entries can only be added up to ${MAX_BACKDATE_DAYS} days back.`;
+    if (error.code === "future_date") return "Entries can't be dated in the future.";
+    if (error.code === "invalid_request") return "Couldn't save. Check every item has a name and the numbers are not negative.";
+  }
+  return deleting ? "Couldn't delete this entry. Try again." : "Couldn't save this entry. Try again.";
+}
+
 export function EntryEditor({ date, entry, onClose }: { date: string; entry: Entry | null; onClose: () => void }) {
   const client = useQueryClient();
   const [foods, setFoods] = useState<FoodItemInput[]>(() => (entry ? entry.foods.map(toFoodInput) : [blankFood()]));
   const [exercises, setExercises] = useState<ExerciseItemInput[]>(() => (entry ? entry.exercises.map(toExerciseInput) : []));
+  // The last manual add that was sent. Saving again with nothing changed (after a lost reply) is the same
+  // request, so it keeps its id and the server stores the entry once (spec §6.3).
+  const attempt = useRef<{ key: string; id: string } | null>(null);
 
   const save = useMutation({
     mutationFn: () => {
       const items = { foods: foods.filter((f) => f.name.trim()), exercises: exercises.filter((x) => x.name.trim()) };
-      return entry
-        ? api<EntryResult>(`/api/entries/${entry.id}`, { method: "PATCH", json: items })
-        : api<EntryResult>("/api/entries", { json: { id: crypto.randomUUID(), date, time: null, ...items } });
+      if (entry) return api<EntryResult>(`/api/entries/${entry.id}`, { method: "PATCH", json: items });
+      const key = JSON.stringify({ date, ...items });
+      if (attempt.current?.key !== key) attempt.current = { key, id: crypto.randomUUID() };
+      return api<EntryResult>("/api/entries", { json: { id: attempt.current.id, date, time: null, ...items } });
     },
     onSuccess: (result) => {
       storeDay(client, result.day);
@@ -149,6 +165,7 @@ export function EntryEditor({ date, entry, onClose }: { date: string; entry: Ent
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    remove.reset();
     save.mutate();
   }
 
@@ -180,9 +197,7 @@ export function EntryEditor({ date, entry, onClose }: { date: string; entry: Ent
         </div>
         {(save.isError || remove.isError) && (
           <p role="alert" className="mt-2 text-sm text-red-600">
-            {save.error instanceof ApiError && save.error.code === "too_old"
-              ? `Entries can only be added up to ${MAX_BACKDATE_DAYS} days back.`
-              : "Couldn't save. Check every item has a name and the numbers are not negative."}
+            {failureText(remove.isError ? remove.error : save.error, remove.isError)}
           </p>
         )}
         <div className="mt-4 flex items-center justify-between gap-2">
@@ -191,7 +206,9 @@ export function EntryEditor({ date, entry, onClose }: { date: string; entry: Ent
               type="button"
               className="text-red-600"
               onClick={() => {
-                if (window.confirm("Delete this entry?")) remove.mutate(entry.id);
+                if (!window.confirm("Delete this entry?")) return;
+                save.reset();
+                remove.mutate(entry.id);
               }}
             >
               Delete

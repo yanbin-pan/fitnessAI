@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { useNavigate } from "react-router";
+import { describe, expect, it, vi } from "vitest";
 import { SignedOutBanner } from "../components/SignedOutBanner.tsx";
 import { SessionProvider } from "../session.tsx";
 import { dayView, entry, foodItem, message } from "../test/fixtures.ts";
@@ -225,5 +226,56 @@ describe("TodayPage", () => {
     expect(await screen.findByText("350 kcal · edited")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(calls).toEqual(["GET /api/days/today", "PATCH /api/entries/back", "GET /api/days/today"]);
+  });
+
+  it("Deleting an entry the coach back-dated removes it, then looks at the viewed day again", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const backDated = named("back", "Scrambled eggs", { message_id: "m1", date: "2026-10-02" });
+    const reply = message({ id: "m2", role: "assistant", status: null, reply_to: "m1", text: "Logged for yesterday.", cards: [{ type: "entry", id: "back" }] });
+    const calls: string[] = [];
+    let removed = false;
+    mockFetch((url, init) => {
+      const method = init?.method ?? "GET";
+      calls.push(`${method} ${url}`);
+      if (method === "DELETE") {
+        removed = true;
+        // The DELETE answers with the day the entry was on (yesterday), not the day on screen.
+        return jsonResponse({ day: dayView({ date: "2026-10-02" }) });
+      }
+      return jsonResponse(dayView({ linked_entries: removed ? [] : [backDated], messages: [question, reply] }));
+    });
+    renderDay();
+    expect(await screen.findByText("Logged to Yesterday")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Scrambled eggs/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(await screen.findByText("Entry removed")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(calls).toEqual(["GET /api/days/today", "DELETE /api/entries/back", "GET /api/days/today"]);
+  });
+
+  it("does not offer + Add manually on a day after today", async () => {
+    mockFetch((url) => jsonResponse(dayView({ date: url.split("/").pop() ?? "" })));
+    renderDay("/day/2026-10-04");
+    expect(await screen.findByText("Nothing logged this day.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "+ Add manually" })).not.toBeInTheDocument();
+  });
+
+  it("closes an open editor when Back leaves its day, instead of carrying it over to the other day", async () => {
+    function HistoryBack() {
+      const navigate = useNavigate();
+      return (
+        <button type="button" onClick={() => navigate(-1)}>
+          history back
+        </button>
+      );
+    }
+    mockFetch((url) => jsonResponse(dayView({ date: url.split("/").pop() ?? "" })));
+    renderWithProviders(<><TodayPage /><HistoryBack /></>, { route: "/day/2026-09-26", path: "/day/:date" });
+    await userEvent.click(await screen.findByRole("button", { name: "Next day" }));
+    await userEvent.click(await screen.findByRole("button", { name: "+ Add manually" }));
+    expect(screen.getByRole("dialog", { name: "Add manually" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "history back" }));
+    expect(await screen.findByText("Sat 26 Sept")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

@@ -22,7 +22,8 @@ export function TodayPage() {
   const day = useDay(date);
   const client = useQueryClient();
   const [logOnly, setLogOnly] = useState(false);
-  const [editing, setEditing] = useState<Entry | "new" | null>(null);
+  // An open editor belongs to the day it was opened on; Back or Forward to another day must not carry it along.
+  const [editing, setEditing] = useState<{ date: string; entry: Entry | null } | null>(null);
   // After a failure the screen may be out of step with the server (a half-finished Undo, a message
   // that was already retried), so fetch the days again rather than trusting what is on screen.
   const refresh = () => void client.invalidateQueries({ queryKey: ["day"] });
@@ -80,22 +81,22 @@ export function TodayPage() {
           undo.reset();
           retry.mutate(id);
         }}
-        onEdit={setEditing}
+        onEdit={(entry) => setEditing({ date: view.date, entry })}
         onUndo={(ids) => {
           retry.reset();
           undo.mutate(ids);
         }}
       />
       {/* The server refuses a new entry dated more than MAX_BACKDATE_DAYS back (too_old), so don't offer one there. */}
-      {daysBetween(view.date, view.today) <= MAX_BACKDATE_DAYS && (
+      {view.date <= view.today && daysBetween(view.date, view.today) <= MAX_BACKDATE_DAYS && (
         <div className="px-4">
-          <button type="button" onClick={() => setEditing("new")} className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+          <button type="button" onClick={() => setEditing({ date: view.date, entry: null })} className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
             + Add manually
           </button>
         </div>
       )}
       {view.date === view.today && <Composer />}
-      {editing && <EntryEditor date={view.date} entry={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
+      {editing?.date === view.date && <EntryEditor date={view.date} entry={editing.entry} onClose={() => setEditing(null)} />}
     </main>
   );
 }
