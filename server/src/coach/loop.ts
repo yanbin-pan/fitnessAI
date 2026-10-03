@@ -49,15 +49,19 @@ export async function runCoachLoop(input: LoopInput): Promise<LoopResult> {
 
     // A refusal can cut a tool call off mid-input: never run that turn's tools.
     if (response.stop_reason === "refusal") return { ok: false, failure: "refused", calls, usage };
-    if (response.stop_reason === "max_tokens") return { ok: false, failure: "max_tokens", calls, usage };
-
-    // Echo the content back exactly as it came: thinking blocks must be replayed unchanged.
-    turns.push({ role: "assistant", content: response.content });
-    for (const block of response.content) {
-      if (block.type === "text" && block.text.trim()) texts.push(block.text.trim());
+    if (response.stop_reason === "max_tokens" || response.stop_reason === "model_context_window_exceeded") {
+      return { ok: false, failure: "max_tokens", calls, usage };
     }
 
     const toolUses = response.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
+    const replyTexts = response.content.flatMap((b) => (b.type === "text" && b.text.trim() ? [b.text.trim()] : []));
+    // A turn with neither text nor a tool call gives the owner nothing to read, and an empty
+    // assistant turn replayed later would make every remaining message of the day fail.
+    if (toolUses.length === 0 && replyTexts.length === 0) return { ok: false, failure: "ai_error", calls, usage };
+
+    // Echo the content back exactly as it came: thinking blocks must be replayed unchanged.
+    turns.push({ role: "assistant", content: response.content });
+    texts.push(...replyTexts);
     if (toolUses.length === 0) return { ok: true, turns, replyText: texts.join("\n\n"), calls, usage };
 
     const results: Anthropic.Beta.BetaToolResultBlockParam[] = toolUses.map((use) => {

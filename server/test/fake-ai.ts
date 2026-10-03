@@ -43,7 +43,7 @@ export function toolCall(calls: { name: string; input: unknown }[], text = ""): 
   return { content, stop_reason: "tool_use", model: "claude-opus-5-5", usage: { ...usage } };
 }
 
-export function stopWith(reason: "refusal" | "max_tokens"): AiResponse {
+export function stopWith(reason: "refusal" | "max_tokens" | "end_turn" | "model_context_window_exceeded"): AiResponse {
   return { content: [], stop_reason: reason, model: "claude-opus-5-5", usage: { ...usage } };
 }
 
