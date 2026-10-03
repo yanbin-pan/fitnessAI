@@ -185,4 +185,45 @@ describe("TodayPage", () => {
     expect(screen.queryByRole("button", { name: "Undo" })).not.toBeInTheDocument();
     expect(calls).toEqual(["GET /api/days/today", "DELETE /api/entries/back", "GET /api/days/today"]);
   });
+
+  it("offers + Add manually only as far back as the server takes a new entry", async () => {
+    mockFetch((url) => jsonResponse(dayView({ date: url.split("/").pop() ?? "" })));
+    // Today is 2026-10-03: the 26th of September is seven days back, the 25th is eight.
+    const week = renderDay("/day/2026-09-26");
+    await userEvent.click(await screen.findByRole("button", { name: "+ Add manually" }));
+    expect(screen.getByRole("dialog", { name: "Add manually" })).toBeInTheDocument();
+    week.unmount();
+
+    renderDay("/day/2026-09-25");
+    expect(await screen.findByText("Nothing logged this day.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "+ Add manually" })).not.toBeInTheDocument();
+  });
+
+  it("Editing an entry the coach back-dated saves it, then looks at the viewed day again", async () => {
+    const backDated = named("back", "Scrambled eggs", { message_id: "m1", date: "2026-10-02" });
+    const reply = message({ id: "m2", role: "assistant", status: null, reply_to: "m1", text: "Logged for yesterday.", cards: [{ type: "entry", id: "back" }] });
+    const calls: string[] = [];
+    let saved = backDated;
+    mockFetch((url, init) => {
+      const method = init?.method ?? "GET";
+      calls.push(`${method} ${url}`);
+      if (method === "PATCH") {
+        const { foods } = JSON.parse(String(init?.body)) as { foods: { name: string; kcal: number }[] };
+        saved = { ...backDated, edited: true, foods: foods.map((f, i) => foodItem({ id: `f-back-${i}`, name: f.name, kcal: f.kcal })) };
+        // The PATCH answers with the day the entry is on (yesterday), not the day on screen.
+        return jsonResponse({ entry: saved, day: dayView({ date: "2026-10-02", entries: [saved] }) });
+      }
+      return jsonResponse(dayView({ linked_entries: [saved], messages: [question, reply] }));
+    });
+    renderDay();
+    expect(await screen.findByText("Logged to Yesterday")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Scrambled eggs/ }));
+    const kcal = screen.getByLabelText("kcal");
+    await userEvent.clear(kcal);
+    await userEvent.type(kcal, "350");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("350 kcal · edited")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(calls).toEqual(["GET /api/days/today", "PATCH /api/entries/back", "GET /api/days/today"]);
+  });
 });
