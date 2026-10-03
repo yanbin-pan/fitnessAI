@@ -63,6 +63,11 @@ describe("runCoachLoop", () => {
     expect(await runCoachLoop(input(fakeAi([new AiError("api_error", "boom")])))).toMatchObject({ ok: false, failure: "ai_error" });
   });
 
+  it("keeps Claude's error text for the log", async () => {
+    const result = await runCoachLoop(input(fakeAi([new AiError("api_error", "400 invalid_request_error: fallbacks")])));
+    expect(result).toMatchObject({ ok: false, failure: "ai_error", detail: "400 invalid_request_error: fallbacks" });
+  });
+
   it("gives up after the call limit", async () => {
     const loop = () => toolCall([{ name: "log_items", input: {} }]);
     const result = await runCoachLoop(input(fakeAi([loop(), loop(), loop()]), { maxCalls: 3 }));

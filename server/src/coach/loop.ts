@@ -19,7 +19,7 @@ export interface LoopInput {
 
 export type LoopResult =
   | { ok: true; turns: AiMessage[]; replyText: string; calls: number; usage: AiUsage }
-  | { ok: false; failure: CoachFailure; calls: number; usage: AiUsage };
+  | { ok: false; failure: CoachFailure; calls: number; usage: AiUsage; detail?: string };
 
 function failureFor(err: AiError): CoachFailure {
   if (err.code === "timeout") return "timeout";
@@ -42,7 +42,7 @@ export async function runCoachLoop(input: LoopInput): Promise<LoopResult> {
         input.signal,
       );
     } catch (err) {
-      if (err instanceof AiError) return { ok: false, failure: failureFor(err), calls, usage };
+      if (err instanceof AiError) return { ok: false, failure: failureFor(err), calls, usage, detail: err.message };
       throw err;
     }
     for (const key of Object.keys(usage) as (keyof AiUsage)[]) usage[key] += response.usage[key];
@@ -57,7 +57,9 @@ export async function runCoachLoop(input: LoopInput): Promise<LoopResult> {
     const replyTexts = response.content.flatMap((b) => (b.type === "text" && b.text.trim() ? [b.text.trim()] : []));
     // A turn with neither text nor a tool call gives the owner nothing to read, and an empty
     // assistant turn replayed later would make every remaining message of the day fail.
-    if (toolUses.length === 0 && replyTexts.length === 0) return { ok: false, failure: "ai_error", calls, usage };
+    if (toolUses.length === 0 && replyTexts.length === 0) {
+      return { ok: false, failure: "ai_error", calls, usage, detail: "the reply had no text and no tool call" };
+    }
 
     // Echo the content back exactly as it came: thinking blocks must be replayed unchanged.
     turns.push({ role: "assistant", content: response.content });

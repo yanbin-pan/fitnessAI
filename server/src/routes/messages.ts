@@ -20,6 +20,7 @@ async function runSafely(deps: AppDeps, id: string, log: FastifyBaseLogger): Pro
     log.error({ err }, "coach processing failed");
     setMessageStatus(deps.db, id, "failed", "internal");
   }
+  if (outcome && outcome.outcome !== "done") log.warn({ outcome: outcome.outcome, detail: outcome.detail }, "coach message failed");
   recordCoach(deps.metrics, outcome);
   return outcome;
 }

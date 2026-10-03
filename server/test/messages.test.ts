@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 import { AiError } from "../src/ai/client.ts";
+import { processMessage } from "../src/coach/process.ts";
 import { coachTurns } from "../src/db/schema.ts";
 import { failInterrupted, getMessage, insertUserMessage } from "../src/messages/messages.ts";
 import { saveProfile } from "../src/profile/profile.ts";
@@ -197,5 +198,14 @@ describe("the message's day is the local day it was sent (spec 7.5)", () => {
     // 00:30 BST on 26 Sep is seven days back; 23:59 BST on 25 Sep is eight.
     expect((await send(app, "x", randomUUID(), "2026-09-25T23:30:00.000Z")).statusCode).toBe(201);
     expect((await send(app, "x", randomUUID(), "2026-09-25T22:59:00.000Z")).json()).toEqual({ error: "too_old" });
+  });
+});
+
+describe("processMessage", () => {
+  it("passes Claude's error text on for the log", async () => {
+    const { app, ai } = await appWith([new AiError("api_error", "400 invalid_request_error: fallbacks")]);
+    insertUserMessage(app.db, { id: "m1", date: "2026-10-03", text: "2 eggs", sentAt: NOW.toISOString(), nowIso: NOW.toISOString() });
+    const outcome = await processMessage({ db: app.db, ai, now: () => NOW, budgetMs: 1000 }, "m1");
+    expect(outcome).toMatchObject({ outcome: "ai_error", detail: "400 invalid_request_error: fallbacks" });
   });
 });

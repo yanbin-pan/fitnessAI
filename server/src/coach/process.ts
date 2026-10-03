@@ -29,6 +29,8 @@ export interface ProcessOutcome {
   outcome: ProcessOutcomeCode;
   calls: number;
   usage: AiUsage | null;
+  /** Why it failed, for the log: Claude's error text, never the message itself. */
+  detail?: string;
 }
 
 async function withBudget<T>(ms: number, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
@@ -41,9 +43,9 @@ async function withBudget<T>(ms: number, run: (signal: AbortSignal) => Promise<T
   }
 }
 
-function fail(sql: Sql, id: string, outcome: ProcessOutcomeCode, calls = 0, usage: AiUsage | null = null): ProcessOutcome {
+function fail(sql: Sql, id: string, outcome: ProcessOutcomeCode, calls = 0, usage: AiUsage | null = null, detail?: string): ProcessOutcome {
   setMessageStatus(sql, id, "failed", outcome);
-  return { outcome, calls, usage };
+  return { outcome, calls, usage, detail };
 }
 
 /**
@@ -98,7 +100,7 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
       maxCalls: MAX_MODEL_CALLS,
     }),
   );
-  if (!result.ok) return fail(deps.db, messageId, result.failure, result.calls, result.usage);
+  if (!result.ok) return fail(deps.db, messageId, result.failure, result.calls, result.usage, result.detail);
 
   const doneIso = deps.now().toISOString();
   deps.db.transaction((tx) => {

@@ -36,7 +36,11 @@ export function recordCoach(metrics: Metrics | undefined, result: ProcessOutcome
   metrics.coachMessages.inc({ outcome: result?.outcome ?? "internal" });
   if (!result) return;
   metrics.coachModelCalls.inc(result.calls);
-  if (result.usage) for (const [kind, count] of Object.entries(result.usage)) metrics.coachTokens.inc({ kind }, count);
+  if (result.usage) {
+    for (const kind of ["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"] as const) {
+      metrics.coachTokens.inc({ kind }, result.usage[kind]);
+    }
+  }
 }
 
 /** Prometheus scrapes this port; no Ingress routes to it, so it is never public (spec §13). */
@@ -58,5 +62,11 @@ export function serveMetrics(metrics: Metrics, port: number): Promise<http.Serve
       },
     );
   });
-  return new Promise((resolve) => server.listen(port, "0.0.0.0", () => resolve(server)));
+  return new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, "0.0.0.0", () => {
+      server.off("error", reject);
+      resolve(server);
+    });
+  });
 }

@@ -1,7 +1,8 @@
 /**
- * The error serializer for every log line. Drizzle puts a failed query's parameters
- * (message text, food names, body values) in its error's message and properties;
- * none of that may reach the logs (spec §13).
+ * The error serializer for every log line. Drizzle's async SQLite drivers wrap a failed
+ * query in a DrizzleQueryError whose message and properties carry the query's parameters
+ * (message text, food names, body values). The better-sqlite3 driver used here throws a
+ * bare SqliteError without values, so this is defence in depth (spec §13).
  */
 function scrubbed(err: Error): string {
   return "params" in err ? "database query failed" : err.message;
