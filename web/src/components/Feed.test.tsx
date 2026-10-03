@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { dayView, entry, message } from "../test/fixtures.ts";
+import { dayView, entry, foodItem, message } from "../test/fixtures.ts";
 import { Feed, buildFeed } from "./Feed.tsx";
 
 describe("buildFeed", () => {
@@ -38,5 +38,18 @@ describe("Feed", () => {
     render(<Feed view={dayView({ entries: [logged, corrected], messages: [message({ id: "m1" }), reply] })} logOnly={false} onRetry={vi.fn()} onUndo={onUndo} />);
     await userEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(onUndo).toHaveBeenCalledWith(["new"]);
+  });
+
+  it("shows what a reply logged for an earlier day, says which day, and offers Undo for it", async () => {
+    const onUndo = vi.fn();
+    // "Yesterday I had two eggs": the entry is dated 2 Oct, so it is not in 3 Oct's own entries.
+    const backDated = entry({ id: "back", date: "2026-10-02", message_id: "m1", source: "coach", foods: [foodItem({ id: "f-back", name: "Scrambled eggs" })] });
+    const reply = message({ id: "m2", role: "assistant", status: null, reply_to: "m1", cards: [{ type: "entry", id: "back" }] });
+    render(<Feed view={dayView({ linked_entries: [backDated], messages: [message({ id: "m1" }), reply] })} logOnly={false} onRetry={vi.fn()} onUndo={onUndo} />);
+    expect(screen.getByText("Scrambled eggs")).toBeInTheDocument();
+    expect(screen.getByText("Logged to Yesterday")).toBeInTheDocument();
+    expect(screen.queryByText("Entry removed")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(onUndo).toHaveBeenCalledWith(["back"]);
   });
 });

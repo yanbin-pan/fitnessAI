@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { days } from "../db/schema.ts";
 import type { Sql } from "../db/types.ts";
-import { listEntries } from "../log/entries.ts";
+import { getEntry, listEntries } from "../log/entries.ts";
 import { listMessages } from "../messages/messages.ts";
 import type { DayView, Entry, MacroTargets, Profile, Totals } from "../shared.ts";
 import { adjustTargets, baselineTargets } from "../targets/targets.ts";
@@ -96,6 +96,12 @@ export function summarizeWorkouts(list: Entry[]): WorkoutSummary {
 export function buildDayView(sql: Sql, profile: Profile, date: string, today: string, nowIso: string): DayView {
   const snapshot = getDay(sql, date) ?? snapshotValues(profile, date, nowIso);
   const list = listEntries(sql, date);
+  const messages = listMessages(sql, date);
+  // A reply can record something for another day ("yesterday I had..."). Its card still belongs to
+  // this day's conversation, so the entry travels with it, but it never counts towards this day.
+  const onThisDay = new Set(list.map((e) => e.id));
+  const linkedIds = [...new Set(messages.flatMap((m) => m.cards.filter((c) => c.type === "entry" && !onThisDay.has(c.id)).map((c) => c.id)))];
+  const linked = linkedIds.map((id) => getEntry(sql, id)).filter((e): e is Entry => e !== null);
   const t = adjustTargets(baseOf(snapshot), snapshot.add_back_pct, snapshot.weight_kg_used, summarizeWorkouts(list));
   return {
     date,
@@ -103,6 +109,7 @@ export function buildDayView(sql: Sql, profile: Profile, date: string, today: st
     targets: { base: t.base, adjusted: t.adjusted, add_back_kcal: t.addBackKcal, workout_kcal: t.workoutKcal },
     totals: sumTotals(list),
     entries: list,
-    messages: listMessages(sql, date),
+    linked_entries: linked,
+    messages,
   };
 }

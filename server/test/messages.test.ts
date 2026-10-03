@@ -209,3 +209,16 @@ describe("processMessage", () => {
     expect(outcome).toMatchObject({ outcome: "ai_error", detail: "400 invalid_request_error: fallbacks" });
   });
 });
+
+describe("a back-dated coach entry", () => {
+  it("appears with today's reply as a linked entry, but is not counted today", async () => {
+    const { app } = await appWith([toolCall([{ name: "log_items", input: logItemsInput({ date: "2026-10-02" }) }]), textReply("Logged for yesterday.")]);
+    const res = await send(app, "yesterday I had 2 scrambled eggs");
+    const day = res.json().day;
+    expect(day).toMatchObject({ date: "2026-10-03", entries: [] });
+    expect(day.totals.kcal).toBe(0);
+    expect(day.linked_entries).toHaveLength(1);
+    expect(day.linked_entries[0]).toMatchObject({ date: "2026-10-02", source: "coach", message_id: res.json().user.id });
+    expect(res.json().reply.cards).toEqual([{ type: "entry", id: day.linked_entries[0].id }]);
+  });
+});

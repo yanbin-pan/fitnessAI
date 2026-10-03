@@ -1,4 +1,4 @@
-import { failureText } from "../format.ts";
+import { dayLabel, failureText } from "../format.ts";
 import type { ChatMessage, DayView, Entry } from "../shared.ts";
 import { EntryCard } from "./EntryCard.tsx";
 
@@ -26,7 +26,9 @@ interface FeedProps {
   onUndo?: (entryIds: string[]) => void;
 }
 
-function Bubble({ message, entries, onRetry, onEdit, onUndo }: { message: ChatMessage; entries: Map<string, Entry> } & Pick<FeedProps, "onRetry" | "onEdit" | "onUndo">) {
+function Bubble({
+  message, entries, date, today, onRetry, onEdit, onUndo,
+}: { message: ChatMessage; entries: Map<string, Entry>; date: string; today: string } & Pick<FeedProps, "onRetry" | "onEdit" | "onUndo">) {
   if (message.role === "user") {
     return (
       <div className="ml-10 flex flex-col items-end">
@@ -54,12 +56,20 @@ function Bubble({ message, entries, onRetry, onEdit, onUndo }: { message: ChatMe
       {message.text && <p className="whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-slate-100 px-3 py-2 dark:bg-slate-800">{message.text}</p>}
       {message.cards.map((card) => {
         const entry = entries.get(card.id);
-        return entry ? (
-          <EntryCard key={card.id} entry={entry} onEdit={onEdit} />
-        ) : (
-          <p key={card.id} className="text-xs text-slate-500">
-            Entry removed
-          </p>
+        if (!entry) {
+          return (
+            <p key={card.id} className="text-xs text-slate-500">
+              Entry removed
+            </p>
+          );
+        }
+        if (entry.date === date) return <EntryCard key={card.id} entry={entry} onEdit={onEdit} />;
+        // Back-dated by the coach ("yesterday I had..."): it belongs to another day, so say which.
+        return (
+          <div key={card.id} className="flex flex-col gap-1">
+            <span className="text-xs text-slate-500">Logged to {dayLabel(entry.date, today)}</span>
+            <EntryCard entry={entry} onEdit={onEdit} />
+          </div>
         );
       })}
       {onUndo && undoable.length > 0 && (
@@ -73,7 +83,8 @@ function Bubble({ message, entries, onRetry, onEdit, onUndo }: { message: ChatMe
 
 export function Feed({ view, logOnly, onRetry, onEdit, onUndo }: FeedProps) {
   const items = buildFeed(view, logOnly);
-  const entries = new Map(view.entries.map((e) => [e.id, e]));
+  // A card can point at an entry dated another day (back-dated), which travels in linked_entries.
+  const entries = new Map([...view.entries, ...view.linked_entries].map((e) => [e.id, e]));
   if (items.length === 0) {
     return (
       <p className="px-4 py-10 text-center text-sm text-slate-500">
@@ -90,7 +101,7 @@ export function Feed({ view, logOnly, onRetry, onEdit, onUndo }: FeedProps) {
           </li>
         ) : (
           <li key={`m-${item.message.id}`}>
-            <Bubble message={item.message} entries={entries} onRetry={onRetry} onEdit={onEdit} onUndo={onUndo} />
+            <Bubble message={item.message} entries={entries} date={view.date} today={view.today} onRetry={onRetry} onEdit={onEdit} onUndo={onUndo} />
           </li>
         ),
       )}

@@ -96,6 +96,8 @@ export interface DayView {
   targets: DayTargets;
   totals: Totals;
   entries: Entry[];
+  /** Entries that this day's coach replies created or changed but that are dated another day (back-dated); shown with their reply, never counted in this day's totals. */
+  linked_entries: Entry[];
   messages: ChatMessage[];
 }
 

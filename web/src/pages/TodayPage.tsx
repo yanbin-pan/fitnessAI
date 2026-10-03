@@ -41,7 +41,12 @@ export function TodayPage() {
       }
       return last;
     },
-    onSuccess: (last) => (last ? storeDay(client, last.day) : refresh()),
+    onSuccess: (last) => {
+      if (last) storeDay(client, last.day);
+      // The last DELETE answers with the day of the entry it removed. For an entry the coach
+      // back-dated that is another day than the one on screen, so fetch the viewed day again.
+      refresh();
+    },
     onError: refresh,
   });
 
