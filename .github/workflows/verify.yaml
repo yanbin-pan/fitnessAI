@@ -1,0 +1,127 @@
+# Fast feedback on every branch and pull request. Also exposed as workflow_call
+# so the deploy pipeline reuses these exact jobs: nothing reaches GHCR that has
+# not passed here.
+name: Verify
+
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  checks:
+    name: Type-check, lint, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  manifests:
+    name: Kubernetes manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # ubuntu-latest usually ships kustomize; install it only when missing.
+      - name: Ensure kustomize is available
+        run: |
+          set -euo pipefail
+          if ! command -v kustomize >/dev/null 2>&1; then
+            curl -sSfL --retry 3 \
+              https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh \
+              | bash -s -- 5.4.3 /usr/local/bin
+          fi
+          kustomize version
+      # A manifest that does not build fails silently in the cluster (Flux keeps
+      # serving the old version); here it fails the pull request instead.
+      - name: kustomize build
+        run: kustomize build k8s > /tmp/rendered.yaml
+      - name: Assert the render is sane
+        run: |
+          set -euo pipefail
+          r=/tmp/rendered.yaml
+          fail() { echo "::error::$1"; exit 1; }
+          grep -q 'router.middlewares: fitnessai-rate-limit@kubernetescrd' "$r" || fail "The main ingress lost its rate limiter."
+          grep -q 'router.middlewares: fitnessai-coach-rate-limit@kubernetescrd' "$r" || fail "The coach ingress lost its rate limiter."
+          [ "$(grep -c 'requestHeaderName: Cf-Connecting-Ip' "$r")" = "2" ] || fail "Both rate limiters must key on Cf-Connecting-Ip."
+          grep -A1 'name: ACCESS_AUD' "$r" | grep -qE 'value: "?[0-9a-f]{64}"?$' || fail "ACCESS_AUD must be the 64-hex audience tag from Terraform."
+          grep -A1 'name: ACCESS_TEAM_DOMAIN' "$r" | grep -q 'cloudflareaccess.com' || fail "ACCESS_TEAM_DOMAIN is not set."
+          grep -A1 'name: NODE_ENV' "$r" | grep -q 'value: production' || fail "NODE_ENV must be production."
+          grep -q 'key: OWNER_EMAIL' "$r" || fail "OWNER_EMAIL must come from the Secret."
+          grep -qE '^  replicas: 1$' "$r" || fail "Exactly one replica: SQLite on NFS."
+          grep -q 'type: Recreate' "$r" || fail "The Deployment must use strategy: Recreate."
+          grep -q 'startupProbe:' "$r" || fail "The startup probe covers the database lock wait."
+          grep -q 'ReadWriteOnce' "$r" || fail "The PVC must be ReadWriteOnce."
+          grep -q 'storageClassName: ssd' "$r" || fail "The PVC must use the backed-up ssd class."
+          grep -q 'memory: 384Mi' "$r" || fail "The memory limit is missing."
+          echo "Manifests render correctly."
+
+  secrets:
+    name: No plaintext secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: The web app holds no Anthropic credential
+        run: |
+          if grep -rniE 'ANTHROPIC_API_KEY|x-api-key|sk-ant-' web/src web/index.html web/vite.config.ts; then
+            echo "::error::Anthropic credentials must never appear in web code."
+            exit 1
+          fi
+          echo "Web code is clean."
+      # A readable *.sops.yaml means a secret was committed in the clear.
+      - name: Every .sops.yaml is encrypted
+        run: |
+          set -euo pipefail
+          found=0
+          while IFS= read -r f; do
+            found=1
+            grep -q 'ENC\[' "$f" || { echo "::error file=$f::Not encrypted. Run: sops --encrypt --in-place $f"; exit 1; }
+            grep -q '^sops:' "$f" || { echo "::error file=$f::No sops metadata; this file was not encrypted by sops."; exit 1; }
+            if grep -qE 'sk-ant-' "$f"; then echo "::error file=$f::A plaintext key is visible."; exit 1; fi
+            echo "$f is encrypted."
+          # The repository's .sops.yaml is the sops *config*, never encrypted.
+          done < <(find . -path ./node_modules -prune -o \( -name '*.sops.yaml' -o -name '*.sops.yml' \) ! -name '.sops.yaml' ! -name '.sops.yml' -print)
+          [ "$found" = "1" ] || echo "No .sops.yaml files to check."
+
+  # The tests run from the source tree, so a file missing from the image would
+  # pass them all and then crash-loop in the cluster. Booting the image catches it.
+  image:
+    name: Image boots
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the image (runner architecture)
+        run: docker build -t fitnessai:ci .
+      - name: Boot it and probe it
+        run: |
+          set -euo pipefail
+          docker run -d --name app -p 8080:8080 --read-only --tmpfs /tmp --tmpfs /data:uid=1000,gid=1000 \
+            --user 1000:1000 --cap-drop ALL --security-opt no-new-privileges \
+            -e ACCESS_TEAM_DOMAIN=ci.example.cloudflareaccess.com \
+            -e ACCESS_AUD=ci-smoke-test-not-a-real-audience \
+            -e OWNER_EMAIL=ci@example.com \
+            fitnessai:ci
+          fail() { echo "::error::$1"; docker logs app 2>&1 | tail -40; exit 1; }
+          ready=0
+          for i in $(seq 30); do
+            [ "$(docker inspect -f '{{.State.Running}}' app)" = "true" ] || fail "The container exited instead of serving."
+            if curl -fsS http://127.0.0.1:8080/api/health > /tmp/health.json 2>/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          [ "$ready" = "1" ] || fail "/api/health never answered."
+          grep -q '"ok":true' /tmp/health.json || fail "/api/health did not report ok."
+          curl -fsS http://127.0.0.1:8080/day/today | grep -q 'id="root"' || fail "The PWA was not served."
+          [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/profile)" = "401" ] || fail "/api/profile must require Access."
+          echo "The image boots, serves the PWA and refuses unauthenticated API calls."
+      - name: Tear down
+        if: always()
+        run: docker rm -f app 2>/dev/null || true

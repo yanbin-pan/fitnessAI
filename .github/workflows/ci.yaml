@@ -1,0 +1,125 @@
+# Merge to main → verify → build arm64 → pin the new tag → Flux deploys.
+# The deploy step is a git commit, not a kubectl apply: Flux pulls, so no
+# cluster credentials exist in GitHub, and a rollback is `git revert`.
+name: Build and deploy
+
+on:
+  push:
+    branches: [main]
+    # The deploy job writes k8s/kustomization.yaml; ignoring it stops a build loop.
+    paths-ignore:
+      - "k8s/kustomization.yaml"
+      - "**/*.md"
+  workflow_dispatch:
+
+# One deploy at a time: two concurrent runs would race on the push-back.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify
+    uses: ./.github/workflows/verify.yaml
+
+  build:
+    name: Build image (linux/arm64)
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build the arm64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          load: true
+          provenance: false
+          tags: fitnessai:arm64-candidate
+          labels: org.opencontainers.image.source=https://github.com/yanbin-pan/fitnessAI
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      # The verify job boots an amd64 build; this boots what will actually run on the Pis,
+      # under the pod's security constraints, before anything is pushed.
+      - name: Boot the arm64 image and probe it
+        run: |
+          set -euo pipefail
+          docker run -d --name app --platform linux/arm64 -p 8080:8080 --read-only --tmpfs /tmp \
+            --tmpfs /data:uid=1000,gid=1000 --user 1000:1000 --cap-drop ALL --security-opt no-new-privileges \
+            -e ACCESS_TEAM_DOMAIN=ci.example.cloudflareaccess.com \
+            -e ACCESS_AUD=ci-smoke-test-not-a-real-audience \
+            -e OWNER_EMAIL=ci@example.com \
+            fitnessai:arm64-candidate
+          fail() { echo "::error::$1"; docker logs app 2>&1 | tail -40; exit 1; }
+          ready=0
+          for i in $(seq 120); do
+            [ "$(docker inspect -f '{{.State.Running}}' app)" = "true" ] || fail "The arm64 container exited instead of serving."
+            if curl -fsS http://127.0.0.1:8080/api/health > /tmp/health.json 2>/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          [ "$ready" = "1" ] || fail "/api/health never answered under arm64 emulation."
+          grep -q '"ok":true' /tmp/health.json || fail "/api/health did not report ok."
+          [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/profile)" = "401" ] || fail "/api/profile must require Access."
+          echo "The arm64 image boots and refuses unauthenticated API calls."
+      - name: Tear down the probe container
+        if: always()
+        run: docker rm -f app 2>/dev/null || true
+      - name: Push the tested image
+        run: |
+          set -euo pipefail
+          for tag in "${{ github.sha }}" latest; do
+            docker tag fitnessai:arm64-candidate "ghcr.io/yanbin-pan/fitnessai:$tag"
+            docker push "ghcr.io/yanbin-pan/fitnessai:$tag"
+          done
+      # An amd64 image crash-loops on the Pis with `exec format error`, which reads
+      # like an application bug. Check what was actually pushed.
+      - name: Verify the pushed image is arm64
+        run: |
+          set -euo pipefail
+          arch=$(docker buildx imagetools inspect "ghcr.io/yanbin-pan/fitnessai:${{ github.sha }}" --format '{{.Image.Architecture}}')
+          echo "Pushed architecture: ${arch:-<none>}"
+          [ "$arch" = "arm64" ] || { echo "::error::Expected arm64, got '${arch:-<none>}'."; exit 1; }
+
+  deploy:
+    name: Pin the image for Flux
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Pin the image to this commit
+        run: |
+          set -euo pipefail
+          sed -i -E "s|^([[:space:]]*newTag:).*|\1 ${GITHUB_SHA}|" k8s/kustomization.yaml
+          # Guard the sed: a silent no-match would leave the old image while the run went green.
+          [ "$(grep -c "newTag: ${GITHUB_SHA}$" k8s/kustomization.yaml)" = "1" ] || {
+            echo "::error::newTag was not pinned."; grep -n 'newTag:' k8s/kustomization.yaml; exit 1; }
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add k8s/kustomization.yaml
+          if git diff --cached --quiet; then echo "Already pinned to this commit."; exit 0; fi
+          git commit -m "Deploy ${GITHUB_SHA:0:7}" -m "Image tag pinned by CI. Flux reconciles this within a minute. Roll back by reverting this commit."
+          # Another merge may have landed while the image was building.
+          git pull --rebase --autostash origin main
+          git push origin HEAD:main
