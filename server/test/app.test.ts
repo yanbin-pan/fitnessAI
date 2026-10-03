@@ -49,7 +49,7 @@ describe("authentication, however the request spells the path", () => {
   async function appWithSecret() {
     const auth = await makeAccess();
     const database = openTestDb();
-    const app = buildApp({ db: database.db, verifier: auth.verifier, now: () => NOW, webDist: null });
+    const app = buildApp({ db: database.db, verifier: auth.verifier, now: () => NOW, webDist: null, ai: null, coachBudgetMs: 90_000 });
     const probe = {
       app,
       auth,

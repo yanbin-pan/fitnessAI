@@ -10,6 +10,7 @@ import { createVerifier } from "../src/auth/access.ts";
 import type { AccessConfig } from "../src/config.ts";
 import { buildApp } from "../src/app.ts";
 import type { ExerciseItemData, FoodItemData, NewEntry } from "../src/log/entries.ts";
+import type { AiClient } from "../src/ai/client.ts";
 
 /** A complete profile: male, 35 on 2026-10-03, 180 cm, 80 kg, light activity, losing 0.5 kg a week. */
 export function makeProfile(overrides: Partial<ProfileInput> = {}): Profile {
@@ -69,7 +70,7 @@ export async function makeAccess(ownerEmail = "owner@example.com") {
 /** The clock every test app uses: 13:00 BST on Saturday 3 October 2026. */
 export const NOW = new Date("2026-10-03T12:00:00.000Z");
 
-export async function testApp(opts: { now?: Date; webDist?: string | null } = {}) {
+export async function testApp(opts: { now?: Date; webDist?: string | null; ai?: AiClient | null; coachBudgetMs?: number } = {}) {
   const auth = await makeAccess();
   const database = openTestDb();
   const app = buildApp({
@@ -77,6 +78,8 @@ export async function testApp(opts: { now?: Date; webDist?: string | null } = {}
     verifier: auth.verifier,
     now: () => opts.now ?? NOW,
     webDist: opts.webDist ?? null,
+    ai: opts.ai ?? null,
+    coachBudgetMs: opts.coachBudgetMs ?? 90_000,
   });
   await app.ready();
   const owner = await auth.token();

@@ -1,0 +1,150 @@
+import { randomUUID } from "node:crypto";
+import { afterEach, describe, expect, it } from "vitest";
+import { AiError } from "../src/ai/client.ts";
+import { coachTurns } from "../src/db/schema.ts";
+import { failInterrupted, getMessage, insertUserMessage } from "../src/messages/messages.ts";
+import { saveProfile } from "../src/profile/profile.ts";
+import { fakeAi, hangUntilAborted, textReply, toolCall } from "./fake-ai.ts";
+import type { FakeStep } from "./fake-ai.ts";
+import { NOW, TOOL_EGGS, logItemsInput, makeProfile, testApp } from "./helpers.ts";
+import type { TestApp } from "./helpers.ts";
+
+let ctx: TestApp | undefined;
+afterEach(async () => {
+  await ctx?.close();
+  ctx = undefined;
+});
+
+async function appWith(steps: FakeStep[] | null, coachBudgetMs?: number) {
+  const ai = steps ? fakeAi(steps) : null;
+  ctx = await testApp({ ai, coachBudgetMs });
+  saveProfile(ctx.db, makeProfile(), NOW.toISOString());
+  return { app: ctx, ai };
+}
+
+function send(app: TestApp, text: string, id = randomUUID(), sentAt = "2026-10-03T11:58:00.000Z") {
+  return app.app.inject({ method: "POST", url: "/api/messages", headers: app.headers, payload: { id, sent_at: sentAt, text } });
+}
+
+function retry(app: TestApp, id: string) {
+  return app.app.inject({ method: "POST", url: `/api/messages/${id}/retry`, headers: app.headers });
+}
+
+describe("POST /api/messages", () => {
+  it("logs what the coach records and returns the reply with the day", async () => {
+    const { app, ai } = await appWith([toolCall([{ name: "log_items", input: logItemsInput() }]), textReply("Logged 2 scrambled eggs, 180 kcal.")]);
+    const res = await send(app, "2 scrambled eggs");
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body.user).toMatchObject({ role: "user", status: "done", date: "2026-10-03", error_code: null });
+    expect(body.reply).toMatchObject({ role: "assistant", text: "Logged 2 scrambled eggs, 180 kcal.", reply_to: body.user.id });
+    expect(body.day.entries).toHaveLength(1);
+    expect(body.day.entries[0]).toMatchObject({ source: "coach", message_id: body.user.id });
+    expect(body.reply.cards).toEqual([{ type: "entry", id: body.day.entries[0].id }]);
+    expect(body.day.totals.kcal).toBe(180);
+    expect(ai?.requests[0].tools.map((t) => t.name)).toEqual(["log_items", "update_entry"]);
+    expect(JSON.stringify(ai?.requests[0].messages[0])).toContain("Context for this message");
+  });
+
+  it("returns the stored result for a repeated id without asking the coach again", async () => {
+    const { app, ai } = await appWith([textReply("Hi!")]);
+    const id = randomUUID();
+    await send(app, "hello", id);
+    const again = await send(app, "hello", id);
+    expect(again.statusCode).toBe(200);
+    expect(again.json().reply.text).toBe("Hi!");
+    expect(ai?.requests).toHaveLength(1);
+  });
+
+  it("reports a message that is still being processed", async () => {
+    const { app } = await appWith([]);
+    const id = randomUUID();
+    insertUserMessage(app.db, { id, date: "2026-10-03", text: "x", sentAt: NOW.toISOString(), nowIso: NOW.toISOString() });
+    const res = await send(app, "x", id);
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({ error: "in_progress" });
+  });
+
+  it("leaves only a failed message when the coach fails, and Retry logs exactly once", async () => {
+    const { app } = await appWith([
+      toolCall([{ name: "log_items", input: logItemsInput() }]),
+      new AiError("api_error", "boom"),
+      toolCall([{ name: "log_items", input: logItemsInput() }]),
+      textReply("Logged."),
+    ]);
+    const first = await send(app, "2 scrambled eggs");
+    expect(first.json().user).toMatchObject({ status: "failed", error_code: "ai_error" });
+    expect(first.json().reply).toBeNull();
+    expect(first.json().day.entries).toEqual([]);
+    expect(app.db.select().from(coachTurns).all()).toEqual([]);
+
+    const retried = await retry(app, first.json().user.id);
+    expect(retried.statusCode).toBe(200);
+    expect(retried.json().user.status).toBe("done");
+    expect(retried.json().day.entries).toHaveLength(1);
+  });
+
+  it("fails with ai_unavailable when no API key is configured", async () => {
+    const { app } = await appWith(null);
+    expect((await send(app, "2 eggs")).json().user).toMatchObject({ status: "failed", error_code: "ai_unavailable" });
+  });
+
+  it("fails with timeout when the coach exceeds its budget", async () => {
+    const { app } = await appWith([hangUntilAborted()], 50);
+    expect((await send(app, "2 eggs")).json().user).toMatchObject({ status: "failed", error_code: "timeout" });
+  });
+
+  it("carries the day's conversation forward under the same frozen system prompt", async () => {
+    const { app, ai } = await appWith([
+      toolCall([{ name: "log_items", input: logItemsInput() }]),
+      textReply("Logged."),
+      textReply("About 1,680 kcal left."),
+    ]);
+    await send(app, "2 scrambled eggs");
+    await send(app, "how much is left?", randomUUID(), "2026-10-03T11:59:00.000Z");
+    expect(ai?.requests).toHaveLength(3);
+    expect(ai?.requests[2].system).toBe(ai?.requests[0].system);
+    // user, tool call, tool result, reply — then the new user turn
+    expect(ai?.requests[2].messages).toHaveLength(5);
+  });
+
+  it("corrects an entry through update_entry", async () => {
+    let entryId = "";
+    const { app } = await appWith([
+      toolCall([{ name: "log_items", input: logItemsInput() }]),
+      textReply("Logged."),
+      () => toolCall([{ name: "update_entry", input: { entry_id: entryId, foods: [{ ...TOOL_EGGS, name: "3 scrambled eggs", kcal: 270 }], exercises: [] } }]),
+      textReply("Updated to 3 eggs."),
+    ]);
+    const first = await send(app, "2 scrambled eggs");
+    entryId = first.json().day.entries[0].id;
+    const second = await send(app, "actually it was 3 eggs", randomUUID(), "2026-10-03T11:59:00.000Z");
+    expect(second.json().day.entries).toHaveLength(1);
+    expect(second.json().day.entries[0]).toMatchObject({ id: entryId, edited: true, foods: [{ name: "3 scrambled eggs", kcal: 270 }] });
+    expect(second.json().reply.cards).toEqual([{ type: "entry", id: entryId }]);
+  });
+
+  it("refuses messages from the future or from more than a week ago", async () => {
+    const { app } = await appWith([]);
+    expect((await send(app, "x", randomUUID(), "2026-10-04T12:00:00.000Z")).json()).toEqual({ error: "future_date" });
+    expect((await send(app, "x", randomUUID(), "2026-09-20T12:00:00.000Z")).json()).toEqual({ error: "too_old" });
+  });
+});
+
+describe("POST /api/messages/:id/retry", () => {
+  it("404s for unknown ids and 409s for messages that did not fail", async () => {
+    const { app } = await appWith([textReply("Hi")]);
+    expect((await retry(app, randomUUID())).statusCode).toBe(404);
+    const ok = await send(app, "hello");
+    expect((await retry(app, ok.json().user.id)).statusCode).toBe(409);
+  });
+});
+
+describe("failInterrupted", () => {
+  it("marks messages left pending by a restart so they can be retried", async () => {
+    const { app } = await appWith([]);
+    insertUserMessage(app.db, { id: "m1", date: "2026-10-03", text: "x", sentAt: NOW.toISOString(), nowIso: NOW.toISOString() });
+    expect(failInterrupted(app.db)).toBe(1);
+    expect(getMessage(app.db, "m1")).toMatchObject({ status: "failed", error_code: "interrupted" });
+  });
+});
