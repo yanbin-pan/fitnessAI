@@ -14,7 +14,8 @@ function Bar({ label, value, target }: { label: string; value: number; target: n
       <div
         role="progressbar"
         aria-label={label}
-        aria-valuenow={Math.round(value)}
+        aria-valuenow={Math.min(Math.round(value), Math.round(target))}
+        aria-valuetext={`${Math.round(value)} of ${Math.round(target)} g`}
         aria-valuemin={0}
         aria-valuemax={Math.round(target)}
         className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-800"

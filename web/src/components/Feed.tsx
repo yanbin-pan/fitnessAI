@@ -47,7 +47,7 @@ function Bubble({ message, entries, onRetry, onEdit, onUndo }: { message: ChatMe
   // corrected stays (open it to change or delete it).
   const undoable = message.cards
     .map((card) => entries.get(card.id))
-    .filter((entry): entry is Entry => entry !== undefined && entry.message_id === message.reply_to)
+    .filter((entry): entry is Entry => entry !== undefined && message.reply_to !== null && entry.message_id === message.reply_to)
     .map((entry) => entry.id);
   return (
     <div className="mr-10 flex flex-col gap-2">

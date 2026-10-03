@@ -10,24 +10,39 @@ import { Summary } from "../components/Summary.tsx";
 import { storeDay, useDay } from "../queries.ts";
 import type { DeleteResult, MessageResult } from "../shared.ts";
 
+function actionError(error: unknown): string {
+  if (error instanceof ApiError && error.kind === "offline") return "You're offline, so that didn't go through.";
+  return "That didn't work. Try again.";
+}
+
 export function TodayPage() {
   const { date = "today" } = useParams();
   const day = useDay(date);
   const client = useQueryClient();
   const [logOnly, setLogOnly] = useState(false);
+  // After a failure the screen may be out of step with the server (a half-finished Undo, a message
+  // that was already retried), so fetch the days again rather than trusting what is on screen.
+  const refresh = () => void client.invalidateQueries({ queryKey: ["day"] });
   const retry = useMutation({
     mutationFn: (id: string) => api<MessageResult>(`/api/messages/${id}/retry`, { method: "POST" }),
     onSuccess: (result) => storeDay(client, result.day),
+    onError: refresh,
   });
   const undo = useMutation({
     mutationFn: async (ids: string[]) => {
       let last: DeleteResult | null = null;
-      for (const id of ids) last = await api<DeleteResult>(`/api/entries/${id}`, { method: "DELETE" });
+      for (const id of ids) {
+        try {
+          last = await api<DeleteResult>(`/api/entries/${id}`, { method: "DELETE" });
+        } catch (error) {
+          // Already gone (an earlier, half-finished Undo): carry on with the rest.
+          if (!(error instanceof ApiError && error.status === 404)) throw error;
+        }
+      }
       return last;
     },
-    onSuccess: (last) => {
-      if (last) storeDay(client, last.day);
-    },
+    onSuccess: (last) => (last ? storeDay(client, last.day) : refresh()),
+    onError: refresh,
   });
 
   if (day.error instanceof ApiError && day.error.code === "no_profile") return <SetupPrompt />;
@@ -45,7 +60,23 @@ export function TodayPage() {
           Log only
         </label>
       </header>
-      <Feed view={view} logOnly={logOnly} onRetry={(id) => retry.mutate(id)} onUndo={(ids) => undo.mutate(ids)} />
+      {(retry.isError || undo.isError) && (
+        <p role="alert" className="px-4 pt-3 text-sm text-red-600">
+          {actionError(undo.error ?? retry.error)}
+        </p>
+      )}
+      <Feed
+        view={view}
+        logOnly={logOnly}
+        onRetry={(id) => {
+          undo.reset();
+          retry.mutate(id);
+        }}
+        onUndo={(ids) => {
+          retry.reset();
+          undo.mutate(ids);
+        }}
+      />
       {view.date === view.today && <Composer />}
     </main>
   );

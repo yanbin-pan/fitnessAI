@@ -31,5 +31,5 @@ const FAILURES: Record<string, string> = {
 };
 
 export function failureText(code: string | null): string {
-  return (code !== null && FAILURES[code]) || "Something went wrong.";
+  return code !== null && Object.hasOwn(FAILURES, code) ? FAILURES[code] : "Something went wrong.";
 }
