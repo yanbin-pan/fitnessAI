@@ -2280,6 +2280,11 @@ function pathOf(url: string): string {
   return query === -1 ? url : url.slice(0, query);
 }
 
+/** True for "/api" itself and everything under "/api/". */
+function isApi(path: string | undefined): boolean {
+  return path === "/api" || (path?.startsWith("/api/") ?? false);
+}
+
 /** Hashed build assets never change; everything else (index.html, sw.js, the manifest) must revalidate. */
 export function cacheControlFor(filePath: string): string {
   return /[\\/]assets[\\/]/.test(filePath) ? "public, max-age=31536000, immutable" : "no-cache";
@@ -2289,11 +2294,14 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   const app = Fastify({ logger: deps.logger ?? false, bodyLimit: 1_048_576 });
   app.decorateRequest("identity", null);
 
-  // Fail closed: everything under /api/ except the health probe needs the owner's
-  // Access token (spec §13). A refusal carries no body, so a caller learns nothing.
+  // Fail closed: everything under /api except the health probe needs the owner's
+  // Access token (spec §13). A refusal carries no body.
+  // The router decodes percent-escapes and absolute-form targets before matching
+  // ("/%61pi/x" reaches /api/x), so the matched route counts as well as the raw path.
   app.addHook("onRequest", async (req, reply) => {
-    const path = pathOf(req.url);
-    if (!path.startsWith("/api/") || path === "/api/health") return;
+    const route = req.routeOptions.url;
+    if (route === "/api/health") return;
+    if (!isApi(route) && !isApi(pathOf(req.url))) return;
     const header = req.headers["cf-access-jwt-assertion"];
     try {
       req.identity = await deps.verifier.verify(typeof header === "string" ? header : "");
@@ -2323,7 +2331,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
 
   // Unknown GETs outside /api/ are client-side routes of the PWA: answer with index.html.
   app.setNotFoundHandler((req, reply) => {
-    if (!webDist || req.method !== "GET" || pathOf(req.url).startsWith("/api/")) {
+    if (!webDist || req.method !== "GET" || isApi(pathOf(req.url))) {
       return reply.code(404).send({ error: "not_found" });
     }
     return reply.header("cache-control", "no-cache").sendFile("index.html");
@@ -2332,6 +2340,8 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   return app;
 }
 ```
+
+> Amended during execution: the plan's first hook tested only the raw `req.url`, so `/%61pi/…` and absolute-form targets (`GET http://host/api/…`) reached API handlers without a token. The hook above is the fix. `server/test/app.test.ts` gained probes for those spellings, for a route at exactly `/api`, and for auth with a web build mounted (12 tests, not 8).
 
 - [ ] **Step 5: Run the tests**
 
