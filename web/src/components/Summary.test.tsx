@@ -16,4 +16,15 @@ describe("Summary", () => {
     expect(screen.getByText("+180 kcal from 360 kcal of exercise")).toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: "Protein" })).toHaveAttribute("aria-valuenow", "98");
   });
+
+  it("shows the calories left in the ring, or how far over", () => {
+    const targets = { kcal: 2000, protein_g: 150, carbs_g: 200, fat_g: 70, fibre_g: 30 };
+    const totals = { kcal: 1500, protein_g: 0, carbs_g: 0, fat_g: 0, fibre_g: 0, saturated_fat_g: 0, sugars_g: 0, salt_g: 0, fluid_ml: 0, alcohol_units: 0 };
+    const { rerender } = render(<Summary view={dayView({ targets: { base: targets, adjusted: targets, add_back_kcal: 0, workout_kcal: 0 }, totals })} />);
+    expect(screen.getByText("500")).toBeInTheDocument();
+    expect(screen.getByText("kcal left")).toBeInTheDocument();
+    rerender(<Summary view={dayView({ targets: { base: targets, adjusted: targets, add_back_kcal: 0, workout_kcal: 0 }, totals: { ...totals, kcal: 2150 } })} />);
+    expect(screen.getByText("150")).toBeInTheDocument();
+    expect(screen.getByText("kcal over")).toBeInTheDocument();
+  });
 });

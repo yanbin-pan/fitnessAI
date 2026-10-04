@@ -8,6 +8,7 @@ import { EntryEditor } from "../components/EntryEditor.tsx";
 import { Feed } from "../components/Feed.tsx";
 import { SetupPrompt } from "../components/SetupPrompt.tsx";
 import { Summary } from "../components/Summary.tsx";
+import { Toggle, quietButton } from "../components/ui.tsx";
 import { storeDay, useDay } from "../queries.ts";
 import { MAX_BACKDATE_DAYS, daysBetween } from "../shared.ts";
 import type { DeleteResult, Entry, MessageResult } from "../shared.ts";
@@ -61,21 +62,20 @@ export function TodayPage() {
 
   if (day.error instanceof ApiError && day.error.code === "no_profile") return <SetupPrompt />;
   if (!day.data) {
-    return <main className="mx-auto max-w-xl p-6 text-slate-500">{day.isError ? "Couldn't load this day." : "Loading…"}</main>;
+    return <main className="mx-auto max-w-xl p-6 text-muted">{day.isError ? "Couldn't load this day." : "Loading…"}</main>;
   }
   const view = day.data;
   return (
-    <main className="mx-auto max-w-xl pb-48">
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
+    <main className="mx-auto max-w-xl pb-64">
+      <header className="sticky top-0 z-10 bg-base px-4 pb-3 pt-[env(safe-area-inset-top)]">
         <DayNav date={view.date} today={view.today} />
         <Summary view={view} />
-        <label className="flex items-center gap-2 pb-2 text-xs text-slate-500">
-          <input type="checkbox" checked={logOnly} onChange={(event) => setLogOnly(event.target.checked)} />
-          Log only
-        </label>
+        <div className="mt-3 flex justify-end">
+          <Toggle label="Log only" checked={logOnly} onChange={setLogOnly} />
+        </div>
       </header>
       {(retry.isError || undo.isError) && (
-        <p role="alert" className="px-4 pt-3 text-sm text-red-600">
+        <p role="alert" className="px-4 pt-3 text-sm text-danger">
           {actionError(undo.error ?? retry.error)}
         </p>
       )}
@@ -96,7 +96,7 @@ export function TodayPage() {
       {/* The server refuses a new entry dated more than MAX_BACKDATE_DAYS back (too_old), so don't offer one there. */}
       {view.date <= view.today && daysBetween(view.date, view.today) <= MAX_BACKDATE_DAYS && (
         <div className="px-4">
-          <button type="button" onClick={() => setEditing({ date: view.date, entry: null })} className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+          <button type="button" onClick={() => setEditing({ date: view.date, entry: null })} className={`${quietButton} text-sm text-accent-ink`}>
             + Add manually
           </button>
         </div>
