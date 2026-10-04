@@ -827,8 +827,8 @@ Tabs: **Today · Trends · Goals · Body · Settings**.
 
 - **Today:**
   - **The day bar** (the only part pinned while the feed scrolls): ‹ and › either side of
-    the day's name ("Today", or the date) with the date in words beneath ("Sun 4 Oct"),
-    centred, and a **calendar button** in the top right corner. Past days show their
+    the day's name ("Today", "Yesterday", or the date) with a second line beneath — the
+    date in words for today and yesterday ("Sun 4 Oct"), the year for older days — centred, and a **calendar button** in the top right corner. Past days show their
     thread read-only while it lasts (48 hours, §6.6), then their logbook only; their
     entries can always be edited. This replaces a separate History screen.
   - **The calendar** drops down from under the day bar over a dimmed page, open at the
@@ -872,8 +872,10 @@ Tabs: **Today · Trends · Goals · Body · Settings**.
   - **Sending is instant (milestone 2.1).** Send puts the message — text and photo
     thumbnails — into the feed at once as pending and clears the composer. Under it, the
     coach's row shows animated dots and one status line: "Looking at your photo…" or
-    "Thinking…" straight away, then each `step` the server streams (§6.3). The `result`
-    replaces the line with the reply and its cards. If the message never reached the server
+    "Thinking…" straight away, then each `step` the server streams (§6.3). Each step stays
+    on screen for at least 1.5 seconds, so one that ends at once (a tool runs in an instant)
+    is still readable; the `result` replaces the line with the reply and its cards as soon
+    as it arrives. If the message never reached the server
     (offline, or refused before it was stored), the bubble goes and the text and photos
     return to the composer with today's alert. If the stream drops after `stored`, the
     message stays pending with the last step shown and the pending poll finds the reply.
@@ -994,7 +996,7 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
 |---|---|---|
 | `GET` | `/api/health` | Liveness; registered before authentication; returns `{ok:true}` only |
 | `GET` | `/api/days/:date` | Day view (`:date` may be `today`): base and adjusted targets, totals, habit progress, entries, `linked_entries` (entries this day's coach replies logged or changed on another day, such as back-dated ones: shown with their reply, never counted in this day's totals), messages, drafts, measurements, check-ins, burn |
-| `GET` | `/api/days?from=&to=` | Day summaries for the calendar: `{ days: [{ date, kcal, target_kcal }] }` for each day in the range with food logged — eaten kcal and the adjusted target (§7.2). Both dates are required, `from` ≤ `to`, at most 42 days (a six-week grid); otherwise 400 `bad_range`. Future days simply have nothing logged |
+| `GET` | `/api/days?from=&to=` | Day summaries for the calendar: `{ goal, days: [{ date, kcal, target_kcal }] }` — the current body goal, and each day in the range with food logged — eaten kcal and the adjusted target (§7.2). Both dates are required, `from` ≤ `to`, at most 42 days (a six-week grid); otherwise 400 `bad_range`. Future days simply have nothing logged |
 | `POST` | `/api/photos` | Upload one photo: the raw `image/jpeg` or `image/png` body, up to 2 MB and 2000 px on each side → `{id, media_type, bytes, width, height}`; 413 or 400 `image_too_large`, 400 `not_an_image` |
 | `POST` | `/api/messages` | Send a message (JSON: `id`, `sent_at`, `text`, `photo_ids` — up to 4; `text` may be empty when there are photos). With `Accept: text/event-stream`, streams `stored`, `step` and `result` events (§6.3) |
 | `POST` | `/api/messages/:id/retry` | Retry a failed message; streams like a new message when asked to |
