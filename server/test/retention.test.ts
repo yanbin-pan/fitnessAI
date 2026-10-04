@@ -62,6 +62,23 @@ describe("purgeExpired", () => {
     db.close();
   });
 
+  it("deletes a reply with its question, though the reply was written after the cutoff", () => {
+    const db = openTestDb();
+    // The coach takes up to about 90 seconds, so a reply is younger than its question.
+    const question = new Date(NOW.getTime() - 48 * 3_600_000 - 30_000).toISOString();
+    const reply = new Date(NOW.getTime() - 48 * 3_600_000 + 30_000).toISOString();
+    message(db.db, "q", "2026-10-01", question);
+    insertReply(db.db, { id: "q-reply", replyTo: "q", date: "2026-10-01", text: "reply to q", cards: [], nowIso: reply });
+    thread(db.db, "2026-10-01", "q", reply);
+
+    expect(purgeExpired(db.db, tempDir(), NOW, 48)).toEqual({ messages: 2, photos: 0, threads: 1, orphanFiles: 0 });
+
+    expect(db.db.select().from(messages).all()).toEqual([]);
+    expect(db.db.select().from(coachThreads).all()).toEqual([]);
+    expect(db.db.select().from(coachTurns).all()).toEqual([]);
+    db.close();
+  });
+
   it("keeps a day's thread while any of its messages remain, such as a failed one waiting for Retry", () => {
     const db = openTestDb();
     message(db.db, "first", "2026-10-01", hoursAgo(50));

@@ -78,6 +78,23 @@ describe("the coach and photos", () => {
     expect(JSON.stringify(ai.requests[1].messages[0])).toBe(JSON.stringify(ai.requests[0].messages[0]));
   });
 
+  it("replays a photo message's whole tool loop: the photo byte for byte, the tool call and its result", async () => {
+    const { app, ai } = await appWith([toolCall([{ name: "log_items", input: logItemsInput() }]), textReply("Logged."), textReply("Sure.")]);
+    await send(app, { text: "lunch", photo_ids: [addPhoto(app, fakeJpeg(30, 20))] });
+    await send(app, { text: "and a coffee after?" });
+    const [first, afterTool, next] = ai.requests;
+    expect(afterTool.messages.map((m) => m.role)).toEqual(["user", "assistant", "user"]);
+    // The next message carries the first one's turns exactly as Claude saw them during its loop.
+    expect(JSON.stringify(next.messages[0])).toBe(JSON.stringify(first.messages[0]));
+    expect(JSON.stringify(next.messages.slice(0, 3))).toBe(JSON.stringify(afterTool.messages));
+    expect(blocksOf(next.messages[0]).map((b) => b.type)).toEqual(["text", "image", "text"]);
+    expect(blocksOf(next.messages[1]).map((b) => b.type)).toEqual(["tool_use"]);
+    expect(blocksOf(next.messages[2]).map((b) => b.type)).toEqual(["tool_result"]);
+    // Then the reply that ended the loop, and the new message.
+    expect(next.messages.map((m) => m.role)).toEqual(["user", "assistant", "user", "assistant", "user"]);
+    expect(blocksOf(next.messages[3])).toEqual([expect.objectContaining({ type: "text", text: "Logged." })]);
+  });
+
   it("replays a photo whose file has gone as a short note", async () => {
     const { app, ai } = await appWith([textReply("Noted."), textReply("Sure.")]);
     const id = addPhoto(app, fakeJpeg(30, 20));

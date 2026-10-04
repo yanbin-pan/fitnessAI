@@ -7,7 +7,12 @@ import type { Sql } from "../db/types.ts";
 import { detectImageType, extensionFor, imageSize } from "./images.ts";
 import type { ImageType } from "./images.ts";
 
-export const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
+// Every coach turn replays the day's photos, and the Claude API refuses any image over 2000 px
+// once a request holds more than 20 of them (and over 10 MB of base64 each, 32 MB a request).
+// The phone sends JPEGs within 1568 px of a few hundred kilobytes; these limits keep anything
+// else from making every later message of its day fail.
+export const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
+export const MAX_PHOTO_EDGE = 2000;
 /** Photo ids are 128 random bits in hex: unguessable, and safe to put in a file name. */
 export const PHOTO_ID = /^[0-9a-f]{32}$/;
 
@@ -24,13 +29,14 @@ export function photoFile(dir: string, photo: { id: string; media_type: string }
   return path.join(dir, `${photo.id}.${extensionFor(photo.media_type as ImageType)}`);
 }
 
-export type SaveResult = { ok: true; photo: PhotoRow } | { ok: false; error: "not_an_image" };
+export type SaveResult = { ok: true; photo: PhotoRow } | { ok: false; error: "not_an_image" | "image_too_large" };
 
 /** Checks the bytes, writes the file under a temporary name, renames it, then records the row. */
 export function savePhoto(sql: Sql, dir: string, bytes: Uint8Array, nowIso: string): SaveResult {
   const type = detectImageType(bytes);
   const size = type ? imageSize(bytes, type) : null;
   if (!type || !size) return { ok: false, error: "not_an_image" };
+  if (size.width > MAX_PHOTO_EDGE || size.height > MAX_PHOTO_EDGE) return { ok: false, error: "image_too_large" };
   const photo: PhotoRow = {
     id: randomBytes(16).toString("hex"),
     message_id: null,

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { photos } from "../src/db/schema.ts";
 import { detectImageType, imageSize } from "../src/photos/images.ts";
 import { MAX_PHOTO_BYTES, claimPhotos, getPhoto, savePhoto } from "../src/photos/photos.ts";
 import { fakeJpeg, fakePng } from "./images.ts";
@@ -17,6 +18,15 @@ const upload = (app: TestApp, body: Buffer | string, type = "image/jpeg", header
   app.app.inject({ method: "POST", url: "/api/photos", headers: { ...headers, "content-type": type }, payload: body });
 
 const imageFiles = (dir: string) => fs.readdirSync(dir).filter((f) => /\.(jpg|png)$/.test(f));
+
+const TWO_MIB = 2 * 1024 * 1024;
+/** A valid 10×10 JPEG header padded out to exactly `length` bytes. */
+const jpegOfLength = (length: number) => fakeJpeg(10, 10, length - fakeJpeg(10, 10).length);
+/** No photo row and no file at all, not even a temporary one. */
+function expectNothingStored(app: TestApp) {
+  expect(app.db.select().from(photos).all()).toEqual([]);
+  expect(fs.readdirSync(app.photoDir)).toEqual([]);
+}
 
 describe("image checks", () => {
   it("recognise JPEG and PNG from their bytes", () => {
@@ -86,26 +96,62 @@ describe("POST /api/photos", () => {
     expect(imageFiles(ctx.photoDir)).toEqual([]);
   });
 
-  it("refuses more than 8 MB", async () => {
+  it("accepts a photo of exactly 2 MiB, over the app's 1 MiB body limit", async () => {
     ctx = await testApp();
-    const res = await upload(ctx, fakeJpeg(10, 10, MAX_PHOTO_BYTES));
-    expect(res.statusCode).toBe(413);
-    expect(imageFiles(ctx.photoDir)).toEqual([]);
-  });
-
-  it("accepts a photo of exactly 8 MB, far over the app's 1 MB body limit", async () => {
-    ctx = await testApp();
-    const bytes = fakeJpeg(10, 10, MAX_PHOTO_BYTES - fakeJpeg(10, 10).length);
-    expect(bytes.length).toBe(MAX_PHOTO_BYTES);
+    expect(MAX_PHOTO_BYTES).toBe(TWO_MIB);
+    const bytes = jpegOfLength(TWO_MIB);
     const res = await upload(ctx, bytes);
     expect(res.statusCode).toBe(201);
-    expect(res.json()).toMatchObject({ bytes: MAX_PHOTO_BYTES });
-    fs.rmSync(path.join(ctx.photoDir, `${res.json().id}.jpg`)); // eight megabytes are not worth leaving in the temp folder
+    expect(res.json()).toMatchObject({ bytes: TWO_MIB });
+  });
+
+  it("refuses a byte more than 2 MiB as too large, and writes nothing", async () => {
+    ctx = await testApp();
+    const res = await upload(ctx, jpegOfLength(TWO_MIB + 1));
+    expect(res.statusCode).toBe(413);
+    expect(res.json()).toEqual({ error: "image_too_large" });
+    expectNothingStored(ctx);
+  });
+
+  it("refuses an image over 2000 px on either side, and writes nothing", async () => {
+    ctx = await testApp();
+    for (const bytes of [fakeJpeg(2001, 10), fakeJpeg(10, 2001), fakePng(2001, 10), fakePng(10, 2001)]) {
+      const res = await upload(ctx, bytes);
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toEqual({ error: "image_too_large" });
+    }
+    expectNothingStored(ctx);
+  });
+
+  it("accepts an image of exactly 2000 px on both sides", async () => {
+    ctx = await testApp();
+    const res = await upload(ctx, fakeJpeg(2000, 2000));
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toMatchObject({ width: 2000, height: 2000 });
+  });
+
+  it("holds a body that is not an image to the app's 1 MiB limit", async () => {
+    ctx = await testApp();
+    const json = JSON.stringify({ padding: "x".repeat(1024 * 1024) });
+    const res = await upload(ctx, json, "application/json");
+    expect(res.statusCode).toBe(413);
+    expectNothingStored(ctx);
+  });
+
+  it("parses image bodies on the photo routes only", async () => {
+    ctx = await testApp();
+    const res = await ctx.app.inject({
+      method: "POST", url: "/api/messages", headers: { ...ctx.headers, "content-type": "image/jpeg" }, payload: fakeJpeg(10, 10),
+    });
+    expect(res.statusCode).toBe(415);
+    expect(res.json()).toEqual({ error: "bad_request" });
   });
 
   it("needs the owner's sign-in, like every API route", async () => {
     ctx = await testApp();
     expect((await upload(ctx, fakeJpeg(10, 10), "image/jpeg", {})).statusCode).toBe(401);
+    // The sign-in check runs before the body is read, even in the photo routes' own context.
+    expect((await upload(ctx, jpegOfLength(TWO_MIB + 1), "image/jpeg", {})).statusCode).toBe(401);
     expect((await ctx.app.inject({ method: "GET", url: `/api/photos/${"a".repeat(32)}` })).statusCode).toBe(401);
   });
 });
@@ -127,10 +173,23 @@ describe("GET /api/photos/:id", () => {
     ctx = await testApp();
     const get = (id: string) => ctx!.app.inject({ method: "GET", url: `/api/photos/${id}`, headers: ctx!.headers });
     expect((await get("0".repeat(32))).statusCode).toBe(404);
-    expect((await get("../../etc/passwd")).statusCode).toBe(404);
+    // Encoded, the slashes stay inside the id and reach the route's id check; a bare "../" is
+    // resolved away before routing, so that request would never get there.
+    expect((await get("..%2F..%2Fetc%2Fpasswd")).statusCode).toBe(404);
     const { id } = (await upload(ctx, fakeJpeg(5, 5))).json();
     fs.rmSync(path.join(ctx.photoDir, `${id}.jpg`));
     expect((await get(id)).statusCode).toBe(404);
+  });
+
+  it("never reads outside the photo folder, even for an id that has a row", async () => {
+    ctx = await testApp();
+    // A file beside the photo folder, and a row whose id walks out to it: only the id check stands in the way.
+    const outside = tempDir();
+    fs.writeFileSync(path.join(outside, "secret.jpg"), fakeJpeg(4, 4));
+    const id = `../${path.basename(outside)}/secret`;
+    ctx.db.insert(photos).values({ id, message_id: null, media_type: "image/jpeg", bytes: 1, width: 4, height: 4, created_at: NOW.toISOString() }).run();
+    const res = await ctx.app.inject({ method: "GET", url: `/api/photos/${encodeURIComponent(id)}`, headers: ctx.headers });
+    expect(res.statusCode).toBe(404);
   });
 });
 
@@ -154,12 +213,17 @@ describe("claimPhotos", () => {
       if (!result.ok) throw new Error("save failed");
       return result.photo.id;
     };
-    const [a, b] = [save(), save()];
+    const [a, b, c] = [save(), save(), save()];
     expect(claimPhotos(db.db, [a, b], "m1")).toEqual({ ok: true });
     expect(claimPhotos(db.db, [a], "m1")).toEqual({ ok: true });
     expect(claimPhotos(db.db, [a], "m2")).toEqual({ ok: false, error: "photo_taken" });
     expect(claimPhotos(db.db, ["f".repeat(32)], "m3")).toEqual({ ok: false, error: "photo_not_found" });
     expect(getPhoto(db.db, b)?.message_id).toBe("m1");
+    // All or nothing: one unknown photo, or one taken, leaves the free one in a batch unclaimed.
+    expect(claimPhotos(db.db, [c, "f".repeat(32)], "m4")).toEqual({ ok: false, error: "photo_not_found" });
+    expect(claimPhotos(db.db, [c, a], "m5")).toEqual({ ok: false, error: "photo_taken" });
+    expect(getPhoto(db.db, c)?.message_id).toBeNull();
+    expect(getPhoto(db.db, a)?.message_id).toBe("m1");
     db.close();
   });
 });

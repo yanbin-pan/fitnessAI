@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 import { AiError } from "../src/ai/client.ts";
 import { processMessage } from "../src/coach/process.ts";
-import { coachTurns } from "../src/db/schema.ts";
+import { coachTurns, messages } from "../src/db/schema.ts";
 import { failInterrupted, getMessage, insertUserMessage } from "../src/messages/messages.ts";
 import { getPhoto, savePhoto } from "../src/photos/photos.ts";
 import { saveProfile } from "../src/profile/profile.ts";
@@ -185,13 +185,30 @@ describe("POST /api/messages with photos", () => {
     expect(ai?.requests).toHaveLength(0);
   });
 
-  it("refuses a photo that belongs to another message", async () => {
-    const { app } = await appWith([textReply("Noted.")]);
+  it("refuses a batch with one unknown photo, and leaves the known one free", async () => {
+    const { app, ai } = await appWith([]);
+    const free = addPhoto(app);
+    const id = randomUUID();
+    const res = await sendWith(app, { id, text: "lunch", photo_ids: [free, "f".repeat(32)] });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({ error: "photo_not_found" });
+    expect(getPhoto(app.db, free)?.message_id).toBeNull();
+    expect(getMessage(app.db, id)).toBeNull();
+    expect(ai?.requests).toHaveLength(0);
+  });
+
+  it("refuses a photo that belongs to another message, stores nothing, and leaves the photo with the first", async () => {
+    const { app, ai } = await appWith([textReply("Noted.")]);
     const photo = addPhoto(app);
-    await sendWith(app, { photo_ids: [photo] });
-    const res = await sendWith(app, { text: "again", photo_ids: [photo] });
+    const first = await sendWith(app, { photo_ids: [photo] });
+    const id = randomUUID();
+    const res = await sendWith(app, { id, text: "again", photo_ids: [photo] });
     expect(res.statusCode).toBe(409);
     expect(res.json()).toEqual({ error: "photo_taken" });
+    expect(getMessage(app.db, id)).toBeNull();
+    expect(app.db.select({ id: messages.id }).from(messages).all()).toHaveLength(2); // the first message and its reply
+    expect(getPhoto(app.db, photo)?.message_id).toBe(first.json().user.id);
+    expect(ai?.requests).toHaveLength(1);
   });
 
   it("returns the stored result when the same message and photos arrive again", async () => {

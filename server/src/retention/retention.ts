@@ -40,10 +40,11 @@ function sweepOrphanFiles(sql: Sql, photoDir: string, now: Date): number {
 
 /**
  * Deletes conversations and photos older than the retention window (spec §6.6): messages of
- * every role, their photos, photos no message claimed, and each day's coach thread once that
- * day has no message left. Entries keep every number; they only lose the link to their message.
- * A message still being processed is spared however old it is: Retry can start on a message
- * close to its expiry, and the coach would otherwise finish with its message and thread gone.
+ * every role (a reply with its question), their photos, photos no message claimed, and each
+ * day's coach thread once that day has no message left. Entries keep every number; they only
+ * lose the link to their message. A message still being processed is spared however old it is:
+ * Retry can start on a message close to its expiry, and the coach would otherwise finish with its
+ * message and thread gone.
  */
 export function purgeExpired(sql: Sql, photoDir: string, now: Date, hours: number): PurgeCounts {
   const cutoff = new Date(now.getTime() - hours * HOUR_MS).toISOString();
@@ -56,8 +57,11 @@ export function purgeExpired(sql: Sql, photoDir: string, now: Date, hours: numbe
     const doomed = tx.select({ id: photos.id, media_type: photos.media_type }).from(photos).where(photoWhere).all();
     const photoCount = tx.delete(photos).where(photoWhere).run().changes;
     tx.update(entries).set({ message_id: null }).where(inArray(entries.message_id, expired)).run();
+    // A reply is written up to a minute and a half after its question, so it can still be inside the
+    // window when its question is not. It goes with its question, never outliving it.
+    const replyCount = tx.delete(messages).where(inArray(messages.reply_to, expired)).run().changes;
     // Last, because the statements above find the expired messages through this table.
-    const messageCount = tx.delete(messages).where(expiredWhere).run().changes;
+    const messageCount = replyCount + tx.delete(messages).where(expiredWhere).run().changes;
     const liveDates = tx.selectDistinct({ date: messages.date }).from(messages);
     tx.delete(coachTurns).where(notInArray(coachTurns.date, liveDates)).run();
     const threadCount = tx.delete(coachThreads).where(notInArray(coachThreads.date, liveDates)).run().changes;
