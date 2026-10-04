@@ -22,6 +22,10 @@ function sendError(error: unknown): string {
   if (error instanceof ApiError && error.kind === "offline") return "You're offline, so the message may not have been sent. Tap Send to try again.";
   if (error instanceof ApiError && error.kind === "signed_out") return "You're signed out. Sign in again, then resend.";
   if (error instanceof ApiError && error.code === "in_progress") return "The coach is still working on that message. Give it a moment, then tap Send.";
+  // Sending again can't change either of these, and uploading the photos again by itself could log the same meal twice,
+  // so the person is told what to do instead.
+  if (error instanceof ApiError && error.code === "photo_taken") return "Those photos went with your last message. Remove them to send this one.";
+  if (error instanceof ApiError && error.code === "photo_not_found") return "A photo is no longer on the server. Remove it and attach it again.";
   return "Couldn't send. Try again.";
 }
 
@@ -53,6 +57,21 @@ export function Composer() {
     },
     [],
   );
+  // Photos, a notice, an alert or a longer message change how tall the composer is. The page behind it needs
+  // that height (as --composer-h) to leave room, so the end of the feed can always scroll clear of the composer.
+  const form = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const element = form.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const root = document.documentElement;
+    const publish = () => root.style.setProperty("--composer-h", `${Math.ceil(element.getBoundingClientRect().height)}px`);
+    const observer = new ResizeObserver(publish);
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--composer-h");
+    };
+  }, []);
 
   const send = useMutation({
     mutationFn: (body: MessageInput) => api<MessageResult>("/api/messages", { json: body }),
@@ -103,8 +122,11 @@ export function Composer() {
     try {
       ({ blob } = await preparePhoto(file));
     } catch {
-      remove(key);
-      setNotice("That photo couldn't be read. Try another.");
+      // If it was removed in the meantime, there is nothing to report.
+      if (!removed.current.has(key)) {
+        remove(key);
+        setNotice("That photo couldn't be read. Try another.");
+      }
       return;
     }
     if (removed.current.has(key)) return;
@@ -150,7 +172,7 @@ export function Composer() {
   }
 
   return (
-    <form onSubmit={submit} className="fixed inset-x-0 bottom-[calc(var(--tabbar-h)_+_env(safe-area-inset-bottom))] z-10 px-3 pb-2">
+    <form ref={form} onSubmit={submit} className="fixed inset-x-0 bottom-[calc(var(--tabbar-h)_+_env(safe-area-inset-bottom))] z-10 px-3 pb-2">
       <div className="raised mx-auto max-w-xl rounded-3xl p-2">
         {attachments.length > 0 && (
           <ul aria-label="Attached photos" className="mb-2 flex gap-2 px-1 pt-1.5">

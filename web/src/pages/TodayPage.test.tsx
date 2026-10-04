@@ -56,6 +56,15 @@ describe("TodayPage", () => {
     expect(fetchMock.mock.calls[0][0]).toBe("/api/days/today");
   });
 
+  it("keeps the end of the feed clear of the composer by the height the composer publishes", async () => {
+    mockFetch(() => jsonResponse(dayView()));
+    renderDay();
+    await screen.findByLabelText("Message your coach");
+    // jsdom applies no CSS, so this pins the contract: the page's bottom padding is made of --composer-h (with a fallback
+    // for days that have no composer), the tab bar and the home-indicator inset. The layout itself is checked in a browser.
+    expect(screen.getByRole("main")).toHaveClass("pb-[calc(var(--composer-h,8rem)_+_var(--tabbar-h)_+_env(safe-area-inset-bottom)_+_1rem)]");
+  });
+
   it("shows a past day without a composer", async () => {
     const fetchMock = mockFetch(() => jsonResponse(dayView({ date: "2026-10-02" })));
     renderDay("/day/2026-10-02");

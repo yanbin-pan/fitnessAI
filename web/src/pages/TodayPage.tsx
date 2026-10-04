@@ -66,7 +66,9 @@ export function TodayPage() {
   }
   const view = day.data;
   return (
-    <main className="mx-auto max-w-xl pb-64">
+    // The bottom padding leaves the end of the feed clear of the tab bar and of the composer, whose height changes
+    // (photos, notices, a longer message) and is published as --composer-h. A day without a composer uses the fallback.
+    <main className="mx-auto max-w-xl pb-[calc(var(--composer-h,8rem)_+_var(--tabbar-h)_+_env(safe-area-inset-bottom)_+_1rem)]">
       {/* Only the day navigation stays pinned; the summary scrolls away with the feed. Sticky is bounded by its parent, so this must stay a direct child of main. */}
       <div className="sticky top-0 z-10 bg-base px-4 pt-[env(safe-area-inset-top)]">
         <DayNav date={view.date} today={view.today} />

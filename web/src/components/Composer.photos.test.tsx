@@ -185,16 +185,23 @@ describe("Composer photos", () => {
 
   describe("photos that are still being prepared", () => {
     const resized = { blob: new Blob(["resized"], { type: "image/jpeg" }), width: 1568, height: 1176 };
-    /** Holds the next photo in preparation until the test lets it go. */
+    /** Holds the next photo in preparation until the test lets it go, or finds it unreadable. */
     function holdNextPhoto() {
       let release: () => void = () => {};
-      vi.mocked(preparePhoto).mockImplementationOnce(() => new Promise((resolve) => (release = () => resolve(resized))));
-      return () => release();
+      let fail: () => void = () => {};
+      vi.mocked(preparePhoto).mockImplementationOnce(
+        () =>
+          new Promise((resolve, reject) => {
+            release = () => resolve(resized);
+            fail = () => reject(new Error("not an image"));
+          }),
+      );
+      return { release: () => release(), fail: () => fail() };
     }
     const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
     it("doesn't upload one you removed in the meantime", async () => {
-      const release = holdNextPhoto();
+      const { release } = holdNextPhoto();
       const fetchMock = mockFetch(() => uploaded("e".repeat(32)));
       renderWithProviders(<Composer />);
       await userEvent.upload(screen.getByLabelText("Add photos"), photoFile());
@@ -208,7 +215,7 @@ describe("Composer photos", () => {
     it("doesn't upload one when the composer has gone, and lets go of its thumbnails", async () => {
       const create = vi.spyOn(URL, "createObjectURL");
       const revoke = vi.spyOn(URL, "revokeObjectURL");
-      const release = holdNextPhoto();
+      const { release } = holdNextPhoto();
       const fetchMock = mockFetch(() => uploaded("d".repeat(32)));
       const { unmount } = renderWithProviders(<Composer />);
       await userEvent.upload(screen.getByLabelText("Add photos"), photoFile());
@@ -218,6 +225,17 @@ describe("Composer photos", () => {
       expect(fetchMock).not.toHaveBeenCalled();
       const revoked = revoke.mock.calls.map(([url]) => url);
       expect(create.mock.results.map((result) => result.value).filter((url) => !revoked.includes(url))).toEqual([]);
+    });
+
+    it("says nothing about one you removed before it turned out to be unreadable", async () => {
+      const { fail } = holdNextPhoto();
+      mockFetch(() => uploaded("f".repeat(32)));
+      renderWithProviders(<Composer />);
+      await userEvent.upload(screen.getByLabelText("Add photos"), photoFile("broken.jpg"));
+      await userEvent.click(screen.getByRole("button", { name: "Remove photo 1" }));
+      fail();
+      await settle();
+      expect(screen.queryByText("That photo couldn't be read. Try another.")).toBeNull();
     });
 
     it("drops one it can't read and says so", async () => {
@@ -273,6 +291,105 @@ describe("Composer photos", () => {
     arrive(stored());
     await waitFor(() => expect(screen.queryByRole("img", { name: "Photo 1" })).toBeNull());
     expect(screen.getByLabelText("Add photos")).toBeEnabled();
+  });
+
+  describe("when the server won't take a message's photos", () => {
+    const photoUploads = (calls: unknown[][]) => calls.filter(([url]) => url === "/api/photos");
+
+    it("says what to do when they went with an earlier message, and sends once they are removed", async () => {
+      let sends = 0;
+      const fetchMock = mockFetch((url) => {
+        if (url === "/api/photos") return uploaded("a".repeat(32));
+        sends += 1;
+        if (sends === 1) throw new TypeError("Failed to fetch"); // this one reached the server, but its reply was lost
+        if (sends === 2) return jsonResponse({ error: "photo_taken" }, 409); // so the edited message can't have its photo
+        return stored();
+      });
+      renderWithProviders(<Composer />);
+      const box = screen.getByLabelText("Message your coach");
+      await userEvent.type(box, "lunch");
+      await userEvent.upload(screen.getByLabelText("Add photos"), photoFile());
+      await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("offline");
+      await userEvent.type(box, " plate");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      await waitFor(() =>
+        expect(screen.getByRole("alert")).toHaveTextContent("Those photos went with your last message. Remove them to send this one."),
+      );
+      // Nothing is uploaded or sent again behind your back: that could log the same meal twice.
+      expect(photoUploads(fetchMock.mock.calls)).toHaveLength(1);
+      expect(sentMessages(fetchMock.mock.calls)).toHaveLength(2);
+      await userEvent.click(screen.getByRole("button", { name: "Remove photo 1" }));
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      await waitFor(() => expect(sentMessages(fetchMock.mock.calls)).toHaveLength(3));
+      const [first, second, third] = sentMessages(fetchMock.mock.calls);
+      expect(second.photo_ids).toEqual(["a".repeat(32)]);
+      expect(second.id).not.toBe(first.id);
+      expect(third).toMatchObject({ text: "lunch plate", photo_ids: [] });
+    });
+
+    it("says what to do when a photo is no longer on the server, and sends once it is attached again", async () => {
+      let next = 0;
+      let sends = 0;
+      const fetchMock = mockFetch((url) => {
+        if (url === "/api/photos") return uploaded(String(++next).repeat(32));
+        sends += 1;
+        return sends === 1 ? jsonResponse({ error: "photo_not_found" }, 400) : stored();
+      });
+      renderWithProviders(<Composer />);
+      await userEvent.upload(screen.getByLabelText("Add photos"), photoFile());
+      await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("A photo is no longer on the server. Remove it and attach it again.");
+      expect(photoUploads(fetchMock.mock.calls)).toHaveLength(1);
+      await userEvent.click(screen.getByRole("button", { name: "Remove photo 1" }));
+      await userEvent.upload(screen.getByLabelText("Add photos"), photoFile("again.jpg"));
+      await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      await waitFor(() => expect(sentMessages(fetchMock.mock.calls)).toHaveLength(2));
+      expect(sentMessages(fetchMock.mock.calls)[1].photo_ids).toEqual(["2".repeat(32)]);
+    });
+  });
+
+  describe("room for the feed behind it", () => {
+    /** jsdom has no ResizeObserver; this one lets the test fire the callback the way a browser does on a resize. */
+    function stubResizeObserver() {
+      const observers: FakeResizeObserver[] = [];
+      class FakeResizeObserver {
+        callback: ResizeObserverCallback;
+        observe = vi.fn();
+        unobserve = vi.fn();
+        disconnect = vi.fn();
+        constructor(callback: ResizeObserverCallback) {
+          this.callback = callback;
+          observers.push(this);
+        }
+        resize() {
+          this.callback([], this as unknown as ResizeObserver);
+        }
+      }
+      vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+      return observers;
+    }
+
+    it("publishes its height as --composer-h, follows it as it grows, and takes it back when it goes", () => {
+      const observers = stubResizeObserver();
+      let height = 67.2;
+      vi.spyOn(HTMLFormElement.prototype, "getBoundingClientRect").mockImplementation(() => ({ height }) as DOMRect);
+      const root = document.documentElement;
+      const { container, unmount } = renderWithProviders(<Composer />);
+      expect(observers).toHaveLength(1);
+      expect(observers[0].observe).toHaveBeenCalledWith(container.querySelector("form"));
+      observers[0].resize();
+      expect(root.style.getPropertyValue("--composer-h")).toBe("68px");
+      height = 178;
+      observers[0].resize();
+      expect(root.style.getPropertyValue("--composer-h")).toBe("178px");
+      unmount();
+      expect(observers[0].disconnect).toHaveBeenCalled();
+      expect(root.style.getPropertyValue("--composer-h")).toBe("");
+    });
   });
 
   describe("object URLs for the thumbnails", () => {
