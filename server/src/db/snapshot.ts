@@ -23,13 +23,25 @@ export function stripConversations(file: string): void {
   }
 }
 
-/** A consistent copy of the live database (VACUUM INTO), without conversations, safe to back up while the app runs. */
+/**
+ * A consistent copy of the live database (VACUUM INTO), without conversations, safe to back up while the app runs.
+ * The copy is built beside the live database, in a folder backups skip, and moved into `dir` only once its
+ * conversations are gone (a rename, so `dir` must share the live database's volume): a failed strip or a crash
+ * can then never leave a copy that holds a conversation in the folder that is backed up.
+ */
 export function snapshot(sqlite: Database.Database, dir: string, name: string): string {
   fs.mkdirSync(dir, { recursive: true });
   const target = path.join(dir, name);
-  fs.rmSync(target, { force: true }); // VACUUM INTO refuses to overwrite
-  sqlite.prepare("VACUUM INTO ?").run(target);
-  stripConversations(target);
+  const part = `${sqlite.name}.snapshot-part`;
+  fs.rmSync(part, { force: true }); // a leftover from a crash; VACUUM INTO refuses to overwrite
+  try {
+    sqlite.prepare("VACUUM INTO ?").run(part);
+    stripConversations(part);
+    fs.renameSync(part, target); // atomic on one volume, and it replaces an earlier snapshot of the same name
+  } catch (err) {
+    fs.rmSync(part, { force: true });
+    throw err;
+  }
   return target;
 }
 

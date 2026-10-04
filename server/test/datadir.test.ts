@@ -12,6 +12,9 @@ import { NOW, sampleEntry, tempDir } from "./helpers.ts";
 
 const SIGNATURE = "Signature: 8a477f597d28d172789f06886806bc55";
 
+/** What a snapshot being built leaves beside the live database: `<database>.snapshot-part`, and its journal. */
+const partFiles = (folder: string) => fs.readdirSync(folder).filter((f) => f.includes(".snapshot-part"));
+
 describe("prepareDataDir", () => {
   it("lays out a fresh folder: db/ and photos/ tagged for restic to skip, snapshots/ not", () => {
     const dir = tempDir();
@@ -102,5 +105,58 @@ describe("snapshots", () => {
     expect(db.prepare("SELECT count(*) FROM messages").pluck().get()).toBe(0);
     expect(db.prepare("SELECT message_id FROM entries").pluck().get()).toBeNull();
     db.close();
+  });
+
+  it("leave no temporary file beside the live database", () => {
+    const dir = tempDir();
+    const live = openDatabase({ file: path.join(dir, "fitness.db"), snapshotDir: null });
+    snapshot(live.sqlite, path.join(dir, "snapshots"), "copy.db");
+    expect(fs.readdirSync(path.join(dir, "snapshots"))).toEqual(["copy.db"]);
+    expect(partFiles(dir)).toEqual([]);
+    live.close();
+  });
+
+  it("replace a temporary file left by a crash", () => {
+    const dir = tempDir();
+    const live = openDatabase({ file: path.join(dir, "fitness.db"), snapshotDir: null });
+    insertEntry(live.db, sampleEntry({ id: "e1" }), NOW.toISOString());
+    fs.writeFileSync(`${live.sqlite.name}.snapshot-part`, "left by a crash");
+    fs.writeFileSync(`${live.sqlite.name}.snapshot-part-journal`, "left by a crash");
+
+    const copy = new Database(snapshot(live.sqlite, path.join(dir, "snapshots"), "copy.db"));
+    expect(copy.prepare("SELECT id FROM entries").pluck().all()).toEqual(["e1"]);
+    copy.close();
+    expect(partFiles(dir)).toEqual([]);
+    live.close();
+  });
+
+  it("leave nothing in the snapshot folder when stripping fails, so an unstripped copy is never backed up", () => {
+    const dir = tempDir();
+    const snapshots = path.join(dir, "snapshots");
+    const live = new Database(path.join(dir, "live.db"));
+    // No entries.message_id: the strip's last statement fails after the conversation has been copied.
+    live.exec("CREATE TABLE messages (id text, text text); CREATE TABLE entries (id text); INSERT INTO messages VALUES ('m1', 'porridge');");
+    expect(() => snapshot(live, snapshots, "copy.db")).toThrow(/message_id/);
+    expect(fs.readdirSync(snapshots)).toEqual([]);
+    expect(partFiles(dir)).toEqual([]);
+    live.close();
+  });
+
+  // A permission bit does not stop root, so the test cannot say anything there.
+  it.skipIf(process.getuid?.() === 0)("leave nothing behind when the snapshot folder cannot be written", () => {
+    const dir = tempDir();
+    const snapshots = path.join(dir, "snapshots");
+    const live = openDatabase({ file: path.join(dir, "fitness.db"), snapshotDir: null });
+    fs.mkdirSync(snapshots);
+    fs.chmodSync(snapshots, 0o500);
+    try {
+      // The copy is built and stripped beside the live database; only the move into the folder fails.
+      expect(() => snapshot(live.sqlite, snapshots, "copy.db")).toThrow(/EACCES/);
+      expect(fs.readdirSync(snapshots)).toEqual([]);
+    } finally {
+      fs.chmodSync(snapshots, 0o700); // so the temporary folder can be removed
+    }
+    expect(partFiles(dir)).toEqual([]);
+    live.close();
   });
 });
