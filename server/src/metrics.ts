@@ -1,10 +1,11 @@
 import http from "node:http";
-import { Counter, Registry, collectDefaultMetrics } from "prom-client";
+import { Counter, Histogram, Registry, collectDefaultMetrics } from "prom-client";
 import type { ProcessOutcome } from "./coach/process.ts";
 
 export interface Metrics {
   registry: Registry;
   httpRequests: Counter<"method" | "route" | "status">;
+  httpDuration: Histogram<"method" | "route">;
   coachMessages: Counter<"outcome">;
   coachModelCalls: Counter;
   coachTokens: Counter<"kind">;
@@ -18,6 +19,11 @@ export function createMetrics(): Metrics {
     httpRequests: new Counter<"method" | "route" | "status">({
       name: "fitnessai_http_requests_total", help: "HTTP requests by route and status",
       labelNames: ["method", "route", "status"], registers: [registry],
+    }),
+    // prom-client's default buckets, 5 ms to 10 s.
+    httpDuration: new Histogram<"method" | "route">({
+      name: "fitnessai_http_request_duration_seconds", help: "HTTP request duration",
+      labelNames: ["method", "route"], registers: [registry],
     }),
     coachMessages: new Counter<"outcome">({
       name: "fitnessai_coach_messages_total", help: "Coach messages by outcome",

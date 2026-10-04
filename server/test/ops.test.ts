@@ -33,6 +33,13 @@ describe("metrics", () => {
     expect(await metrics.registry.metrics()).toContain('fitnessai_http_requests_total{method="GET",route="/api/health",status="200"} 1');
   });
 
+  it("time HTTP requests by route", async () => {
+    const metrics = createMetrics();
+    ctx = await testApp({ metrics });
+    await ctx.app.inject({ method: "GET", url: "/api/health" });
+    expect(await metrics.registry.metrics()).toContain('fitnessai_http_request_duration_seconds_count{method="GET",route="/api/health"} 1');
+  });
+
   it("label requests by route pattern, so unknown URLs cannot multiply the series", async () => {
     const metrics = createMetrics();
     ctx = await testApp({ metrics });

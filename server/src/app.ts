@@ -38,9 +38,12 @@ export function buildApp(deps: AppDeps): FastifyInstance {
 
   if (deps.metrics) {
     const requests = deps.metrics.httpRequests;
+    const duration = deps.metrics.httpDuration;
     app.addHook("onResponse", async (req, reply) => {
       // The route pattern, not the URL, keeps label cardinality bounded.
-      requests.inc({ method: req.method, route: req.routeOptions.url ?? "unmatched", status: String(reply.statusCode) });
+      const route = req.routeOptions.url ?? "unmatched";
+      requests.inc({ method: req.method, route, status: String(reply.statusCode) });
+      duration.observe({ method: req.method, route }, reply.elapsedTime / 1000);
     });
   }
 
