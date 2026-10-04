@@ -4,7 +4,7 @@
 |---|---|
 | **Date** | 2026-10-03, revised 2026-10-04 |
 | **Status** | Approved. Milestones 1 and 2 are live. |
-| **Revision** | 4 — milestone 2.1: messages appear at once with the coach's live steps, an activities card, a calendar coloured by calories, and 33 activities with matte badges (revision 3 brought photos, 48-hour conversations, sport activities and the neumorphic design into milestone 2) |
+| **Revision** | 4 — milestone 2.1: messages appear at once with the coach's live steps, an activities card, a calendar coloured by calories, 33 activities with matte badges, and a zabaione-ball home-screen icon (revision 3 brought photos, 48-hour conversations, sport activities and the neumorphic design into milestone 2) |
 | **Repository** | <https://github.com/yanbin-pan/fitnessAI> (public) |
 | **Deploys to** | <https://github.com/yanbin-pan/home-cluster> — k3s on four Raspberry Pi 4s |
 | **Reference app** | <https://github.com/yanbin-pan/tea-cabinet> — same deployment shape |
@@ -972,7 +972,15 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
   numbers.
 - **Phone chrome:** `apple-mobile-web-app-status-bar-style` `default` and a `theme-color`
   per scheme (the base colour), so the status bar text is dark on light and light on dark.
-  The home-screen icon is a green ring raised on the light base colour.
+  The home-screen icon (milestone 2.1, the owner's pick of five concepts) is the
+  **zabaione ball**: a coupe of zabaione whose golden dome carries a tennis ball's
+  cream-coloured seams — dessert and the owner's main sport in one shape — raised with the
+  soft shadows on the light base colour. Colours: zabaione `#EDB94E`, its highlight
+  `#F6D47E` and depth `#D99A35`, seams `#FFF4D6`, the glass `#F4F7FB` outlined in
+  `#A9B6C8`. The mark sits inside the maskable safe zone (a circle of radius 40 % of the
+  tile), and it reads at favicon size as a golden ball in a glass. One icon serves both
+  themes (a home-screen web app cannot switch icons), and iOS keeps the icon it saw when
+  the app was added, so the owner removes and re-adds the app to see a new one.
 - **Built with** Tailwind 4: the tokens are CSS variables (light, and dark under
   `prefers-color-scheme`), exposed through `@theme inline`, plus utilities — `raised`,
   `raised-sm`, `pressed` (pressed in) and `tap` (presses in while tapped). No component
@@ -1205,7 +1213,8 @@ No DNS or tunnel changes in either.
   strict-tool grammar check with 33 activities; a message with a photo and one without,
   watching the steps arrive one by one; a street-photography walk, a bike ride and a boxing
   session filed under their activities; the calendar and the activities card at phone
-  size in light and dark.
+  size in light and dark; the generated icons — 180 px for the iPhone, the 512 px
+  maskable one inside its safe zone, and the favicon.
 - **On the owner's iPhone:** milestone 1 — install to the home screen, the Access re-login
   test (§16), keyboard dictation. Milestone 2 — a meal photo from the camera and one from
   the library, a label photo, one log per sport, light and dark, the status bar.
@@ -1252,7 +1261,8 @@ Each milestone ends deployed and usable.
    **2.1. Instant replies, activities and the calendar:** messages appear at once with the
    coach's live steps (§6.3, §11.1); the activities card; the calendar coloured by
    calories (with `GET /api/days?from=&to=`); 33 activities with matte badges, the
-   editor's More grid, and the migration that re-files clear `other` exercises.
+   editor's More grid, and the migration that re-files clear `other` exercises; the
+   zabaione-ball home-screen icon (§11.4).
 3. **Full coach, goals and habits:** advice and drafts; context assembly (frozen prefix and
    per-turn block); `log_measurements`; the `get_*` tools; the AI cap and usage tracking;
    goals, habits and check-ins (`propose_goal`, `propose_habits`, `log_checkin`); goal
