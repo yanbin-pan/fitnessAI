@@ -69,6 +69,8 @@ describe("openDatabase", () => {
     expect(db.sqlite.pragma("synchronous", { simple: true })).toBe(2); // FULL
     expect(db.sqlite.pragma("foreign_keys", { simple: true })).toBe(1);
     expect(db.sqlite.pragma("locking_mode", { simple: true })).toBe("exclusive");
+    expect(db.sqlite.pragma("secure_delete", { simple: true })).toBe(1);
+    expect(db.sqlite.pragma("journal_size_limit", { simple: true })).toBe(0);
     db.close();
   });
 
@@ -118,6 +120,7 @@ describe("openDatabase", () => {
     const file = path.join(dir, "fitness.db");
     const snapshots = path.join(dir, "snapshots");
     const first = openDatabase({ file, snapshotDir: snapshots });
+    insertEntry(first.db, sampleEntry({ id: "kept" }), NOW.toISOString());
     first.sqlite.exec("insert into coach_threads (date, system, created_at) values ('2026-10-03', 'x', 'now')");
     first.close();
     expect(fs.existsSync(snapshots)).toBe(false); // a brand-new file is not worth a snapshot
@@ -126,7 +129,8 @@ describe("openDatabase", () => {
     const taken = fs.readdirSync(snapshots).filter((f) => f.startsWith("startup-"));
     expect(taken).toHaveLength(1);
     const copy = new Database(path.join(snapshots, taken[0]), { readonly: true });
-    expect(copy.prepare("select count(*) from coach_threads").pluck().get()).toBe(1);
+    expect(copy.prepare("select count(*) from entries").pluck().get()).toBe(1);
+    expect(copy.prepare("select count(*) from coach_threads").pluck().get()).toBe(0); // a startup snapshot drops conversations too
     expect(copy.prepare("select count(*) from __drizzle_migrations").pluck().get()).toBe(SHIPPED); // taken before the new one ran
     copy.close();
   });

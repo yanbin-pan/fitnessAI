@@ -1,13 +1,35 @@
-import type Database from "better-sqlite3";
+import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 
-/** A consistent copy of the live database (VACUUM INTO), safe to back up while the app runs. */
+/**
+ * Conversations never reach a backup (spec §14.4): empty them out of a snapshot, clear the
+ * entries' links to them, and compact the file so nothing deleted is left in free pages.
+ * A startup snapshot can come from an older schema, so only tables that exist are touched.
+ */
+export function stripConversations(file: string): void {
+  const copy = new Database(file);
+  try {
+    const tables = new Set(copy.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").pluck().all() as string[]);
+    copy.transaction(() => {
+      for (const table of ["coach_turns", "coach_threads", "photos", "messages"]) {
+        if (tables.has(table)) copy.prepare(`DELETE FROM ${table}`).run();
+      }
+      if (tables.has("entries")) copy.prepare("UPDATE entries SET message_id = NULL").run();
+    })();
+    copy.exec("VACUUM");
+  } finally {
+    copy.close();
+  }
+}
+
+/** A consistent copy of the live database (VACUUM INTO), without conversations, safe to back up while the app runs. */
 export function snapshot(sqlite: Database.Database, dir: string, name: string): string {
   fs.mkdirSync(dir, { recursive: true });
   const target = path.join(dir, name);
   fs.rmSync(target, { force: true }); // VACUUM INTO refuses to overwrite
   sqlite.prepare("VACUUM INTO ?").run(target);
+  stripConversations(target);
   return target;
 }
 
