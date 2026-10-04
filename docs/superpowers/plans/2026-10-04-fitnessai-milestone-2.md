@@ -2216,8 +2216,9 @@ export const fieldClass = "pressed mt-1 w-full rounded-xl px-3 py-2 text-base te
 export const primaryButton =
   "tap rounded-2xl bg-accent px-5 py-3 font-semibold text-on-accent shadow-[3px_3px_6px_var(--nm-lo),-3px_-3px_6px_var(--nm-hi)] disabled:opacity-50";
 
-/** Every other button: raised from the surface. */
-export const quietButton = "tap raised-sm rounded-2xl px-4 py-2 font-medium text-ink disabled:opacity-50";
+/** Every other button: raised from the surface. It sets no text colour: it takes the page's ink, and a colour
+ * class beside it (text-accent-ink) applies — with text-ink here, the equal-specificity tie went to ink. */
+export const quietButton = "tap raised-sm rounded-2xl px-4 py-2 font-medium disabled:opacity-50";
 
 /** A small choice of options: a pressed-in well with the chosen option raised. */
 export function Segmented<T extends string>({
@@ -2563,16 +2564,18 @@ In `web/src/pages/TodayPage.tsx`:
 - import `Toggle` and `quietButton` from `../components/ui.tsx`;
 - the loading/error `main` uses `text-muted` instead of `text-slate-500`;
 - `main` becomes `className="mx-auto max-w-xl pb-64"` (room for the composer with photo thumbnails and the taller tab bar);
-- the header becomes:
+- only the day navigation stays pinned — the whole header (322 px with the ring card) took about 40 % of a phone. `position: sticky` is bounded by its parent, so the pinned wrapper is a direct child of `main`, and the summary and the switch scroll away with the feed:
 
 ```tsx
-      <header className="sticky top-0 z-10 bg-base px-4 pb-3 pt-[env(safe-area-inset-top)]">
+      <div className="sticky top-0 z-10 bg-base px-4 pt-[env(safe-area-inset-top)]">
         <DayNav date={view.date} today={view.today} />
+      </div>
+      <section className="px-4 pb-3">
         <Summary view={view} />
         <div className="mt-3 flex justify-end">
           <Toggle label="Log only" checked={logOnly} onChange={setLogOnly} />
         </div>
-      </header>
+      </section>
 ```
 
 - the action error `p` uses `text-danger` instead of `text-red-600`;
