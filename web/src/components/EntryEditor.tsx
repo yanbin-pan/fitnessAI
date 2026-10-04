@@ -103,7 +103,7 @@ function ExerciseRow({ item, onChange, onRemove }: { item: ExerciseItemInput; on
         </label>
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <NumberField label="Minutes" value={item.duration_min} onChange={(v) => set({ duration_min: v })} />
+        <NumberField label="Minutes" value={item.duration_min} onChange={(v) => set({ duration_min: v, ...(item.met !== null ? { kcal: null } : {}) })} />
         <NumberField label="kcal burned" value={item.kcal} onChange={(v) => set({ kcal: v })} />
       </div>
       <button type="button" onClick={onRemove} className="mt-1 text-xs text-slate-500">

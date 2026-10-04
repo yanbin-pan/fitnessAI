@@ -5,6 +5,16 @@ import { dayView, entry } from "../test/fixtures.ts";
 import { jsonResponse, mockFetch, renderWithProviders } from "../test/render.tsx";
 import { EntryEditor } from "./EntryEditor.tsx";
 
+/** An entry with one exercise whose kcal the server derived from its MET. */
+const outdoorRun = () => entry({
+  foods: [],
+  exercises: [{
+    id: "x1", position: 0, name: "Outdoor run", category: "cardio", duration_min: 30, sets: null, reps: null, weight_kg: null,
+    distance_km: 5, avg_hr: null, met: 9.8, kcal: 287.4, kcal_measured: false, assumption: "easy pace",
+    muscles: [{ muscle: "quads", role: "primary" }],
+  }],
+});
+
 describe("EntryEditor", () => {
   it("saves edited numbers with a PATCH that keeps the fields it does not show", async () => {
     const sample = entry();
@@ -100,14 +110,7 @@ describe("EntryEditor", () => {
   });
 
   it("keeps an exercise's hidden fields, and sends null (not 0) for a cleared optional number", async () => {
-    const sample = entry({
-      foods: [],
-      exercises: [{
-        id: "x1", position: 0, name: "Outdoor run", category: "cardio", duration_min: 30, sets: null, reps: null, weight_kg: null,
-        distance_km: 5, avg_hr: null, met: 9.8, kcal: 287.4, kcal_measured: false, assumption: "easy pace",
-        muscles: [{ muscle: "quads", role: "primary" }],
-      }],
-    });
+    const sample = outdoorRun();
     const fetchMock = mockFetch(() => jsonResponse({ entry: sample, day: dayView({ entries: [sample] }) }));
     const onClose = vi.fn();
     renderWithProviders(<EntryEditor date="2026-10-03" entry={sample} onClose={onClose} />);
@@ -116,8 +119,24 @@ describe("EntryEditor", () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).exercises).toEqual([{
       name: "Outdoor run", category: "cardio", duration_min: null, sets: null, reps: null, weight_kg: null, distance_km: 5,
-      avg_hr: null, met: 9.8, kcal: 287.4, assumption: "easy pace", muscles: [{ muscle: "quads", role: "primary" }],
+      // The minutes changed and the kcal came from the MET, so the server works it out again.
+      avg_hr: null, met: 9.8, kcal: null, assumption: "easy pace", muscles: [{ muscle: "quads", role: "primary" }],
     }]);
+  });
+
+  it("sends a kcal typed after the minutes changed, instead of working it out again", async () => {
+    const sample = outdoorRun();
+    const fetchMock = mockFetch(() => jsonResponse({ entry: sample, day: dayView({ entries: [sample] }) }));
+    const onClose = vi.fn();
+    renderWithProviders(<EntryEditor date="2026-10-03" entry={sample} onClose={onClose} />);
+    const minutes = screen.getByLabelText("Minutes");
+    await userEvent.clear(minutes);
+    await userEvent.type(minutes, "60");
+    expect(screen.getByLabelText("kcal burned")).toHaveValue(null); // the 30-minute figure is gone
+    await userEvent.type(screen.getByLabelText("kcal burned"), "450");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).exercises[0]).toMatchObject({ duration_min: 60, met: 9.8, kcal: 450 });
   });
 
   it("does not delete when the confirmation is declined", async () => {
