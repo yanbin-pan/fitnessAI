@@ -16,7 +16,7 @@ import { parseBody } from "./http.ts";
 async function runSafely(deps: AppDeps, id: string, log: FastifyBaseLogger): Promise<ProcessOutcome | null> {
   let outcome: ProcessOutcome | null = null;
   try {
-    outcome = await processMessage({ db: deps.db, ai: deps.ai, now: deps.now, budgetMs: deps.coachBudgetMs }, id);
+    outcome = await processMessage({ db: deps.db, ai: deps.ai, now: deps.now, budgetMs: deps.coachBudgetMs, photoDir: deps.photoDir }, id);
   } catch (err) {
     log.error({ err }, "coach processing failed");
     setMessageStatus(deps.db, id, "failed", "internal");

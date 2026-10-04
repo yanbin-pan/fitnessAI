@@ -19,6 +19,7 @@ function context(overrides: Partial<ToolContext> = {}): ToolContext {
     sql: db.db,
     profile: makeProfile(),
     messageId: "msg-1",
+    source: "coach",
     messageDate: "2026-10-03",
     sentAt: new Date("2026-10-03T11:58:00.000Z"),
     today: "2026-10-03",

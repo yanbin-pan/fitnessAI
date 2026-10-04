@@ -9,7 +9,7 @@ import { getPhoto, savePhoto } from "../src/photos/photos.ts";
 import { saveProfile } from "../src/profile/profile.ts";
 import { fakeAi, hangUntilAborted, textReply, toolCall } from "./fake-ai.ts";
 import type { FakeStep } from "./fake-ai.ts";
-import { NOW, TOOL_EGGS, logItemsInput, makeProfile, testApp } from "./helpers.ts";
+import { NOW, TOOL_EGGS, logItemsInput, makeProfile, tempDir, testApp } from "./helpers.ts";
 import type { TestApp } from "./helpers.ts";
 import { fakeJpeg } from "./images.ts";
 
@@ -288,7 +288,7 @@ describe("processMessage", () => {
   it("passes Claude's error text on for the log", async () => {
     const { app, ai } = await appWith([new AiError("api_error", "400 invalid_request_error: fallbacks")]);
     insertUserMessage(app.db, { id: "m1", date: "2026-10-03", text: "2 eggs", photoIds: [], sentAt: NOW.toISOString(), nowIso: NOW.toISOString() });
-    const outcome = await processMessage({ db: app.db, ai, now: () => NOW, budgetMs: 1000 }, "m1");
+    const outcome = await processMessage({ db: app.db, ai, now: () => NOW, budgetMs: 1000, photoDir: tempDir() }, "m1");
     expect(outcome).toMatchObject({ outcome: "ai_error", detail: "400 invalid_request_error: fallbacks" });
   });
 });
