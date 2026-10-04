@@ -68,6 +68,8 @@ image to `ghcr.io/yanbin-pan/fitnessai`, and commit the pinned tag to
 `k8s/kustomization.yaml`. Flux (home-cluster `clusters/home/fitnessai.yaml`)
 picks that commit up within a minute. Roll back by reverting the `Deploy …`
 commit; CI ignores changes to that file, so the revert is not rebuilt.
+Rolling back past milestone 2 needs the database moved back first (see
+[Data, backups and restore](#data-backups-and-restore)).
 
 Secrets live in `k8s/80-secrets.sops.yaml`, encrypted to the cluster's age key.
 Edit with `sops k8s/80-secrets.sops.yaml` and push. The app reads them only when
@@ -82,9 +84,10 @@ it starts, so once Flux has applied the change, restart it:
 /data/snapshots/      what the backups keep
 ```
 
-- Every hour the app deletes messages, the coach's replies, photos and the
-  coach's raw history once they are 48 hours old. Entries keep every number.
-  A message the coach is still working on is left until it finishes.
+- Every hour the app deletes messages, the coach's replies and photos once they
+  are 48 hours old, and the coach's raw history for a day once that day has no
+  messages left. Entries keep every number. A message the coach is still working
+  on is left until it finishes.
 - At 03:00 (profile timezone) the app writes `snapshots/fitness-YYYY-MM-DD.db`
   (keeps 7); a startup with a database migration to run first writes
   `startup-<time>.db` (keeps 3). Snapshots have the conversations removed.
@@ -105,12 +108,27 @@ kubectl -n fitnessai scale deploy/fitnessai --replicas=1
 flux resume kustomization fitnessai
 ```
 
-If an update will not start because its migration failed, revert its `Deploy …`
-commit first, then restore the newest `startup-…` snapshot the same way.
+**If an update fails to start.** A failed migration rolls back inside its own transaction,
+so the database is unchanged: revert the update's `Deploy …` commit and the previous version
+starts again. Restore the newest `startup-…` snapshot (as above) only if the migration
+committed and the app still fails — for example on the foreign-key check.
 
-Milestone 1 kept the database at `/data/fitness.db`; milestone 2 moves it into
-`db/` on its first start. To run a milestone 1 image again, move it back first
-(scale to 0, `mv db/fitness.db fitness.db`, scale to 1).
+**Rolling back to milestone 1.** Milestone 1 reads `/data/fitness.db`; milestone 2 moved it
+into `db/`. Move it back first, in this order:
+
+```bash
+flux suspend kustomization fitnessai
+kubectl -n fitnessai scale deploy/fitnessai --replicas=0
+# on rpi-01, in the PVC's directory under /mnt/ssd/nfs/k8s:
+sudo mv db/fitness.db fitness.db
+[ -e db/fitness.db-journal ] && sudo mv db/fitness.db-journal fitness.db-journal   # a journal travels with its database
+# revert milestone 2's Deploy commit on main, then:
+flux resume kustomization fitnessai
+kubectl -n fitnessai scale deploy/fitnessai --replicas=1
+```
+
+Milestone 1 ignores the new columns and the photos table, but it keeps its database outside
+`db/`, so backups hold its conversations again while it runs.
 
 ## On the iPhone
 
