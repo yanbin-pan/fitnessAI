@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import type { ChangeEvent, FormEvent, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 import { ApiError, api } from "../api.ts";
+import { Segmented, fieldClass, primaryButton, quietButton } from "../components/ui.tsx";
 import { kcal10 } from "../format.ts";
 import { ACTIVITY_LEVEL_KEYS, BODY_GOALS, SEXES } from "../shared.ts";
 import type { MacroTargets, Profile, ProfileInput, ProfileView } from "../shared.ts";
@@ -71,14 +72,14 @@ function saveError(error: unknown): string {
   return "Couldn't save. Try again.";
 }
 
-const inputClass = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base dark:border-slate-700 dark:bg-slate-900";
-
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <fieldset className="flex flex-col gap-3">
-      <legend className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</legend>
-      {children}
-    </fieldset>
+    <section className="raised rounded-3xl p-4">
+      <fieldset className="flex flex-col gap-3">
+        <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">{title}</legend>
+        {children}
+      </fieldset>
+    </section>
   );
 }
 
@@ -86,7 +87,7 @@ function TextField({ label, ...input }: { label: string } & InputHTMLAttributes<
   return (
     <label className="block text-sm">
       {label}
-      <input {...input} className={inputClass} />
+      <input {...input} className={fieldClass} />
     </label>
   );
 }
@@ -95,7 +96,7 @@ function SelectField({ label, options, ...select }: { label: string; options: re
   return (
     <label className="block text-sm">
       {label}
-      <select {...select} className={inputClass}>
+      <select {...select} className={fieldClass}>
         {options.map((option) => (
           <option key={option} value={option}>
             {option}
@@ -135,6 +136,10 @@ export function SettingsPage() {
       setForm({ ...form, [field]: event.target.value });
     },
   });
+  const choose = (field: Field) => (value: string) => {
+    if (!save.isPending) save.reset();
+    setForm({ ...form, [field]: value });
+  };
   const hint = (key: keyof MacroTargets, unit: string) =>
     calculated ? `${key === "kcal" ? kcal10(calculated.kcal) : Math.round(calculated[key])} ${unit} calculated` : "";
 
@@ -143,16 +148,16 @@ export function SettingsPage() {
     save.mutate();
   }
 
-  if (profile.isPending) return <main className="p-6 text-slate-500">Loading…</main>;
+  if (profile.isPending) return <main className="p-6 text-muted">Loading…</main>;
   // No stored profile is `null` (404 no_profile). `undefined` after the load settled means it failed: do not show the blank form,
   // because saving it would write the defaults over the stored profile.
   if (profile.data === undefined) {
     return (
       <main className="mx-auto max-w-xl p-6">
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-danger">
           Couldn't load your settings.
         </p>
-        <button type="button" onClick={() => void profile.refetch()} className="mt-3 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+        <button type="button" onClick={() => void profile.refetch()} className={`${quietButton} mt-3 text-sm text-accent-ink`}>
           Try again
         </button>
       </main>
@@ -160,18 +165,23 @@ export function SettingsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-xl px-4 pb-24 pt-[calc(env(safe-area-inset-top)_+_1rem)]">
+    <main className="mx-auto max-w-xl px-4 pb-28 pt-[calc(env(safe-area-inset-top)_+_1rem)]">
       <h1 className="text-xl font-semibold">Settings</h1>
       <form onSubmit={submit} className="mt-4 flex flex-col gap-6">
         <Section title="About you">
-          <SelectField label="Sex" options={SEXES} {...bind("sex")} />
+          <Segmented legend="Sex" value={form.sex} onChange={choose("sex")} options={SEXES.map((value) => ({ value, label: value === "male" ? "Male" : "Female" }))} />
           <TextField label="Birth date" type="date" required {...bind("birth_date")} />
           <TextField label="Height (cm)" type="number" step="0.1" required {...bind("height_cm")} />
           <TextField label="Weight (kg)" type="number" step="0.1" required {...bind("weight_kg")} />
           <SelectField label="Everyday activity, excluding workouts" options={ACTIVITY_LEVEL_KEYS} {...bind("activity_level")} />
         </Section>
         <Section title="Body goal">
-          <SelectField label="Goal" options={BODY_GOALS} {...bind("goal")} />
+          <Segmented
+            legend="Goal"
+            value={form.goal}
+            onChange={choose("goal")}
+            options={BODY_GOALS.map((value) => ({ value, label: value[0].toUpperCase() + value.slice(1) }))}
+          />
           {form.goal !== "maintain" && <TextField label="Rate (kg per week)" type="number" step="0.05" required {...bind("goal_rate_kg_week")} />}
         </Section>
         <Section title="Targets">
@@ -179,7 +189,7 @@ export function SettingsPage() {
           <TextField label="Fat (% of calories)" type="number" required {...bind("fat_pct")} />
           <TextField label="Fibre (g)" type="number" required {...bind("fibre_g")} />
           <TextField label="Exercise calories added back (%)" type="number" required {...bind("add_back_pct")} />
-          <p className="text-xs text-slate-500">An override replaces the calculated value. Leave it blank to use the calculation.</p>
+          <p className="text-xs text-muted">An override replaces the calculated value. Leave it blank to use the calculation.</p>
           <TextField label="Calories override" type="number" placeholder={hint("kcal", "kcal")} {...bind("override_kcal")} />
           <TextField label="Protein override (g)" type="number" placeholder={hint("protein_g", "g")} {...bind("override_protein_g")} />
           <TextField label="Carbs override (g)" type="number" placeholder={hint("carbs_g", "g")} {...bind("override_carbs_g")} />
@@ -190,16 +200,16 @@ export function SettingsPage() {
           <TextField label="Timezone" required {...bind("timezone")} />
         </Section>
         {save.isError && (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-danger">
             {saveError(save.error)}
           </p>
         )}
         {save.isSuccess && (
-          <p role="status" className="text-sm text-emerald-700">
+          <p role="status" className="text-sm text-accent-ink">
             Saved.
           </p>
         )}
-        <button type="submit" disabled={save.isPending} className="rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white disabled:opacity-40">
+        <button type="submit" disabled={save.isPending} className={primaryButton}>
           Save
         </button>
       </form>

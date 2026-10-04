@@ -27,13 +27,41 @@ describe("appendix tests (from the implementer's report)", () => {
     await screen.findByDisplayValue("1990-05-01");
     await userEvent.clear(screen.getByLabelText("Calories override"));
     await userEvent.type(screen.getByLabelText("Protein override (g)"), "150");
-    await userEvent.selectOptions(screen.getByLabelText("Goal"), "maintain");
+    await userEvent.click(screen.getByRole("radio", { name: "Maintain" }));
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await screen.findByText("Saved.");
     expect(puts[0]).toMatchObject({
       body_goal_priority: "normal", units_mass: "st_lb", units_length: "in", context_days: 9, goal_notes: "off",
       override_kcal: null, override_protein_g: 150, goal: "maintain", goal_rate_kg_week: 0,
     });
+  });
+
+  it("takes back the Saved. note when sex or goal changes, and sends what was chosen", async () => {
+    const puts: Record<string, unknown>[] = [];
+    mockFetch((_url, init) => {
+      if (init?.method !== "PUT") return jsonResponse({ profile: STORED, calculated: CALC });
+      const body = JSON.parse(String(init.body));
+      puts.push(body);
+      return jsonResponse({ profile: body, calculated: CALC });
+    });
+    renderWithProviders(<SettingsPage />);
+    await screen.findByDisplayValue("1990-05-01");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText("Saved.");
+
+    await userEvent.click(screen.getByRole("radio", { name: "Male" }));
+    expect(screen.queryByText("Saved.")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText("Saved.");
+
+    await userEvent.click(screen.getByRole("radio", { name: "Gain" }));
+    expect(screen.queryByText("Saved.")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText("Saved.");
+
+    expect(puts).toHaveLength(3);
+    expect(puts[1]).toMatchObject({ sex: "male", goal: "lose" });
+    expect(puts[2]).toMatchObject({ sex: "male", goal: "gain", goal_rate_kg_week: 0.5 });
   });
 
   it("marks every cached day stale after saving", async () => {

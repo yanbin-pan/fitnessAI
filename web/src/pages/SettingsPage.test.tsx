@@ -20,7 +20,7 @@ describe("SettingsPage", () => {
     fireEvent.change(await screen.findByLabelText("Birth date"), { target: { value: "1991-03-15" } });
     await userEvent.type(screen.getByLabelText("Height (cm)"), "180");
     await userEvent.type(screen.getByLabelText("Weight (kg)"), "80");
-    await userEvent.selectOptions(screen.getByLabelText("Goal"), "lose");
+    await userEvent.click(screen.getByRole("radio", { name: "Lose" }));
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await screen.findByText("Saved.");
