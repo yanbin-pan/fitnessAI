@@ -970,11 +970,12 @@ No DNS or tunnel changes in either.
 - **`secure_delete=ON` and `journal_size_limit=0`**, so deleted conversations are
   overwritten in the file rather than left in free pages, and don't linger in the rollback
   journal that exclusive locking keeps between transactions.
-- **Snapshots:** at 03:00 in the profile timezone, `VACUUM INTO
-  /data/snapshots/fitness-YYYY-MM-DD.db`, keeping 7; and `startup-<time>.db`, keeping 3,
-  before a startup applies pending migrations. Each snapshot then has its conversations
-  (`messages`, `coach_threads`, `coach_turns`) deleted and is vacuumed again, so no
-  snapshot holds a conversation.
+- **Snapshots:** at 03:00 in the profile timezone, `fitness-YYYY-MM-DD.db` in
+  `/data/snapshots`, keeping 7; and `startup-<time>.db`, keeping 3, before a startup applies
+  pending migrations. Each is made with `VACUUM INTO` beside the live database (in `db/`,
+  which backups skip), has its conversations (`messages`, `coach_threads`, `coach_turns`,
+  `photos`) deleted there and is vacuumed again, and only then is renamed into
+  `snapshots/` — so no snapshot, and no half-made copy, ever holds a conversation.
 - **Backups:** the cluster's restic run (03:30, `--exclude-caches`) copies the whole volume
   except folders holding a `CACHEDIR.TAG`. The app writes one into `/data/db` and
   `/data/photos`, so restic keeps only the snapshots — consistent copies with no
