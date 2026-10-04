@@ -114,7 +114,7 @@ export type Profile = z.output<typeof ProfileInput>;
 
 export const MessageInput = z.object({
   id: z.uuid(),
-  sent_at: z.string().datetime(),
+  sent_at: z.iso.datetime(),
   text: z.string().trim().min(1).max(4000),
 });
 export type MessageInput = z.infer<typeof MessageInput>;

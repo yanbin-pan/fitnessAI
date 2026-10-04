@@ -19,7 +19,7 @@ export type FoodGroup = (typeof FOOD_GROUPS)[number];
 export const EXERCISE_CATEGORIES = ["strength", "cardio", "mobility", "sport"] as const;
 export type ExerciseCategory = (typeof EXERCISE_CATEGORIES)[number];
 
-/** Day-to-day activity EXCLUDING workouts — workouts are added back separately (spec §7.1). */
+/** Day-to-day activity EXCLUDING workouts (spec §5, profile.activity_level); workouts are added back separately (spec §7.2). */
 export const ACTIVITY_LEVEL_KEYS = ["sedentary", "light", "moderate", "very"] as const;
 export type ActivityLevel = (typeof ACTIVITY_LEVEL_KEYS)[number];
 export const ACTIVITY_FACTORS: Record<ActivityLevel, number> = {
