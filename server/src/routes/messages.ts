@@ -5,6 +5,7 @@ import { buildDayView, ensureDay } from "../days/days.ts";
 import type { AppDeps } from "../deps.ts";
 import { getMessage, getReply, insertUserMessage, setMessageStatus, toChatMessage } from "../messages/messages.ts";
 import { recordCoach } from "../metrics.ts";
+import { claimPhotos } from "../photos/photos.ts";
 import { getProfile } from "../profile/profile.ts";
 import { MAX_BACKDATE_DAYS, MessageInput, daysBetween } from "../shared.ts";
 import type { MessageResult } from "../shared.ts";
@@ -61,10 +62,15 @@ export function registerMessageRoutes(app: FastifyInstance, deps: AppDeps): void
     if (date > today) return reply.code(400).send({ error: "future_date" });
     if (daysBetween(date, today) > MAX_BACKDATE_DAYS) return reply.code(400).send({ error: "too_old" });
 
-    deps.db.transaction((tx) => {
+    // The message claims its photos in the same transaction, so a refusal stores nothing.
+    const claim = deps.db.transaction((tx) => {
+      const claimed = claimPhotos(tx, input.photo_ids, input.id);
+      if (!claimed.ok) return claimed;
       ensureDay(tx, profile, date, nowIso);
-      insertUserMessage(tx, { id: input.id, date, text: input.text, sentAt: sentAt.toISOString(), nowIso });
+      insertUserMessage(tx, { id: input.id, date, text: input.text, photoIds: input.photo_ids, sentAt: sentAt.toISOString(), nowIso });
+      return claimed;
     });
+    if (!claim.ok) return reply.code(claim.error === "photo_taken" ? 409 : 400).send({ error: claim.error });
     await runSafely(deps, input.id, req.log);
     return reply.code(201).send(messageResult(deps, input.id));
   });

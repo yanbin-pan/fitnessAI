@@ -40,11 +40,14 @@ export function getReply(sql: Sql, userMessageId: string): MessageRow | null {
   return sql.select().from(messages).where(eq(messages.reply_to, userMessageId)).get() ?? null;
 }
 
-export function insertUserMessage(sql: Sql, m: { id: string; date: string; text: string; sentAt: string; nowIso: string }): void {
+export function insertUserMessage(
+  sql: Sql,
+  m: { id: string; date: string; text: string; photoIds: string[]; sentAt: string; nowIso: string },
+): void {
   sql
     .insert(messages)
     .values({
-      id: m.id, date: m.date, role: "user", text: m.text, photo_ids: [], cards: [], status: "pending",
+      id: m.id, date: m.date, role: "user", text: m.text, photo_ids: m.photoIds, cards: [], status: "pending",
       error_code: null, reply_to: null, sent_at: m.sentAt, created_at: m.nowIso,
     })
     .run();

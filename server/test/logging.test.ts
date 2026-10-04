@@ -10,7 +10,7 @@ const NOW_ISO = "2026-10-03T12:00:00.000Z";
 describe("serializeError", () => {
   it("keeps a failed query's parameters out of the logs", () => {
     const db = openTestDb();
-    const message = { id: "m1", date: "2026-10-03", text: "SECRET-MEAL", sentAt: NOW_ISO, nowIso: NOW_ISO };
+    const message = { id: "m1", date: "2026-10-03", text: "SECRET-MEAL", photoIds: [], sentAt: NOW_ISO, nowIso: NOW_ISO };
     insertUserMessage(db.db, message);
     let failure: unknown;
     try {

@@ -85,7 +85,7 @@ describe("snapshots", () => {
     const dir = tempDir();
     const live = openDatabase({ file: path.join(dir, "fitness.db"), snapshotDir: null });
     const nowIso = NOW.toISOString();
-    insertUserMessage(live.db, { id: "m1", date: "2026-10-03", text: "porridge", sentAt: nowIso, nowIso });
+    insertUserMessage(live.db, { id: "m1", date: "2026-10-03", text: "porridge", photoIds: [], sentAt: nowIso, nowIso });
     insertEntry(live.db, sampleEntry({ id: "e1", source: "coach", message_id: "m1" }), nowIso);
     getOrCreateThread(live.db, "2026-10-03", () => "system", nowIso);
     appendTurns(live.db, "2026-10-03", "m1", [{ role: "user", content: "porridge" }], nowIso);

@@ -74,11 +74,26 @@ describe("ProfileInput", () => {
 });
 
 describe("MessageInput", () => {
-  it("needs a UUID, a UTC timestamp and non-empty text", () => {
-    const ok = { id: UUID, sent_at: "2026-10-03T12:00:00.000Z", text: "2 eggs" };
+  const base = { id: UUID, sent_at: "2026-10-03T12:00:00.000Z" };
+  const photo = (c: string) => c.repeat(32);
+
+  it("needs a UUID and a UTC timestamp", () => {
+    const ok = { ...base, text: "2 eggs" };
     expect(MessageInput.safeParse(ok).success).toBe(true);
     expect(MessageInput.safeParse({ ...ok, id: "abc" }).success).toBe(false);
     expect(MessageInput.safeParse({ ...ok, sent_at: "2026-10-03 12:00" }).success).toBe(false);
-    expect(MessageInput.safeParse({ ...ok, text: "   " }).success).toBe(false);
+  });
+
+  it("takes text, photos, or both", () => {
+    expect(MessageInput.parse({ ...base, text: " eggs " })).toMatchObject({ text: "eggs", photo_ids: [] });
+    expect(MessageInput.parse({ ...base, photo_ids: [photo("a")] })).toMatchObject({ text: "", photo_ids: [photo("a")] });
+    expect(MessageInput.parse({ ...base, text: "lunch", photo_ids: [photo("a"), photo("b")] }).photo_ids).toHaveLength(2);
+  });
+
+  it("needs text or a photo, at most four photos, each once, each a photo id", () => {
+    expect(MessageInput.safeParse({ ...base, text: "   " }).success).toBe(false);
+    expect(MessageInput.safeParse({ ...base, photo_ids: ["a", "b", "c", "d", "e"].map(photo) }).success).toBe(false);
+    expect(MessageInput.safeParse({ ...base, photo_ids: [photo("a"), photo("a")] }).success).toBe(false);
+    expect(MessageInput.safeParse({ ...base, photo_ids: ["../../x"] }).success).toBe(false);
   });
 });

@@ -114,7 +114,7 @@ describe("buildDayView", () => {
 describe("linked entries (a reply that recorded something for another day)", () => {
   /** Today's conversation: a question, and the coach's reply with one card pointing at `entryId`. */
   function converse(sql: Sql, entryId: string) {
-    insertUserMessage(sql, { id: "m1", date: "2026-10-03", text: "yesterday I did a workout", sentAt: NOW_ISO, nowIso: NOW_ISO });
+    insertUserMessage(sql, { id: "m1", date: "2026-10-03", text: "yesterday I did a workout", photoIds: [], sentAt: NOW_ISO, nowIso: NOW_ISO });
     insertReply(sql, { id: "m2", replyTo: "m1", date: "2026-10-03", text: "Logged.", cards: [{ type: "entry", id: entryId }], nowIso: NOW_ISO });
   }
 

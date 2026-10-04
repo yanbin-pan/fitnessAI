@@ -44,3 +44,6 @@ export type EntrySource = (typeof ENTRY_SOURCES)[number];
 
 /** How far back the coach may log or change things (spec §7.5). */
 export const MAX_BACKDATE_DAYS = 7;
+
+/** How many photos one message can carry (spec §6.5). */
+export const MAX_PHOTOS_PER_MESSAGE = 4;

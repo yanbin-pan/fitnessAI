@@ -36,7 +36,7 @@ export function Composer() {
     const trimmed = text.trim();
     if (!trimmed || send.isPending) return;
     if (attempt.current?.text !== trimmed) {
-      attempt.current = { id: crypto.randomUUID(), sent_at: new Date().toISOString(), text: trimmed };
+      attempt.current = { id: crypto.randomUUID(), sent_at: new Date().toISOString(), text: trimmed, photo_ids: [] };
     }
     send.mutate(attempt.current);
   }
