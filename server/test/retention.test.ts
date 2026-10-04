@@ -7,17 +7,20 @@ import { coachThreads, coachTurns, messages, photos } from "../src/db/schema.ts"
 import { openDatabase } from "../src/db/open.ts";
 import { startRetention } from "../src/jobs.ts";
 import { getEntry, insertEntry } from "../src/log/entries.ts";
-import { insertUserMessage } from "../src/messages/messages.ts";
+import { insertReply, insertUserMessage, setMessageStatus } from "../src/messages/messages.ts";
 import { claimPhotos, savePhoto } from "../src/photos/photos.ts";
 import { purgeExpired } from "../src/retention/retention.ts";
 import type { Sql } from "../src/db/types.ts";
+import type { MessageStatus } from "../src/shared.ts";
 import { fakeJpeg } from "./images.ts";
 import { NOW, openTestDb, sampleEntry, sampleFood, tempDir } from "./helpers.ts";
 
 const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3_600_000).toISOString();
 
-function message(sql: Sql, id: string, date: string, createdAt: string): void {
+/** A user message. It starts out finished, because one still pending is being processed and never expires. */
+function message(sql: Sql, id: string, date: string, createdAt: string, status: MessageStatus = "done"): void {
   insertUserMessage(sql, { id, date, text: `text of ${id}`, photoIds: [], sentAt: createdAt, nowIso: createdAt });
+  setMessageStatus(sql, id, status, status === "failed" ? "ai_error" : null);
 }
 
 function photoFor(sql: Sql, dir: string, createdAt: string, messageId: string | null): string {
@@ -33,10 +36,11 @@ function thread(sql: Sql, date: string, messageId: string, createdAt: string): v
 }
 
 describe("purgeExpired", () => {
-  it("deletes a message, its photos and its day's thread after 48 hours; the entry keeps every number", () => {
+  it("deletes a message, its reply, its photos and its day's thread after 48 hours; the entry keeps every number", () => {
     const db = openTestDb();
     const dir = tempDir();
     message(db.db, "old", "2026-10-01", hoursAgo(50));
+    insertReply(db.db, { id: "old-reply", replyTo: "old", date: "2026-10-01", text: "reply to old", cards: [{ type: "entry", id: "e-old" }], nowIso: hoursAgo(50) });
     const oldPhoto = photoFor(db.db, dir, hoursAgo(50), "old");
     insertEntry(db.db, sampleEntry({ id: "e-old", date: "2026-10-01", source: "photo", message_id: "old", foods: [sampleFood({ kcal: 420 })] }), hoursAgo(50));
     thread(db.db, "2026-10-01", "old", hoursAgo(50));
@@ -45,7 +49,7 @@ describe("purgeExpired", () => {
     insertEntry(db.db, sampleEntry({ id: "e-new", date: "2026-10-02", source: "coach", message_id: "new" }), hoursAgo(16));
     thread(db.db, "2026-10-02", "new", hoursAgo(16));
 
-    expect(purgeExpired(db.db, dir, NOW, 48)).toEqual({ messages: 1, photos: 1, threads: 1, orphanFiles: 0 });
+    expect(purgeExpired(db.db, dir, NOW, 48)).toEqual({ messages: 2, photos: 1, threads: 1, orphanFiles: 0 });
 
     expect(db.db.select({ id: messages.id }).from(messages).all()).toEqual([{ id: "new" }]);
     expect(db.db.select({ id: photos.id }).from(photos).all()).toEqual([{ id: newPhoto }]);
@@ -62,11 +66,36 @@ describe("purgeExpired", () => {
     const db = openTestDb();
     message(db.db, "first", "2026-10-01", hoursAgo(50));
     thread(db.db, "2026-10-01", "first", hoursAgo(50));
-    message(db.db, "failed", "2026-10-01", hoursAgo(47));
+    message(db.db, "failed", "2026-10-01", hoursAgo(47), "failed");
     purgeExpired(db.db, tempDir(), NOW, 48);
     expect(db.db.select({ id: messages.id }).from(messages).all()).toEqual([{ id: "failed" }]);
     expect(db.db.select().from(coachThreads).all()).toHaveLength(1);
     expect(db.db.select().from(coachTurns).all()).toHaveLength(2);
+    db.close();
+  });
+
+  it("spares a message still being processed, such as a Retry in flight, with its photo, entry and day's thread", () => {
+    const db = openTestDb();
+    const dir = tempDir();
+    message(db.db, "retrying", "2026-10-01", hoursAgo(50), "pending");
+    const photo = photoFor(db.db, dir, hoursAgo(50), "retrying");
+    insertEntry(db.db, sampleEntry({ id: "e-retry", date: "2026-10-01", source: "photo", message_id: "retrying" }), hoursAgo(50));
+    thread(db.db, "2026-10-01", "retrying", hoursAgo(50));
+
+    expect(purgeExpired(db.db, dir, NOW, 48)).toEqual({ messages: 0, photos: 0, threads: 0, orphanFiles: 0 });
+
+    expect(db.db.select({ id: messages.id }).from(messages).all()).toEqual([{ id: "retrying" }]);
+    expect(db.db.select({ id: photos.id }).from(photos).all()).toEqual([{ id: photo }]);
+    expect(fs.existsSync(path.join(dir, `${photo}.jpg`))).toBe(true);
+    expect(getEntry(db.db, "e-retry")?.message_id).toBe("retrying");
+    expect(db.db.select().from(coachThreads).all()).toHaveLength(1);
+    expect(db.db.select().from(coachTurns).all()).toHaveLength(2);
+
+    // Once it has finished, it expires like any other message.
+    setMessageStatus(db.db, "retrying", "failed", "timeout");
+    expect(purgeExpired(db.db, dir, NOW, 48)).toEqual({ messages: 1, photos: 1, threads: 1, orphanFiles: 0 });
+    expect(db.db.select().from(messages).all()).toEqual([]);
+    expect(getEntry(db.db, "e-retry")?.message_id).toBeNull();
     db.close();
   });
 
@@ -84,8 +113,11 @@ describe("purgeExpired", () => {
   it("sweeps files that lost their row once they are an hour old, and nothing else", () => {
     const db = openTestDb();
     const dir = tempDir();
-    const known = photoFor(db.db, dir, hoursAgo(1), null);
     const old = new Date(NOW.getTime() - 2 * 3_600_000);
+    const known = photoFor(db.db, dir, hoursAgo(1), null);
+    // savePhoto stamps the file with the real clock, which is later than the fake NOW and would
+    // keep it out of the sweep by age alone. Backdate it, so that only its row protects it.
+    fs.utimesSync(path.join(dir, `${known}.jpg`), old, old);
     const write = (name: string, mtime: Date) => {
       fs.writeFileSync(path.join(dir, name), "x");
       fs.utimesSync(path.join(dir, name), mtime, mtime);
@@ -99,6 +131,21 @@ describe("purgeExpired", () => {
     db.close();
   });
 
+  it("carries on sweeping when a file disappears before it is looked at", () => {
+    const db = openTestDb();
+    const dir = tempDir();
+    const old = new Date(NOW.getTime() - 2 * 3_600_000);
+    // A dangling link is listed by readdir but cannot be stat'ed: the same moment as a file
+    // removed by something else between the listing and the check.
+    fs.symlinkSync(path.join(dir, "gone"), path.join(dir, `${"d".repeat(32)}.jpg`));
+    const orphan = path.join(dir, `${"a".repeat(32)}.jpg`);
+    fs.writeFileSync(orphan, "x");
+    fs.utimesSync(orphan, old, old);
+    expect(purgeExpired(db.db, dir, NOW, 48).orphanFiles).toBe(1);
+    expect(fs.existsSync(orphan)).toBe(false);
+    db.close();
+  });
+
   it("overwrites what it deletes, so the text is gone from the database file", () => {
     const dir = tempDir();
     const file = path.join(dir, "fitness.db");
@@ -106,6 +153,7 @@ describe("purgeExpired", () => {
     insertUserMessage(live.db, {
       id: "m1", date: "2026-10-01", text: "zebra-crossing-sandwich", photoIds: [], sentAt: hoursAgo(50), nowIso: hoursAgo(50),
     });
+    setMessageStatus(live.db, "m1", "done", null);
     purgeExpired(live.db, tempDir(), NOW, 48);
     live.close();
     expect(fs.readFileSync(file).includes("zebra-crossing-sandwich")).toBe(false);
@@ -124,6 +172,25 @@ describe("startRetention", () => {
     expect(logged).toEqual([{ messages: 1, photos: 0, threads: 0, orphanFiles: 0 }]);
     expect(job.getPattern()).toBe("7 * * * *");
     job.stop();
+    db.close();
+  });
+
+  it("logs a purge that fails instead of throwing, and the job can still be stopped", () => {
+    const db = openTestDb();
+    const infos: unknown[][] = [];
+    const errors: unknown[][] = [];
+    const log = {
+      info: (...args: unknown[]) => infos.push(args),
+      error: (...args: unknown[]) => errors.push(args),
+    } as unknown as FastifyBaseLogger;
+    // The sweep cannot list a photo folder that is not there.
+    const photoDir = path.join(tempDir(), "missing");
+    const job = startRetention({ sql: db.db, photoDir, hours: 48, log, now: () => NOW });
+    expect(errors).toEqual([[{ err: expect.objectContaining({ code: "ENOENT" }) }, "retention purge failed"]]);
+    expect(infos).toEqual([]);
+    expect(job.isStopped()).toBe(false);
+    job.stop();
+    expect(job.isStopped()).toBe(true);
     db.close();
   });
 });

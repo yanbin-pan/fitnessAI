@@ -39,13 +39,19 @@ function trimmed(env: Env, name: string): string | null {
   return value ? value : null;
 }
 
-function positiveInt(env: Env, name: string, fallback: number): number {
+function positiveInt(env: Env, name: string, fallback: number, max = Infinity): number {
   const raw = trimmed(env, name);
   if (raw === null) return fallback;
   const value = Number(raw);
-  if (!Number.isInteger(value) || value <= 0) throw new ConfigError(`${name} must be a positive integer, got "${raw}"`);
+  if (!Number.isInteger(value) || value <= 0 || value > max) {
+    const limit = Number.isFinite(max) ? ` of at most ${max}` : "";
+    throw new ConfigError(`${name} must be a positive integer${limit}, got "${raw}"`);
+  }
   return value;
 }
+
+/** A year. A longer retention window is refused: past this, the cutoff date can overflow what a Date holds. */
+const MAX_RETENTION_HOURS = 24 * 365;
 
 export function loadConfig(env: Env): Config {
   // Only an explicit "development" or "test" counts, so a container that forgets
@@ -89,6 +95,6 @@ export function loadConfig(env: Env): Config {
     },
     coachBudgetMs: positiveInt(env, "COACH_BUDGET_MS", 90_000),
     snapshotKeep: positiveInt(env, "SNAPSHOT_KEEP", 7),
-    retentionHours: positiveInt(env, "RETENTION_HOURS", 48),
+    retentionHours: positiveInt(env, "RETENTION_HOURS", 48, MAX_RETENTION_HOURS),
   };
 }

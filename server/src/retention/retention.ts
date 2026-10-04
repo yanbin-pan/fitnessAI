@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { and, inArray, isNull, lt, notInArray, or } from "drizzle-orm";
+import { and, inArray, isNull, lt, ne, notInArray, or } from "drizzle-orm";
 import { coachThreads, coachTurns, entries, messages, photos } from "../db/schema.ts";
 import type { Sql } from "../db/types.ts";
 import { deletePhotoFiles } from "../photos/photos.ts";
@@ -29,7 +29,9 @@ function sweepOrphanFiles(sql: Sql, photoDir: string, now: Date): number {
     const orphan = match[3] !== undefined || !known.has(match[1]);
     if (!orphan) continue;
     const file = path.join(photoDir, name);
-    if (now.getTime() - fs.statSync(file).mtimeMs < HOUR_MS) continue;
+    // A file can vanish between the listing and the check; that is no reason to stop sweeping.
+    const stat = fs.statSync(file, { throwIfNoEntry: false });
+    if (!stat || now.getTime() - stat.mtimeMs < HOUR_MS) continue;
     fs.rmSync(file, { force: true });
     removed += 1;
   }
@@ -40,17 +42,22 @@ function sweepOrphanFiles(sql: Sql, photoDir: string, now: Date): number {
  * Deletes conversations and photos older than the retention window (spec §6.6): messages of
  * every role, their photos, photos no message claimed, and each day's coach thread once that
  * day has no message left. Entries keep every number; they only lose the link to their message.
+ * A message still being processed is spared however old it is: Retry can start on a message
+ * close to its expiry, and the coach would otherwise finish with its message and thread gone.
  */
 export function purgeExpired(sql: Sql, photoDir: string, now: Date, hours: number): PurgeCounts {
   const cutoff = new Date(now.getTime() - hours * HOUR_MS).toISOString();
   const { counts, doomed } = sql.transaction((tx) => {
-    const expired = tx.select({ id: messages.id }).from(messages).where(lt(messages.created_at, cutoff));
+    // Replies and notes have no status. Startup turns messages stranded as pending into failed
+    // ones (failInterrupted), so nothing stays exempt forever.
+    const expiredWhere = and(lt(messages.created_at, cutoff), or(isNull(messages.status), ne(messages.status, "pending")));
+    const expired = tx.select({ id: messages.id }).from(messages).where(expiredWhere);
     const photoWhere = or(inArray(photos.message_id, expired), and(isNull(photos.message_id), lt(photos.created_at, cutoff)));
     const doomed = tx.select({ id: photos.id, media_type: photos.media_type }).from(photos).where(photoWhere).all();
     const photoCount = tx.delete(photos).where(photoWhere).run().changes;
     tx.update(entries).set({ message_id: null }).where(inArray(entries.message_id, expired)).run();
     // Last, because the statements above find the expired messages through this table.
-    const messageCount = tx.delete(messages).where(lt(messages.created_at, cutoff)).run().changes;
+    const messageCount = tx.delete(messages).where(expiredWhere).run().changes;
     const liveDates = tx.selectDistinct({ date: messages.date }).from(messages);
     tx.delete(coachTurns).where(notInArray(coachTurns.date, liveDates)).run();
     const threadCount = tx.delete(coachThreads).where(notInArray(coachThreads.date, liveDates)).run().changes;

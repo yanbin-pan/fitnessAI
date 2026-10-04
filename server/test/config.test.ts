@@ -57,10 +57,14 @@ describe("loadConfig", () => {
     expect(c).toMatchObject({ port: 9000, metricsPort: 9100, dataDir: "/data", webDist: "/app/web/dist", coachBudgetMs: 60_000, snapshotKeep: 3 });
   });
 
-  it("keeps conversations for 48 hours unless RETENTION_HOURS says otherwise", () => {
+  it("keeps conversations for 48 hours unless RETENTION_HOURS says otherwise, for up to a year", () => {
     expect(loadConfig(production).retentionHours).toBe(48);
     expect(loadConfig({ ...production, RETENTION_HOURS: "24" }).retentionHours).toBe(24);
+    expect(loadConfig({ ...production, RETENTION_HOURS: "8760" }).retentionHours).toBe(8760);
     expect(() => loadConfig({ ...production, RETENTION_HOURS: "0" })).toThrow(/RETENTION_HOURS/);
+    // Beyond a year, a huge value would push the cutoff date past what a Date can hold.
+    expect(() => loadConfig({ ...production, RETENTION_HOURS: "8761" })).toThrow(/RETENTION_HOURS/);
+    expect(() => loadConfig({ ...production, RETENTION_HOURS: "99999999999999" })).toThrow(ConfigError);
   });
 
   it("rejects an unknown effort level and a bad port", () => {
