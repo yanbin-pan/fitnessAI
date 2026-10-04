@@ -713,6 +713,8 @@ export interface DayView {
   targets: DayTargets;
   totals: Totals;
   entries: Entry[];
+  /** Entries that this day's coach replies created or changed but that are dated another day (back-dated); shown with their reply, never counted in this day's totals. */
+  linked_entries: Entry[];
   messages: ChatMessage[];
 }
 
@@ -7853,7 +7855,7 @@ stringData:
   OWNER_EMAIL: "<the email you sign in to Cloudflare Access with>"
 EOF
 sops --encrypt --in-place k8s/80-secrets.sops.yaml
-grep -c 'ENC\[' k8s/80-secrets.sops.yaml
+grep -cE '^[[:space:]]+(ANTHROPIC_API_KEY|OWNER_EMAIL): ENC\[' k8s/80-secrets.sops.yaml
 ```
 
 Expected: `2` (both values encrypted). The email stays out of the public repository this way too.

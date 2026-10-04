@@ -403,7 +403,8 @@ Rules in the coach's instructions:
 
 Every write appears in the feed as a card with **Undo**. Every item shows its `assumption`
 (for example "medium latte, whole milk, ~350 ml") so a wrong guess is visible and one tap
-from being fixed.
+from being fixed. A correction (`update_entry`) is reverted by editing the entry, because
+Undo deletes created entries only.
 
 ### 6.2 Context
 
@@ -451,8 +452,9 @@ are replayed exactly as stored in `coach_turns` and never edited.
 3. If today's AI call cap is reached, mark the message `failed` with `ai_cap`.
 4. Build the request — the frozen prefix (created if this is the date's first message),
    the prior turns, and the new turn — and run the tool loop: at most 5 model calls and
-   90 seconds in total, which stays under Cloudflare's 100-second proxy timeout. Each tool
-   runs in its own database transaction.
+   90 seconds in total, which stays under Cloudflare's 100-second proxy timeout. Tool calls
+   are validated and staged, and nothing is written while the loop runs: once it succeeds,
+   everything, including what step 6 saves, commits in one transaction.
 5. For exercises, Claude supplies `met` and `duration_min` (estimating duration from sets
    where needed); the server computes active kcal (§7.3).
 6. Save the assistant message and its cards, the raw turns and the `ai_usage` row; mark
@@ -720,7 +722,7 @@ mode follows the system setting.
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/health` | Liveness; registered before authentication; returns `{ok:true}` only |
-| `GET` | `/api/days/:date` | Day view (`:date` may be `today`): base and adjusted targets, totals, habit progress, entries, messages, drafts, measurements, check-ins, burn |
+| `GET` | `/api/days/:date` | Day view (`:date` may be `today`): base and adjusted targets, totals, habit progress, entries, `linked_entries` (entries this day's coach replies logged or changed on another day, such as back-dated ones: shown with their reply, never counted in this day's totals), messages, drafts, measurements, check-ins, burn |
 | `GET` | `/api/days?from=&to=` | Day summaries for the calendar |
 | `POST` | `/api/messages` | Send a message (multipart: `id`, `sent_at`, `text`, `photos[]`) |
 | `POST` | `/api/messages/:id/retry` | Retry a failed message |
@@ -807,7 +809,7 @@ mode follows the system setting.
   `prometheus.io/scrape: "true"` and `prometheus.io/port: "9464"`.
 - Service; Ingress for `fitness.minipi.net`; Traefik rate-limit middlewares (general for
   `/api`, stricter for `/api/messages` and `/api/ingest`).
-- Secret `anthropic` (SOPS-encrypted).
+- Secret `fitnessai-secrets` (SOPS-encrypted): `ANTHROPIC_API_KEY` and `OWNER_EMAIL`.
 - Environment: `PORT`, `METRICS_PORT`, `DATA_DIR`, `NODE_ENV`, `ACCESS_TEAM_DOMAIN`,
   `ACCESS_AUD`, `ACCESS_INGEST_AUD`, `ACCESS_INGEST_CLIENT_ID`, `OWNER_EMAIL`,
   `ANTHROPIC_MODEL`, `ANTHROPIC_EFFORT`, `AI_DAILY_CALL_CAP`, `PHOTO_RETENTION_HOURS`,
