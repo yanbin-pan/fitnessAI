@@ -7,8 +7,8 @@ export const fieldClass = "pressed mt-1 w-full rounded-xl px-3 py-2 text-base te
 export const primaryButton =
   "tap rounded-2xl bg-accent px-5 py-3 font-semibold text-on-accent shadow-[3px_3px_6px_var(--nm-lo),-3px_-3px_6px_var(--nm-hi)] disabled:opacity-50";
 
-/** Every other button: raised from the surface. */
-export const quietButton = "tap raised-sm rounded-2xl px-4 py-2 font-medium text-ink disabled:opacity-50";
+/** Every other button: raised from the surface. It sets no text colour, so the button takes the page's ink and a colour class added beside it applies. */
+export const quietButton = "tap raised-sm rounded-2xl px-4 py-2 font-medium disabled:opacity-50";
 
 /** A small choice of options: a pressed-in well with the chosen option raised. */
 export function Segmented<T extends string>({

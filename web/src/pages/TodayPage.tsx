@@ -67,13 +67,16 @@ export function TodayPage() {
   const view = day.data;
   return (
     <main className="mx-auto max-w-xl pb-64">
-      <header className="sticky top-0 z-10 bg-base px-4 pb-3 pt-[env(safe-area-inset-top)]">
+      {/* Only the day navigation stays pinned; the summary scrolls away with the feed. Sticky is bounded by its parent, so this must stay a direct child of main. */}
+      <div className="sticky top-0 z-10 bg-base px-4 pt-[env(safe-area-inset-top)]">
         <DayNav date={view.date} today={view.today} />
+      </div>
+      <section className="px-4 pb-3">
         <Summary view={view} />
         <div className="mt-3 flex justify-end">
           <Toggle label="Log only" checked={logOnly} onChange={setLogOnly} />
         </div>
-      </header>
+      </section>
       {(retry.isError || undo.isError) && (
         <p role="alert" className="px-4 pt-3 text-sm text-danger">
           {actionError(undo.error ?? retry.error)}
