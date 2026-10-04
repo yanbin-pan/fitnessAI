@@ -85,11 +85,14 @@ function FoodRow({ food, onChange, onRemove }: { food: FoodItemInput; onChange: 
 }
 
 /** The five activities as a radio row of their badges; the full name is each choice's label. */
-function ActivityPicker({ value, onChange }: { value: Activity; onChange: (value: Activity) => void }) {
+function ActivityPicker({ exercise, value, onChange }: { exercise: number; value: Activity; onChange: (value: Activity) => void }) {
   const name = useId();
   return (
     <fieldset className="mt-2">
-      <legend className="text-xs">Activity</legend>
+      {/* Every exercise has a picker: the hidden words tell a screen reader which one this is. */}
+      <legend className="text-xs">
+        Activity <span className="sr-only">for exercise {exercise}</span>
+      </legend>
       <div className="mt-1 grid grid-cols-5 gap-1">
         {ACTIVITIES.map((activity) => {
           const chosen = activity === value;
@@ -117,7 +120,9 @@ function ActivityPicker({ value, onChange }: { value: Activity; onChange: (value
   );
 }
 
-function ExerciseRow({ item, onChange, onRemove }: { item: ExerciseItemInput; onChange: (item: ExerciseItemInput) => void; onRemove: () => void }) {
+function ExerciseRow({
+  item, number, onChange, onRemove,
+}: { item: ExerciseItemInput; number: number; onChange: (item: ExerciseItemInput) => void; onRemove: () => void }) {
   const set = (patch: Partial<ExerciseItemInput>) => onChange({ ...item, ...patch });
   return (
     <div className={rowClass}>
@@ -137,7 +142,7 @@ function ExerciseRow({ item, onChange, onRemove }: { item: ExerciseItemInput; on
           </select>
         </label>
       </div>
-      <ActivityPicker value={item.activity} onChange={(activity) => set({ activity })} />
+      <ActivityPicker exercise={number} value={item.activity} onChange={(activity) => set({ activity })} />
       <div className="mt-2 grid grid-cols-2 gap-2">
         <NumberField label="Minutes" value={item.duration_min} onChange={(v) => set({ duration_min: v, ...(item.met !== null ? { kcal: null } : {}) })} />
         <NumberField label="kcal burned" value={item.kcal} onChange={(v) => set({ kcal: v })} />
@@ -219,6 +224,7 @@ export function EntryEditor({ date, entry, onClose }: { date: string; entry: Ent
           <ExerciseRow
             key={`x${i}`}
             item={item}
+            number={i + 1}
             onChange={(next) => setExercises(replaceAt(exercises, i, next))}
             onRemove={() => setExercises(exercises.filter((_, j) => j !== i))}
           />

@@ -94,7 +94,10 @@ describe("EntryEditor", () => {
     renderWithProviders(<EntryEditor date="2026-10-03" entry={null} onClose={() => {}} />);
     await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
     await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
-    const [first, second] = screen.getAllByRole("group", { name: "Activity" });
+    // Each picker is named for its exercise, so a screen reader can tell them apart.
+    const first = screen.getByRole("group", { name: "Activity for exercise 1" });
+    const second = screen.getByRole("group", { name: "Activity for exercise 2" });
+    expect(within(first).getAllByRole("radio")).toHaveLength(5);
     await userEvent.click(within(second).getByRole("radio", { name: "Gym" }));
     expect(within(first).getByRole("radio", { name: "Other" })).toBeChecked();
     expect(within(second).getByRole("radio", { name: "Gym" })).toBeChecked();

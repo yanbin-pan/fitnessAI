@@ -5,7 +5,7 @@ import { ApiError, api } from "../api.ts";
 import { Segmented, fieldClass, primaryButton, quietButton } from "../components/ui.tsx";
 import { kcal10 } from "../format.ts";
 import { ACTIVITY_LEVEL_KEYS, BODY_GOALS, SEXES } from "../shared.ts";
-import type { MacroTargets, Profile, ProfileInput, ProfileView } from "../shared.ts";
+import type { ActivityLevel, MacroTargets, Profile, ProfileInput, ProfileView } from "../shared.ts";
 
 const FIELDS = [
   "sex", "birth_date", "height_cm", "weight_kg", "activity_level", "goal", "goal_rate_kg_week",
@@ -14,6 +14,14 @@ const FIELDS = [
 ] as const;
 type Field = (typeof FIELDS)[number];
 type Form = Record<Field, string>;
+
+/** What each everyday activity level is called on screen; the stored values stay the keys. */
+const ACTIVITY_LEVEL_LABELS: Record<ActivityLevel, string> = {
+  sedentary: "Sedentary",
+  light: "Light",
+  moderate: "Moderate",
+  very: "Very active",
+};
 
 const EMPTY: Form = {
   sex: "male", birth_date: "", height_cm: "", weight_kg: "", activity_level: "light", goal: "maintain",
@@ -92,14 +100,16 @@ function TextField({ label, ...input }: { label: string } & InputHTMLAttributes<
   );
 }
 
-function SelectField({ label, options, ...select }: { label: string; options: readonly string[] } & SelectHTMLAttributes<HTMLSelectElement>) {
+function SelectField({
+  label, options, ...select
+}: { label: string; options: readonly { value: string; label: string }[] } & SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <label className="block text-sm">
       {label}
       <select {...select} className={fieldClass}>
         {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
+          <option key={option.value} value={option.value}>
+            {option.label}
           </option>
         ))}
       </select>
@@ -173,7 +183,11 @@ export function SettingsPage() {
           <TextField label="Birth date" type="date" required {...bind("birth_date")} />
           <TextField label="Height (cm)" type="number" step="0.1" required {...bind("height_cm")} />
           <TextField label="Weight (kg)" type="number" step="0.1" required {...bind("weight_kg")} />
-          <SelectField label="Everyday activity, excluding workouts" options={ACTIVITY_LEVEL_KEYS} {...bind("activity_level")} />
+          <SelectField
+            label="Everyday activity, excluding workouts"
+            options={ACTIVITY_LEVEL_KEYS.map((value) => ({ value, label: ACTIVITY_LEVEL_LABELS[value] }))}
+            {...bind("activity_level")}
+          />
         </Section>
         <Section title="Body goal">
           <Segmented

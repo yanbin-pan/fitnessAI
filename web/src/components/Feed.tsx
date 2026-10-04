@@ -3,6 +3,7 @@ import { dayLabel, failureText } from "../format.ts";
 import { Icon } from "../icons/Icon.tsx";
 import type { ChatMessage, DayView, Entry } from "../shared.ts";
 import { EntryCard } from "./EntryCard.tsx";
+import { quietButton } from "./ui.tsx";
 
 export type FeedItem = { kind: "message"; at: string; message: ChatMessage } | { kind: "entry"; at: string; entry: Entry };
 
@@ -61,7 +62,13 @@ function Bubble({
         {message.status === "failed" && (
           <span className="mt-1 text-xs text-danger">
             {failureText(message.error_code)}{" "}
-            <button type="button" disabled={retrying === message.id} className="font-semibold underline disabled:opacity-40" onClick={() => onRetry(message.id)}>
+            {/* Padding makes the tap area 44 px tall (a fingertip); the matching negative margins keep the line where it was. */}
+            <button
+              type="button"
+              disabled={retrying === message.id}
+              className="-mx-2 -my-3.5 px-2 py-3.5 font-semibold underline disabled:opacity-40"
+              onClick={() => onRetry(message.id)}
+            >
               Retry
             </button>
           </span>
@@ -104,7 +111,7 @@ function Bubble({
         );
       })}
       {onUndo && undoable.length > 0 && (
-        <button type="button" onClick={() => onUndo(undoable)} className="tap raised-sm self-start rounded-xl px-3 py-1 text-xs font-medium text-muted">
+        <button type="button" onClick={() => onUndo(undoable)} className={`${quietButton} min-h-11 self-start text-sm text-muted`}>
           Undo
         </button>
       )}

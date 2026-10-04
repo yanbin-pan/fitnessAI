@@ -42,6 +42,9 @@ export function Composer() {
   // Attachments that are gone (removed, or left behind when the composer went away) while their photo
   // was still being prepared: don't upload those.
   const removed = useRef(new Set<string>());
+  // Photos are prepared one at a time, each after the one before has finished: decoding several
+  // full-size photos at once can use up an iPhone's memory and get the page killed. Uploads may overlap.
+  const preparing = useRef<Promise<unknown>>(Promise.resolve());
   // The list as last rendered, for the cleanup on unmount.
   const latest = useRef(attachments);
   useEffect(() => {
@@ -108,9 +111,24 @@ export function Composer() {
     try {
       const photo = await api<PhotoUpload>("/api/photos", { blob });
       patch(key, { status: "ready", photoId: photo.id });
-    } catch {
+    } catch (error) {
+      // The server won't take this photo however often it is sent, so a retry would only fail again.
+      if (error instanceof ApiError && (error.code === "image_too_large" || error.code === "not_an_image")) {
+        if (!removed.current.has(key)) {
+          remove(key);
+          setNotice("That photo can't be sent. Try another.");
+        }
+        return;
+      }
       patch(key, { status: "failed" });
     }
+  }
+
+  function prepareInTurn(file: File) {
+    const prepared = preparing.current.then(() => preparePhoto(file));
+    // The next photo waits for this one, whether or not it could be read.
+    preparing.current = prepared.catch(() => {});
+    return prepared;
   }
 
   async function add(file: File) {
@@ -120,7 +138,7 @@ export function Composer() {
     setAttachments((list) => [...list, { key, preview: original, status: "preparing", blob: null, photoId: null }]);
     let blob: Blob;
     try {
-      ({ blob } = await preparePhoto(file));
+      ({ blob } = await prepareInTurn(file));
     } catch {
       // If it was removed in the meantime, there is nothing to report.
       if (!removed.current.has(key)) {

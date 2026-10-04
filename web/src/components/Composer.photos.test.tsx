@@ -238,6 +238,33 @@ describe("Composer photos", () => {
       expect(screen.queryByText("That photo couldn't be read. Try another.")).toBeNull();
     });
 
+    it("prepares photos one at a time, each after the one before has finished", async () => {
+      const first = holdNextPhoto();
+      const second = holdNextPhoto();
+      mockFetch((url) => (url === "/api/photos" ? uploaded("a".repeat(32)) : stored()));
+      renderWithProviders(<Composer />);
+      await userEvent.upload(screen.getByLabelText("Add photos"), [photoFile("1.jpg"), photoFile("2.jpg")]);
+      await settle();
+      expect(preparePhoto).toHaveBeenCalledTimes(1);
+      first.release();
+      await waitFor(() => expect(preparePhoto).toHaveBeenCalledTimes(2));
+      second.release();
+      await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
+    });
+
+    it("goes on to the next photo when one can't be read", async () => {
+      const first = holdNextPhoto();
+      holdNextPhoto();
+      mockFetch((url) => (url === "/api/photos" ? uploaded("a".repeat(32)) : stored()));
+      renderWithProviders(<Composer />);
+      await userEvent.upload(screen.getByLabelText("Add photos"), [photoFile("broken.jpg"), photoFile("2.jpg")]);
+      await settle();
+      expect(preparePhoto).toHaveBeenCalledTimes(1);
+      first.fail();
+      await waitFor(() => expect(preparePhoto).toHaveBeenCalledTimes(2));
+      expect(await screen.findByText("That photo couldn't be read. Try another.")).toBeInTheDocument();
+    });
+
     it("drops one it can't read and says so", async () => {
       vi.mocked(preparePhoto).mockRejectedValueOnce(new Error("not an image"));
       const fetchMock = mockFetch(() => uploaded("f".repeat(32)));
@@ -269,13 +296,43 @@ describe("Composer photos", () => {
     expect(preparePhoto).toHaveBeenCalledTimes(1);
   });
 
-  it("offers a retry when the server refuses an upload, not only when the connection drops", async () => {
-    mockFetch((url) => (url === "/api/photos" ? jsonResponse({ error: "photo_too_large" }, 413) : stored()));
+  it("offers a retry when the server turns an upload away for now, not only when the connection drops", async () => {
+    mockFetch((url) => (url === "/api/photos" ? new Response("Too Many Requests", { status: 429 }) : stored()));
     renderWithProviders(<Composer />);
     await userEvent.upload(screen.getByLabelText("Add photos"), photoFile());
     expect(await screen.findByRole("button", { name: "Retry photo 1" })).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent("didn't upload");
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+  });
+
+  it.each([
+    [413, "image_too_large"],
+    [400, "not_an_image"],
+  ])("drops a photo the server answers %i %s, since a retry can't succeed, and says so", async (status, error) => {
+    const fetchMock = mockFetch((url) => (url === "/api/photos" ? jsonResponse({ error }, status) : stored()));
+    renderWithProviders(<Composer />);
+    await userEvent.type(screen.getByLabelText("Message your coach"), "lunch");
+    await userEvent.upload(screen.getByLabelText("Add photos"), photoFile());
+    expect(await screen.findByText("That photo can't be sent. Try another.")).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "Photo 1" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Retry photo/ })).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+    // The rest of the message can still go.
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => expect(sentMessages(fetchMock.mock.calls)).toEqual([expect.objectContaining({ text: "lunch", photo_ids: [] })]));
+  });
+
+  it("says nothing about a photo removed while the server was refusing it", async () => {
+    let refuse: (res: Response) => void = () => {};
+    mockFetch((url) => (url === "/api/photos" ? new Promise<Response>((resolve) => (refuse = resolve)) : stored()));
+    renderWithProviders(<Composer />);
+    await userEvent.upload(screen.getByLabelText("Add photos"), photoFile());
+    await screen.findByRole("status", { name: "Uploading photo 1" });
+    await userEvent.click(screen.getByRole("button", { name: "Remove photo 1" }));
+    refuse(jsonResponse({ error: "image_too_large" }, 413));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.queryByText("That photo can't be sent. Try another.")).toBeNull();
   });
 
   it("locks itself while the message is on its way, then clears the photos", async () => {

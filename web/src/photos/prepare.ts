@@ -19,14 +19,23 @@ export async function preparePhoto(file: Blob): Promise<{ blob: Blob; width: num
     await image.decode();
     const { width, height } = fitWithin(image.naturalWidth, image.naturalHeight);
     const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("This browser can't draw the photo");
-    context.drawImage(image, 0, 0, width, height);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY));
-    if (!blob) throw new Error("This browser can't encode the photo");
-    return { blob, width, height };
+    try {
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("This browser can't draw the photo");
+      // JPEG has no transparency: what a PNG leaves see-through would otherwise come out black.
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, width, height);
+      context.drawImage(image, 0, 0, width, height);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY));
+      if (!blob) throw new Error("This browser can't encode the photo");
+      return { blob, width, height };
+    } finally {
+      // Let go of the bitmap now rather than when the canvas is collected: an iPhone allows the page
+      // only so much canvas memory, and a few full-size photos use it up.
+      canvas.width = canvas.height = 0;
+    }
   } finally {
     URL.revokeObjectURL(url);
   }

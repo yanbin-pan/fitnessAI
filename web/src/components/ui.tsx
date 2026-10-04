@@ -29,7 +29,7 @@ export function Segmented<T extends string>({
           return (
             <label
               key={option.value}
-              className={`flex-1 cursor-pointer rounded-xl py-2 text-center text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${chosen ? "raised-sm font-semibold text-ink" : "text-muted"}`}
+              className={`flex-1 cursor-pointer rounded-xl py-3 text-center text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${chosen ? "raised-sm font-semibold text-ink" : "text-muted"}`}
             >
               <input type="radio" name={name} value={option.value} checked={chosen} onChange={() => onChange(option.value)} className="sr-only" />
               {option.label}
@@ -41,10 +41,10 @@ export function Segmented<T extends string>({
   );
 }
 
-/** An on/off switch: a pressed-in track with a raised knob that turns green when on. */
+/** An on/off switch: a pressed-in track with a raised knob that turns green when on. The whole label, 44 px tall, takes the tap. */
 export function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return (
-    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full text-xs text-muted has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent">
+    <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full px-2 text-xs text-muted has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent">
       {label}
       <input type="checkbox" role="switch" checked={checked} onChange={(event) => onChange(event.target.checked)} className="sr-only" />
       <span aria-hidden="true" className="pressed relative inline-block h-5 w-9 rounded-full">

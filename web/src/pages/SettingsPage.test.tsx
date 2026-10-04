@@ -31,6 +31,29 @@ describe("SettingsPage", () => {
     expect(screen.getByPlaceholderText("1860 kcal calculated")).toBeInTheDocument();
   });
 
+  it("names the everyday activity levels in words, and still saves their keys", async () => {
+    const puts: unknown[] = [];
+    mockFetch((_url, init) => {
+      if (init?.method !== "PUT") return jsonResponse({ error: "no_profile" }, 404);
+      const body = JSON.parse(String(init.body));
+      puts.push(body);
+      return jsonResponse({ profile: { ...HIDDEN_SETTINGS, ...body }, calculated: { kcal: 2000, protein_g: 144, carbs_g: 200, fat_g: 67, fibre_g: 30 } });
+    });
+    renderWithProviders(<SettingsPage />);
+    const select = (await screen.findByLabelText("Everyday activity, excluding workouts")) as HTMLSelectElement;
+    expect([...select.options].map((option) => [option.value, option.textContent])).toEqual([
+      ["sedentary", "Sedentary"], ["light", "Light"], ["moderate", "Moderate"], ["very", "Very active"],
+    ]);
+    expect(select).toHaveDisplayValue("Light");
+    fireEvent.change(screen.getByLabelText("Birth date"), { target: { value: "1991-03-15" } });
+    await userEvent.type(screen.getByLabelText("Height (cm)"), "180");
+    await userEvent.type(screen.getByLabelText("Weight (kg)"), "80");
+    await userEvent.selectOptions(select, "Very active");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText("Saved.");
+    expect(puts[0]).toMatchObject({ activity_level: "very" });
+  });
+
   it("loads an existing profile into the form", async () => {
     mockFetch(() =>
       jsonResponse({
