@@ -4,11 +4,11 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { CACHEDIR_TAG, prepareDataDir } from "../src/db/location.ts";
 import { openDatabase } from "../src/db/open.ts";
-import { snapshot, stripConversations } from "../src/db/snapshot.ts";
+import { CONVERSATION_TABLES, snapshot, stripConversations } from "../src/db/snapshot.ts";
 import { insertEntry } from "../src/log/entries.ts";
 import { insertUserMessage } from "../src/messages/messages.ts";
 import { appendTurns, getOrCreateThread } from "../src/coach/thread.ts";
-import { NOW, sampleEntry, tempDir } from "./helpers.ts";
+import { NOW, openTestDb, sampleEntry, tempDir } from "./helpers.ts";
 
 const SIGNATURE = "Signature: 8a477f597d28d172789f06886806bc55";
 
@@ -66,6 +66,17 @@ describe("prepareDataDir", () => {
     prepareDataDir(dir);
     fs.writeFileSync(path.join(dir, "db", "fitness.db"), "");
     expect(prepareDataDir(dir).move).toBe("in_place");
+  });
+
+  it("clears a snapshot copy that a crash left beside the database", () => {
+    const dir = tempDir();
+    fs.mkdirSync(path.join(dir, "db"));
+    fs.writeFileSync(path.join(dir, "db", "fitness.db"), "");
+    for (const stale of ["fitness.db.snapshot-part", "fitness.db.snapshot-part-journal"]) {
+      fs.writeFileSync(path.join(dir, "db", stale), "a copy with conversations in it");
+    }
+    prepareDataDir(dir);
+    expect(fs.readdirSync(path.join(dir, "db")).sort()).toEqual(["CACHEDIR.TAG", "fitness.db"]);
   });
 });
 
@@ -158,5 +169,16 @@ describe("snapshots", () => {
     }
     expect(partFiles(dir)).toEqual([]);
     live.close();
+  });
+
+  it("have a decision for every table: emptied as conversation, or kept as logbook", () => {
+    // A table added later fails here until someone decides which it is.
+    const KEPT = ["profile", "days", "entries", "food_items", "food_item_groups", "exercise_items", "exercise_muscles"];
+    const db = openTestDb();
+    const tables = (db.sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").pluck().all() as string[]).filter(
+      (name) => !name.startsWith("sqlite_") && name !== "__drizzle_migrations",
+    );
+    expect([...tables].sort()).toEqual([...KEPT, ...CONVERSATION_TABLES].sort());
+    db.close();
   });
 });

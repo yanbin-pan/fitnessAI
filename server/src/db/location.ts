@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { snapshotPartFile } from "./snapshot.ts";
 
 /**
  * restic's --exclude-caches skips every folder holding this file (spec §14.4). The first
@@ -31,7 +32,8 @@ function writeTag(dir: string): void {
 /**
  * Lays out the data folder: db/ and photos/ (both tagged so backups skip them) and
  * snapshots/. Run before the database is opened, because it may move milestone 1's
- * database into db/ — a rename on the same volume.
+ * database into db/ — a rename on the same volume — and because it clears the copy a
+ * crashed snapshot can leave beside the database.
  */
 export function prepareDataDir(dataDir: string): DataPaths {
   const dbDir = path.join(dataDir, "db");
@@ -55,5 +57,10 @@ export function prepareDataDir(dataDir: string): DataPaths {
     fs.renameSync(legacy, dbFile);
     move = "moved";
   }
+
+  // A crash during a snapshot leaves its copy, conversations still in it, beside the database until
+  // the next snapshot. Startup is the moment to clear it.
+  const part = snapshotPartFile(dbFile);
+  for (const stale of [part, `${part}-journal`]) fs.rmSync(stale, { force: true });
   return { dbFile, photoDir, snapshotDir, move };
 }

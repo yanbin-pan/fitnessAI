@@ -33,7 +33,7 @@ const app = buildApp({
   logger: true,
 });
 if (paths.move === "moved") app.log.info("moved the database into db/, where backups skip it (spec §14.4)");
-if (paths.move === "both") app.log.warn("databases found at both data/fitness.db and data/db/fitness.db; using db/ and leaving the other alone");
+if (paths.move === "both") app.log.warn("databases found at both data/fitness.db and data/db/fitness.db; using db/. The old file is still backed up: remove it once you have checked it isn't needed");
 
 const job = startNightlySnapshot({
   sqlite: database.sqlite,

@@ -3,6 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 
 /**
+ * The tables that hold a conversation: a snapshot has every one of them emptied. Every other table is the
+ * logbook, which snapshots keep. A test makes each table's place explicit, so a new table cannot reach a
+ * backup unnoticed.
+ */
+export const CONVERSATION_TABLES = ["coach_turns", "coach_threads", "photos", "messages"] as const;
+
+/**
  * Conversations never reach a backup (spec §14.4): empty them out of a snapshot, clear the
  * entries' links to them, and compact the file so nothing deleted is left in free pages.
  * A startup snapshot can come from an older schema, so only tables that exist are touched.
@@ -12,7 +19,7 @@ export function stripConversations(file: string): void {
   try {
     const tables = new Set(copy.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").pluck().all() as string[]);
     copy.transaction(() => {
-      for (const table of ["coach_turns", "coach_threads", "photos", "messages"]) {
+      for (const table of CONVERSATION_TABLES) {
         if (tables.has(table)) copy.prepare(`DELETE FROM ${table}`).run();
       }
       if (tables.has("entries")) copy.prepare("UPDATE entries SET message_id = NULL").run();
@@ -21,6 +28,11 @@ export function stripConversations(file: string): void {
   } finally {
     copy.close();
   }
+}
+
+/** Where a snapshot is built before it is moved into place: beside the live database, in a folder backups skip. */
+export function snapshotPartFile(dbFile: string): string {
+  return `${dbFile}.snapshot-part`;
 }
 
 /**
@@ -32,7 +44,7 @@ export function stripConversations(file: string): void {
 export function snapshot(sqlite: Database.Database, dir: string, name: string): string {
   fs.mkdirSync(dir, { recursive: true });
   const target = path.join(dir, name);
-  const part = `${sqlite.name}.snapshot-part`;
+  const part = snapshotPartFile(sqlite.name);
   fs.rmSync(part, { force: true }); // a leftover from a crash; VACUUM INTO refuses to overwrite
   try {
     sqlite.prepare("VACUUM INTO ?").run(part);

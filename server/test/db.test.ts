@@ -107,6 +107,41 @@ describe("openDatabase", () => {
     m2.close();
   });
 
+  it("snapshots a milestone 1 database before upgrading it, and the snapshot holds no conversation", () => {
+    const dir = tempDir();
+    const file = path.join(dir, "fitness.db");
+    const snapshots = path.join(dir, "snapshots");
+    const m1 = openDatabase({ file, snapshotDir: null, migrationsFolder: migrationsUpTo(1) });
+    m1.sqlite.exec(`
+      INSERT INTO messages (id, date, role, text, cards, created_at) VALUES ('m1', '2026-10-03', 'user', 'porridge', '[]', 'x');
+      INSERT INTO entries (id, date, logged_at, source, message_id, edited, created_at, updated_at) VALUES ('e1', '2026-10-03', '2026-10-03T10:00:00.000Z', 'coach', 'm1', 0, 'x', 'x');
+      INSERT INTO coach_threads (date, system, created_at) VALUES ('2026-10-03', 'x', 'x');
+      INSERT INTO coach_turns (date, seq, role, blocks, message_id, created_at) VALUES ('2026-10-03', 0, 'user', '[{"type":"text","text":"porridge"}]', 'm1', 'x');
+    `);
+    m1.close();
+
+    const m2 = openDatabase({ file, snapshotDir: snapshots });
+    const taken = fs.readdirSync(snapshots).filter((f) => f.startsWith("startup-"));
+    expect(taken).toHaveLength(1);
+    const copy = new Database(path.join(snapshots, taken[0]), { readonly: true });
+    expect(copy.prepare("SELECT id, message_id FROM entries").all()).toEqual([{ id: "e1", message_id: null }]);
+    for (const table of ["messages", "coach_threads", "coach_turns"]) {
+      expect(copy.prepare(`SELECT count(*) FROM ${table}`).pluck().get()).toBe(0);
+    }
+    // Taken before the migration that adds photos, so the strip must cope with a table that is not there.
+    expect(copy.prepare("SELECT count(*) FROM sqlite_master WHERE name = 'photos'").pluck().get()).toBe(0);
+    copy.close();
+    expect(fs.readFileSync(path.join(snapshots, taken[0])).includes("porridge")).toBe(false);
+
+    // The live database was upgraded and still has its conversation.
+    expect(m2.sqlite.prepare("SELECT count(*) FROM photos").pluck().get()).toBe(0);
+    expect(m2.sqlite.prepare("SELECT text FROM messages").pluck().all()).toEqual(["porridge"]);
+    expect(m2.sqlite.prepare("SELECT count(*) FROM coach_threads").pluck().get()).toBe(1);
+    expect(m2.sqlite.prepare("SELECT count(*) FROM coach_turns").pluck().get()).toBe(1);
+    expect(m2.sqlite.prepare("SELECT message_id FROM entries").pluck().get()).toBe("m1");
+    m2.close();
+  });
+
   it("refuses a second opener while the first holds the lock, and lets it in afterwards", () => {
     const file = path.join(tempDir(), "fitness.db");
     const first = openDatabase({ file, snapshotDir: null });
