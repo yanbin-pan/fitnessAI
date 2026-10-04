@@ -32,7 +32,9 @@ const ExerciseToolItem = z.strictObject({
   category: z.enum(EXERCISE_CATEGORIES),
   activity: z
     .enum(ACTIVITIES)
-    .describe("The sport: tennis, gym (any weight or machine training), wakeboarding, kitesurfing, or other for anything else"),
+    .describe(
+      "The sport. gym: any weight or machine training, and classes such as HIIT or circuits; photography: a photo walk or shoot; yoga: also pilates and stretching; kayaking: also canoeing and stand-up paddleboarding; boxing: also kickboxing and boxing fitness; martial_arts: karate, judo, jiu-jitsu, taekwondo, MMA; other: anything without a fitting activity, such as squash, table tennis, dance or horse riding",
+    ),
   duration_min: z.number().describe("Minutes, including rest between sets; estimate it when not stated"),
   met: z.number().describe("MET value of the activity at the intensity described"),
   sets: z.number().nullable(),

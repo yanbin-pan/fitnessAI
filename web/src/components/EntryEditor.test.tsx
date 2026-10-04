@@ -89,6 +89,15 @@ describe("EntryEditor", () => {
     expect(JSON.parse(String(init?.body)).exercises[0]).toMatchObject({ name: "Tennis", activity: "gym" });
   });
 
+  it("offers the owner's four sports, and the exercise's own activity when it is another", () => {
+    const ride = entry({ foods: [], exercises: [exerciseItem({ name: "Bike ride", category: "cardio", activity: "cycling" })] });
+    mockFetch(() => jsonResponse({ entry: ride, day: dayView() }));
+    renderWithProviders(<EntryEditor date="2026-10-03" entry={ride} onClose={() => {}} />);
+    const group = screen.getByRole("group", { name: "Activity for exercise 1" });
+    expect(within(group).getAllByRole("radio").map((radio) => radio.getAttribute("aria-label"))).toEqual(["Tennis", "Gym", "Wakeboarding", "Kitesurfing", "Cycling"]);
+    expect(within(group).getByRole("radio", { name: "Cycling" })).toBeChecked();
+  });
+
   it("keeps each exercise's activity to itself", async () => {
     mockFetch(() => jsonResponse({ entry: entry(), day: dayView() }, 201));
     renderWithProviders(<EntryEditor date="2026-10-03" entry={null} onClose={() => {}} />);
@@ -101,7 +110,8 @@ describe("EntryEditor", () => {
     await userEvent.click(within(second).getByRole("radio", { name: "Gym" }));
     expect(within(first).getByRole("radio", { name: "Other" })).toBeChecked();
     expect(within(second).getByRole("radio", { name: "Gym" })).toBeChecked();
-    expect(within(second).getByRole("radio", { name: "Other" })).not.toBeChecked();
+    // Other is offered only while it is the exercise's own activity, and the second one is a gym session now.
+    expect(within(second).queryByRole("radio", { name: "Other" })).toBeNull();
   });
 
   it("is one stop for the keyboard, and the arrow keys move between the activities", async () => {

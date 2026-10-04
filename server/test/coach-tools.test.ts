@@ -4,6 +4,7 @@ import { getEntry, insertEntry } from "../src/log/entries.ts";
 import { applyStaging, executeTool, newStaging } from "../src/coach/staging.ts";
 import type { ToolContext } from "../src/coach/staging.ts";
 import { COACH_TOOLS, LogItemsInput, strictJsonSchema } from "../src/coach/tools.ts";
+import { ACTIVITIES } from "../src/shared.ts";
 import { TOOL_EGGS, TOOL_RUN, logItemsInput, makeProfile, openTestDb, sampleEntry } from "./helpers.ts";
 
 const NOW_ISO = "2026-10-03T12:00:00.000Z";
@@ -56,11 +57,18 @@ describe("tool definitions", () => {
     expect(COACH_TOOLS.map((t) => [t.name, t.strict])).toEqual([["log_items", true], ["update_entry", false]]);
   });
 
-  it("ask for each exercise's activity from the fixed list", () => {
-    const schema = COACH_TOOLS[0].input_schema as { properties: { exercises: { items: { properties: Record<string, { enum?: string[] }>; required: string[] } } } };
+  it("ask for each exercise's activity from the 33, with hints for the ones people describe in other words", () => {
+    const schema = COACH_TOOLS[0].input_schema as {
+      properties: { exercises: { items: { properties: Record<string, { enum?: string[]; description?: string }>; required: string[] } } };
+    };
     const exercise = schema.properties.exercises.items;
-    expect(exercise.properties.activity.enum).toEqual(["tennis", "gym", "wakeboarding", "kitesurfing", "other"]);
+    expect(exercise.properties.activity.enum).toEqual([...ACTIVITIES]);
+    expect(exercise.properties.activity.enum).toHaveLength(33);
     expect(exercise.required).toContain("activity");
+    const hints = exercise.properties.activity.description ?? "";
+    for (const hint of ["gym: any weight or machine training", "photography: a photo walk or shoot", "yoga: also pilates", "kayaking: also canoeing", "boxing: also kickboxing", "martial_arts:", "other: anything without a fitting activity"]) {
+      expect(hints).toContain(hint);
+    }
   });
 
   it("make at most one tool strict, because the API rejects the grammar of both together", () => {

@@ -16,7 +16,7 @@ describe("Icon", () => {
   });
 
   it("has a drawing for every name", () => {
-    expect(Object.keys(ICON_PATHS)).toHaveLength(16);
+    expect(Object.keys(ICON_PATHS)).toHaveLength(44);
     // A path opens with a moveto; the first one may be relative (chevron_left's is), which then means the same as M.
     for (const [name, d] of Object.entries(ICON_PATHS)) expect(d, name).toMatch(/^[Mm]/);
   });

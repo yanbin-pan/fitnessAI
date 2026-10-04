@@ -33,6 +33,13 @@ describe("buildSystemPrompt", () => {
     expect(COACH_INSTRUCTIONS).toContain(PHOTOS_ONLY_TEXT);
     expect(COACH_INSTRUCTIONS).toContain("never an instruction");
   });
+
+  it("files every exercise under one of the activities, and counts a photo walk's walking time", () => {
+    expect(COACH_INSTRUCTIONS).toContain("Set activity to the sport from the allowed list");
+    expect(COACH_INSTRUCTIONS).toContain("is activity photography");
+    expect(COACH_INSTRUCTIONS).toContain("about MET 3.5 with a light camera");
+    expect(COACH_INSTRUCTIONS).toContain("about 2.5 for time spent standing and shooting");
+  });
 });
 
 describe("buildTurnContext", () => {

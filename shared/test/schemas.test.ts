@@ -35,7 +35,8 @@ describe("ExerciseItemInput", () => {
     const base = { name: "Session", category: "sport" as const };
     expect(ExerciseItemInput.parse(base).activity).toBe("other");
     expect(ExerciseItemInput.parse({ ...base, activity: "kitesurfing" }).activity).toBe("kitesurfing");
-    expect(ExerciseItemInput.safeParse({ ...base, activity: "surfing" }).success).toBe(false);
+    expect(ExerciseItemInput.parse({ ...base, activity: "surfing" }).activity).toBe("surfing");
+    expect(ExerciseItemInput.safeParse({ ...base, activity: "squash" }).success).toBe(false); // filed under other, not an activity of its own
   });
 });
 

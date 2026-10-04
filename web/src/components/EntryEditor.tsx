@@ -3,11 +3,11 @@ import { useId, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { ApiError, api } from "../api.ts";
 import { storeDay } from "../queries.ts";
-import { ACTIVITIES, EXERCISE_CATEGORIES, MAX_BACKDATE_DAYS } from "../shared.ts";
+import { EXERCISE_CATEGORIES, MAX_BACKDATE_DAYS } from "../shared.ts";
 import type {
   Activity, DeleteResult, Entry, EntryResult, ExerciseCategory, ExerciseItem, ExerciseItemInput, FoodItem, FoodItemInput,
 } from "../shared.ts";
-import { SPORTS, SportBadge } from "./SportBadge.tsx";
+import { FEATURED, SPORTS, SportBadge } from "./SportBadge.tsx";
 import { primaryButton, quietButton } from "./ui.tsx";
 
 export function toFoodInput(f: FoodItem): FoodItemInput {
@@ -84,9 +84,10 @@ function FoodRow({ food, onChange, onRemove }: { food: FoodItemInput; onChange: 
   );
 }
 
-/** The five activities as a radio row of their badges; the full name is each choice's label. */
+/** The owner's four activities as a radio row of their badges, plus the exercise's own when it is another (spec §11.1); the full name is each choice's label. */
 function ActivityPicker({ exercise, value, onChange }: { exercise: number; value: Activity; onChange: (value: Activity) => void }) {
   const name = useId();
+  const shown = FEATURED.includes(value) ? FEATURED : [...FEATURED, value];
   return (
     <fieldset className="mt-2">
       {/* Every exercise has a picker: the hidden words tell a screen reader which one this is. */}
@@ -94,7 +95,7 @@ function ActivityPicker({ exercise, value, onChange }: { exercise: number; value
         Activity <span className="sr-only">for exercise {exercise}</span>
       </legend>
       <div className="mt-1 grid grid-cols-5 gap-1">
-        {ACTIVITIES.map((activity) => {
+        {shown.map((activity) => {
           const chosen = activity === value;
           return (
             <label
