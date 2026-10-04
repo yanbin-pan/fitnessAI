@@ -1,9 +1,16 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import { useDay } from "../queries.ts";
 import { dayView, message } from "../test/fixtures.ts";
 import { jsonResponse, mockFetch, renderWithProviders } from "../test/render.tsx";
 import { Composer } from "./Composer.tsx";
+
+/** Keeps today's day query on screen, as the Today page does. */
+function DayOnScreen() {
+  useDay("today");
+  return null;
+}
 
 describe("Composer", () => {
   it("sends the text with a fresh id and timestamp, then clears the box", async () => {
@@ -29,5 +36,19 @@ describe("Composer", () => {
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("offline");
     expect(screen.getByLabelText("Message your coach")).toHaveValue("banana");
+  });
+
+  it("looks at the day again after a send fails, because the server may have the message all the same", async () => {
+    const fetchMock = mockFetch((_url, init) => {
+      if (init?.method === "POST") throw new TypeError("Failed to fetch"); // the reply was lost on the way back
+      return jsonResponse(dayView());
+    });
+    const dayLoads = () => fetchMock.mock.calls.filter(([url]) => url === "/api/days/today").length;
+    renderWithProviders(<><DayOnScreen /><Composer /></>);
+    await waitFor(() => expect(dayLoads()).toBe(1));
+    await userEvent.type(screen.getByLabelText("Message your coach"), "banana");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("offline");
+    await waitFor(() => expect(dayLoads()).toBe(2));
   });
 });

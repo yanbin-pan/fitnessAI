@@ -27,6 +27,8 @@ export function Composer() {
       storeDay(client, result.day);
       setText("");
     },
+    // A lost reply may still have reached the server: look again, and the pending poll shows the reply when it lands.
+    onError: () => void client.invalidateQueries({ queryKey: ["day"] }),
   });
 
   function submit(event: FormEvent<HTMLFormElement>) {
