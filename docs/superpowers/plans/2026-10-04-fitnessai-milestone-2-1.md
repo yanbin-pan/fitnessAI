@@ -38,7 +38,7 @@
 | `server/src/days/days.ts`, `server/src/routes/days.ts` | 4 | `daySummaries`, `GET /api/days?from=&to=` |
 | `server/src/coach/loop.ts`, `server/src/coach/steps.ts`, `server/src/coach/process.ts` | 7 | `LoopStep`, `onStep`, `stepText` |
 | `server/src/routes/stream.ts`, `server/src/routes/messages.ts`, `server/src/deps.ts` | 7 | `openEventStream`; streaming sends and retries |
-| `web/src/icons/paths.ts` | 1 | regenerated: 45 icons |
+| `web/src/icons/paths.ts` | 1 | regenerated: 44 icons |
 | `web/src/components/SportBadge.tsx` | 1, 2, 6 | `SPORTS`, `FEATURED`, `FAMILIES`, the matte `SportBadge` |
 | `web/src/components/EntryEditor.tsx` | 1, 2 | the activity picker: featured row, More grid |
 | `web/src/format.ts`, `web/src/queries.ts`, `web/src/index.css` | 5, 9 | day-bar and calendar wording; `useDaySummaries`; tint tokens; the poll waits for live sends |
@@ -63,7 +63,7 @@
 
 **Interfaces:**
 - Consumes: nothing new.
-- Produces: `ACTIVITIES` (33, spec order) and `Activity`; `SPORTS: Record<Activity, Sport>` with `Sport = { label: string; short: string; icon: IconName; light: string; dark: string }`; `FEATURED: readonly Activity[]` (`tennis`, `gym`, `wakeboarding`, `kitesurfing`); `SportBadge({ activity, size = 36, labelled = true })`; icon names `padel` … `interests`, `calendar_month`, `more_horiz` in `ICON_PATHS`.
+- Produces: `ACTIVITIES` (33, spec order) and `Activity`; `SPORTS: Record<Activity, Sport>` with `Sport = { label: string; short: string; icon: IconName; light: string; dark: string }`; `FEATURED: readonly Activity[]` (`tennis`, `gym`, `wakeboarding`, `kitesurfing`); `SportBadge({ activity, size = 36, labelled = true })`; icon names `padel` … `interests` and `calendar_month` in `ICON_PATHS` (44 in all).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -113,7 +113,7 @@ In `server/test/coach-context.test.ts`, add inside the describe that tests `COAC
   });
 ```
 
-In `web/src/icons/Icon.test.tsx`, change `toHaveLength(16)` to `toHaveLength(45)`.
+In `web/src/icons/Icon.test.tsx`, change `toHaveLength(16)` to `toHaveLength(44)`.
 
 Replace `web/src/components/SportBadge.test.tsx` with:
 
@@ -194,7 +194,7 @@ In `web/src/components/EntryEditor.test.tsx`, add inside `describe("EntryEditor"
 - [ ] **Step 2: Run the tests to see them fail**
 
 Run: `npm test --workspace shared && npm test --workspace server -- coach-tools coach-context && npm test --workspace web -- SportBadge Icon EntryEditor`
-Expected: FAIL — `ACTIVITIES` has 5 entries; the enum has 5 values and no hints; the prompt lacks the new lines; `ICON_PATHS` has 16 entries; `SPORTS.cycling` is undefined and `FEATURED` is not exported.
+Expected: FAIL — `ACTIVITIES` has 5 entries; the enum has 5 values and no hints; the prompt lacks the new lines; `ICON_PATHS` has 16 entries (44 expected); `SPORTS.cycling` is undefined and `FEATURED` is not exported.
 
 - [ ] **Step 3: The vocabulary, the tool's hints and the prompt**
 
@@ -251,7 +251,7 @@ const names = ["sports_tennis", "fitness_center", "surfing", "kitesurfing", "dir
   "padel", "badminton", "directions_walk", "hiking", "directions_bike", "skateboarding", "pool", "waves", "rowing",
   "kayaking", "sailing", "scuba_diving", "sports_mma", "sports_martial_arts", "self_improvement", "mountain_flag",
   "sports_soccer", "sports_basketball", "sports_volleyball", "sports_rugby", "sports_cricket", "sports_hockey",
-  "downhill_skiing", "snowboarding", "ice_skating", "sports_golf", "interests", "calendar_month", "more_horiz"];
+  "downhill_skiing", "snowboarding", "ice_skating", "sports_golf", "interests", "calendar_month"];
 const dir = `${process.argv[1]}/package/rounded`;
 const lines = names.map((name) => {
   const svg = fs.readFileSync(`${dir}/${name}-fill.svg`, "utf8");
@@ -276,7 +276,7 @@ fs.writeFileSync("web/src/icons/paths.ts", [
 cmp "$tmp/package/LICENSE" web/src/icons/LICENSE && rm -rf "$tmp"
 ```
 
-Expected: `web/src/icons/paths.ts` with 45 entries; `cmp` prints nothing (the licence beside it is unchanged) and the temporary folder is removed.
+Expected: `web/src/icons/paths.ts` with 44 entries; `cmp` prints nothing (the licence beside it is unchanged) and the temporary folder is removed.
 
 - [ ] **Step 5: The matte badge and the featured picker**
 
@@ -1036,7 +1036,7 @@ describe("Calendar", () => {
     expect(String(fetchMock.mock.calls[0][0])).toBe("/api/days?from=2026-09-28&to=2026-11-08");
     const first = await screen.findByRole("button", { name: "1 October: 2,000 of 2,310 kcal, within target" });
     expect(first).toHaveClass("bg-tint-within");
-    expect(screen.getByRole("button", { name: "2 October: 2,450 of 2,310 kcal, up to 10 % over" })).toHaveClass("bg-tint-near");
+    expect(screen.getByRole("button", { name: "2 October: 2,450 of 2,310 kcal, up to 10\u00a0% over" })).toHaveClass("bg-tint-near");
     const today = screen.getByRole("button", { name: "3 October, today" });
     expect(today).not.toHaveClass("bg-tint-within");
     expect(today).toHaveAttribute("aria-current", "date");
@@ -1047,7 +1047,7 @@ describe("Calendar", () => {
   it("words the legend and the days for a gaining goal", async () => {
     await openCalendar("gain");
     expect(await screen.findByRole("button", { name: "2 October: 2,450 of 2,310 kcal, target reached" })).toHaveClass("bg-tint-within");
-    expect(screen.getByRole("button", { name: "1 October: 2,000 of 2,310 kcal, more than 10 % under" })).toHaveClass("bg-tint-off");
+    expect(screen.getByRole("button", { name: "1 October: 2,000 of 2,310 kcal, more than 10\u00a0% under" })).toHaveClass("bg-tint-off");
     expect(screen.getByText("Target reached")).toBeInTheDocument();
   });
 
@@ -1175,8 +1175,8 @@ export function shiftMonth(month: string, delta: number): string {
 
 // Losing or maintaining, the wrong way is over; gaining, it is under (spec §11.1). The space before % never breaks.
 const WORDS: Record<"over" | "under", Record<CalorieStatus, string>> = {
-  over: { within: "Within target", near: "Up to 10 % over", off: "More than 10 % over" },
-  under: { within: "Target reached", near: "Up to 10 % under", off: "More than 10 % under" },
+  over: { within: "Within target", near: "Up to 10\u00a0% over", off: "More than 10\u00a0% over" },
+  under: { within: "Target reached", near: "Up to 10\u00a0% under", off: "More than 10\u00a0% under" },
 };
 const TINT: Record<CalorieStatus, string> = { within: "bg-tint-within", near: "bg-tint-near", off: "bg-tint-off" };
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
