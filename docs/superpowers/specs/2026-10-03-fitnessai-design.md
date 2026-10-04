@@ -530,14 +530,19 @@ Any failure — timeout, API error, refusal, an invalid tool call — marks the 
 
 - **Attaching:** the composer's camera button opens the iPhone's own photo menu (take a
   photo or choose from the library). Up to 4 per message.
-- **On the phone:** each photo is drawn onto a canvas at most 1568 px on the long edge and
-  encoded as JPEG (quality 0.85). That keeps uploads to a few hundred kilobytes and drops
-  the EXIF metadata, location included.
+- **On the phone:** each photo is drawn onto a white canvas at most 1568 px on the long edge
+  and encoded as JPEG (quality 0.85). That keeps uploads to a few hundred kilobytes and
+  drops the EXIF metadata, location included. Photos are prepared one at a time, so several
+  full-size decodes never run at once.
 - **Upload:** `POST /api/photos` with the raw image as the body, as soon as the photo is
   attached; the thumbnail shows progress, a failed upload offers retry, and ✕ removes it.
-  Send waits for the uploads. The server accepts JPEG or PNG — recognised from the file's
-  first bytes, not its declared type — up to 8 MB, stores it as `/data/photos/<id>.jpg`
-  or `.png`, and returns the id, size and dimensions.
+  A photo the server refuses as too large or not an image is removed instead, with "That
+  photo can't be sent. Try another." Send waits for the uploads. The server accepts JPEG or
+  PNG — recognised from the file's first bytes, not its declared type — up to 2 MB and
+  2000 px on each side (the API refuses larger images once a request holds many, and every
+  turn replays the day's photos): a larger body answers 413 `image_too_large`, larger
+  dimensions 400 `image_too_large`. It stores the photo as `/data/photos/<id>.jpg` or
+  `.png`, and returns the id, size and dimensions.
 - **Serving:** only through the authenticated API at `/api/photos/:id`, with
   `Cache-Control: private, max-age=172800, immutable` and `X-Content-Type-Options: nosniff`.
 - **To the coach:** the photos go first, as image blocks, then the text (§6.3). The stored
@@ -550,9 +555,14 @@ Any failure — timeout, API error, refusal, an invalid tool call — marks the 
 ### 6.6 Retention
 
 - **Every hour** (and once at startup) the `retention` job deletes, by `created_at` older
-  than `RETENTION_HOURS` (default 48): messages of every role, with their photos (rows and
-  files); photos never claimed by a message. A day's coach thread and turns are deleted once none of that day's messages
-  remain, so a failed message keeps its thread for Retry until it expires itself.
+  than `RETENTION_HOURS` (default 48, at most 8760): messages of every role, with their
+  photos (rows and files); photos never claimed by a message; and, after an hour, files in
+  `photos/` that have no row. A coach reply goes with its question, even when it is a few
+  seconds younger. A message the coach is still working on is left until it finishes.
+- A day's coach thread and turns are deleted once none of that day's messages remain, so a
+  failed message keeps its thread for Retry until it expires itself, and the coach's raw
+  history of a day lasts until the day's last message expires: at most about 72 hours for
+  the day's first words.
 - **Kept:** entries and their items with every number, day snapshots, the profile and
   `ai_usage`. Deleting a message clears `entries.message_id`; the entry keeps its `source`.
 - **On screen:** a day whose conversation has gone shows its logbook only, with the note
@@ -847,7 +857,7 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
 | `GET` | `/api/health` | Liveness; registered before authentication; returns `{ok:true}` only |
 | `GET` | `/api/days/:date` | Day view (`:date` may be `today`): base and adjusted targets, totals, habit progress, entries, `linked_entries` (entries this day's coach replies logged or changed on another day, such as back-dated ones: shown with their reply, never counted in this day's totals), messages, drafts, measurements, check-ins, burn |
 | `GET` | `/api/days?from=&to=` | Day summaries for the calendar |
-| `POST` | `/api/photos` | Upload one photo: the raw `image/jpeg` or `image/png` body, up to 8 MB → `{id, media_type, bytes, width, height}` |
+| `POST` | `/api/photos` | Upload one photo: the raw `image/jpeg` or `image/png` body, up to 2 MB and 2000 px on each side → `{id, media_type, bytes, width, height}`; 413 or 400 `image_too_large`, 400 `not_an_image` |
 | `POST` | `/api/messages` | Send a message (JSON: `id`, `sent_at`, `text`, `photo_ids` — up to 4; `text` may be empty when there are photos) |
 | `POST` | `/api/messages/:id/retry` | Retry a failed message |
 | `POST` | `/api/drafts/:id/commit` | "Log it" or "Add" — commits an entry, goal plan or habits draft; for a goal plan, the request says which proposed habits are toggled on |
@@ -897,8 +907,9 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
     their type is checked from the file's first bytes and they're served with `nosniff`.
   - Logs record request metadata only — never message text, photos, goals or health
     values.
-- **Retention:** conversations and photos exist only in the live app, for at most 48
-  hours. Deleted rows are overwritten (`secure_delete`), snapshots leave conversations out,
+- **Retention:** conversations and photos exist only in the live app: messages and photos
+  for 48 hours, and the coach's raw history of a day until that day's last message expires
+  (§6.6). Deleted rows are overwritten (`secure_delete`), snapshots leave conversations out,
   and restic skips the live database and the photos (§14.4). Photos lose their EXIF
   metadata, location included, on the phone before upload.
 - **Prompt injection** (for example, text inside a photo): the coach's tools only touch the
@@ -1024,7 +1035,8 @@ No DNS or tunnel changes in either.
   and shouldn't appear**, and the quality of proposed habits for sample goals. A run costs
   cents.
 - **Photos and retention (milestone 2):** upload validation (real JPEG and PNG accepted;
-  wrong bytes, empty and over-8-MB bodies refused; authentication required), claiming
+  wrong bytes, empty bodies, bodies over 2 MB and images over 2000 px refused;
+  authentication required), claiming
   (a photo belongs to one message; a resent message is idempotent), image blocks before
   the text and byte-identical replays, the missing-file placeholder; the retention job
   (messages, photos and threads go after 48 hours, entries keep every number, a failed
@@ -1033,8 +1045,10 @@ No DNS or tunnel changes in either.
   migration's backfill. Test photos are generated in the tests.
 - **Web:** Testing Library for the outbox, signed-out detection, the feed and habit chips;
   the composer's photo flow (attach, upload progress, failure and retry, remove, Send
-  waiting for uploads), photos in the feed and the activity icons; a few Playwright smoke
-  tests at phone size against the built container with the fake AI.
+  waiting for uploads, photos prepared one at a time, refused photos removed), photos in
+  the feed and the activity icons. Playwright smoke tests at phone size against the built
+  container are left for a later milestone; milestone 2 was checked by hand in a browser at
+  phone size, in light and dark.
 - **CI image boot test** (§14.1).
 - **Live checks before merging milestone 2:** with the owner's key, a generated meal photo
   and nutrition label, one message per sport, and the strict-tool grammar check.
