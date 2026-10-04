@@ -1944,7 +1944,7 @@ EOF
 
 **Interfaces:**
 - Produces:
-  - Tailwind colours `base`, `ink`, `muted`, `accent`, `on-accent`, `accent-ink`, `danger`, `protein`, `carbs`, `fat`, `fibre` (so `bg-base`, `text-ink`, `text-muted`, `bg-accent`, `text-on-accent`, `text-accent-ink`, `text-danger`, `stroke-accent`, `bg-protein`, …); utilities `raised`, `raised-sm`, `pressed`, `tap`; CSS variables `--nm-*` and `--tabbar-h`.
+  - Tailwind colours `base` (background only — `bg-base`; a full `--color-base` would turn `text-base` into a colour), `ink`, `muted`, `accent`, `on-accent`, `accent-ink`, `danger`, `protein`, `carbs`, `fat`, `fibre` (so `bg-base`, `text-ink`, `text-muted`, `bg-accent`, `text-on-accent`, `text-accent-ink`, `text-danger`, `stroke-accent`, `bg-protein`, …); utilities `raised`, `raised-sm`, `pressed`, `tap`; CSS variables `--nm-*` and `--tabbar-h`.
   - `ICON_PATHS` and `type IconName` = `"sports_tennis" | "fitness_center" | "surfing" | "kitesurfing" | "directions_run" | "sunny" | "settings" | "add_a_photo" | "arrow_upward" | "close" | "chevron_left" | "chevron_right" | "restaurant" | "sports" | "photo_camera" | "refresh"`.
   - `<Icon name size? label? className? />` — decorative (`aria-hidden`) unless `label` is given, then `role="img"` with that name.
   - `ui.tsx`: `fieldClass`, `primaryButton`, `quietButton` (class strings); `<Segmented legend options value onChange />` (a radio group); `<Toggle label checked onChange />` (a `role="switch"` checkbox).
@@ -1984,7 +1984,7 @@ fs.writeFileSync("web/src/icons/paths.ts", [
 rm -rf "$tmp"
 ```
 
-Run it from the repository root (`mkdir -p web/src/icons` first). Expected: `web/src/icons/paths.ts` with 16 entries, each starting `M`.
+Run it from the repository root (`mkdir -p web/src/icons` first). Expected: `web/src/icons/paths.ts` with 16 entries, each starting with a moveto (`M`, or `m` for `chevron_left`).
 
 - [ ] **Step 2: Write the failing tests**
 
@@ -2010,7 +2010,8 @@ describe("Icon", () => {
 
   it("has a drawing for every name", () => {
     expect(Object.keys(ICON_PATHS)).toHaveLength(16);
-    for (const [name, d] of Object.entries(ICON_PATHS)) expect(d, name).toMatch(/^M/);
+    // Every path starts with a moveto; Material writes chevron_left's as a relative `m`.
+    for (const [name, d] of Object.entries(ICON_PATHS)) expect(d, name).toMatch(/^[Mm]/);
   });
 });
 ```
@@ -2106,7 +2107,9 @@ Replace `web/src/index.css` with:
 }
 
 @theme inline {
-  --color-base: var(--nm-base);
+  /* bg-base only. As --color-base, "base" would also make text-base a colour (Tailwind tries the colour utility first),
+     and the 1rem font size that fieldClass and the composer rely on would be lost. */
+  --background-color-base: var(--nm-base);
   --color-ink: var(--nm-text);
   --color-muted: var(--nm-muted);
   --color-accent: var(--nm-accent);
