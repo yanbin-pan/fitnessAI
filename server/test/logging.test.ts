@@ -43,6 +43,66 @@ describe("serializeError", () => {
   });
 });
 
+/** An app with its logger on, whose log lines land in `lines` instead of stdout. */
+async function loggingApp() {
+  const auth = await makeAccess();
+  const database = openTestDb();
+  const lines: string[] = [];
+  const app = buildApp({
+    db: database.db, verifier: auth.verifier, now: () => NOW, webDist: null, ai: null, coachBudgetMs: 1,
+    logger: true, logStream: { write: (line: string) => void lines.push(line) },
+  });
+  await app.ready();
+  return { app, auth, lines, close: async () => { await app.close(); database.close(); } };
+}
+
+describe("a refused Access token", () => {
+  it("logs why it was refused, and never the token", async () => {
+    const ctx = await loggingApp();
+    try {
+      const token = await ctx.auth.token({ aud: "other-aud" });
+      const res = await ctx.app.inject({ method: "GET", url: "/api/profile", headers: { "cf-access-jwt-assertion": token } });
+      expect(res.statusCode).toBe(401);
+      const refused = ctx.lines.filter((line) => line.includes("access token refused"));
+      expect(refused).toHaveLength(1);
+      expect(refused[0]).toContain("ERR_JWT_CLAIM_VALIDATION_FAILED");
+      expect(refused[0]).toContain('"claim":"aud"');
+      expect(ctx.lines.filter((line) => line.includes(token))).toEqual([]);
+    } finally {
+      await ctx.close();
+    }
+  });
+
+  it("stays quiet when no token was sent", async () => {
+    const ctx = await loggingApp();
+    try {
+      const res = await ctx.app.inject({ method: "GET", url: "/api/profile" });
+      expect(res.statusCode).toBe(401);
+      expect(ctx.lines.length).toBeGreaterThan(0); // the request itself was logged, so the capture works
+      expect(ctx.lines.filter((line) => line.includes("access token refused"))).toEqual([]);
+    } finally {
+      await ctx.close();
+    }
+  });
+
+  it("says an intruder is not the owner without logging any email address", async () => {
+    const ctx = await loggingApp();
+    try {
+      const token = await ctx.auth.token({ email: "intruder@example.com" });
+      const res = await ctx.app.inject({ method: "GET", url: "/api/profile", headers: { "cf-access-jwt-assertion": token } });
+      expect(res.statusCode).toBe(401);
+      const refused = ctx.lines.filter((line) => line.includes("access token refused"));
+      expect(refused).toHaveLength(1);
+      expect(refused[0]).toContain('"detail":"not the owner"');
+      const all = ctx.lines.join("\n");
+      expect(all).not.toContain("intruder@example.com");
+      expect(all).not.toContain("owner@example.com");
+    } finally {
+      await ctx.close();
+    }
+  });
+});
+
 describe("buildApp logging", () => {
   it("logs errors through the scrubbing serializer", async () => {
     const auth = await makeAccess();

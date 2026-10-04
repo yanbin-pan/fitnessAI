@@ -2,6 +2,7 @@ import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
 import type { FastifyInstance } from "fastify";
 import fs from "node:fs";
+import { AuthError } from "./auth/access.ts";
 import type { Identity } from "./auth/access.ts";
 import type { AppDeps } from "./deps.ts";
 import { LOGGER } from "./logging.ts";
@@ -29,7 +30,10 @@ export function cacheControlFor(filePath: string): string {
 }
 
 export function buildApp(deps: AppDeps): FastifyInstance {
-  const app = Fastify({ logger: deps.logger ? LOGGER : false, bodyLimit: 1_048_576 });
+  const app = Fastify({
+    logger: deps.logger ? { ...LOGGER, ...(deps.logStream ? { stream: deps.logStream } : {}) } : false,
+    bodyLimit: 1_048_576,
+  });
   app.decorateRequest("identity", null);
 
   if (deps.metrics) {
@@ -49,9 +53,16 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     if (route === "/api/health") return;
     if (!isApi(route) && !isApi(pathOf(req.url))) return;
     const header = req.headers["cf-access-jwt-assertion"];
+    const token = typeof header === "string" ? header : "";
     try {
-      req.identity = await deps.verifier.verify(typeof header === "string" ? header : "");
-    } catch {
+      req.identity = await deps.verifier.verify(token);
+    } catch (err) {
+      // Say why, never what: no token, email or payload. Requests without a token (probes,
+      // stray scanners) stay quiet. jose's claim errors carry the payload, so never log `err`.
+      if (token) {
+        const e = err as { code?: unknown; claim?: unknown; name?: unknown };
+        req.log.warn({ reason: e.code ?? e.name, claim: e.claim, detail: err instanceof AuthError ? err.message : undefined }, "access token refused");
+      }
       return reply.code(401).send();
     }
   });

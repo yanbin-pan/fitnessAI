@@ -15,5 +15,7 @@ export interface AppDeps {
   /** Total time one coach message may take; under Cloudflare's 100 s proxy timeout. */
   coachBudgetMs: number;
   logger?: boolean;
+  /** Tests only: where log lines go when logger is on. */
+  logStream?: { write(line: string): void };
   metrics?: Metrics;
 }
