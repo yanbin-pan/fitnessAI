@@ -1,10 +1,18 @@
-import type { ChatMessage, DayView, Entry, FoodItem } from "../shared.ts";
+import type { ChatMessage, DayView, Entry, ExerciseItem, FoodItem } from "../shared.ts";
 
 export function foodItem(overrides: Partial<FoodItem> = {}): FoodItem {
   return {
     id: "f1", position: 0, name: "Porridge", quantity: "1 bowl", grams: 250, kcal: 300, protein_g: 10,
     carbs_g: 50, fat_g: 6, fibre_g: 5, saturated_fat_g: 1.5, sugars_g: 8, salt_g: 0.2, fluid_ml: 0,
     alcohol_units: 0, assumption: "", saved_food_id: null, groups: [{ group: "wholegrains", portions: 1 }],
+    ...overrides,
+  };
+}
+
+export function exerciseItem(overrides: Partial<ExerciseItem> = {}): ExerciseItem {
+  return {
+    id: "x1", position: 0, name: "Tennis", category: "sport", activity: "tennis", duration_min: 60, sets: null, reps: null,
+    weight_kg: null, distance_km: null, avg_hr: null, met: 7, kcal: 480, kcal_measured: false, assumption: "", muscles: [],
     ...overrides,
   };
 }
@@ -18,7 +26,7 @@ export function entry(overrides: Partial<Entry> = {}): Entry {
 
 export function message(overrides: Partial<ChatMessage> = {}): ChatMessage {
   return {
-    id: "m1", date: "2026-10-03", role: "user", text: "porridge", status: "done", error_code: null,
+    id: "m1", date: "2026-10-03", role: "user", text: "porridge", photo_ids: [], status: "done", error_code: null,
     cards: [], reply_to: null, sent_at: "2026-10-03T07:09:00.000Z", created_at: "2026-10-03T07:09:00.000Z",
     ...overrides,
   };

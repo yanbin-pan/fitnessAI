@@ -1,7 +1,7 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { dayView, entry } from "../test/fixtures.ts";
+import { dayView, entry, exerciseItem } from "../test/fixtures.ts";
 import { jsonResponse, mockFetch, renderWithProviders } from "../test/render.tsx";
 import { EntryEditor } from "./EntryEditor.tsx";
 
@@ -9,7 +9,7 @@ import { EntryEditor } from "./EntryEditor.tsx";
 const outdoorRun = () => entry({
   foods: [],
   exercises: [{
-    id: "x1", position: 0, name: "Outdoor run", category: "cardio", duration_min: 30, sets: null, reps: null, weight_kg: null,
+    id: "x1", position: 0, name: "Outdoor run", category: "cardio", activity: "other", duration_min: 30, sets: null, reps: null, weight_kg: null,
     distance_km: 5, avg_hr: null, met: 9.8, kcal: 287.4, kcal_measured: false, assumption: "easy pace",
     muscles: [{ muscle: "quads", role: "primary" }],
   }],
@@ -58,6 +58,63 @@ describe("EntryEditor", () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/entries");
     expect(JSON.parse(String(init?.body))).toMatchObject({ date: "2026-10-02", time: null, foods: [{ name: "Apple", kcal: 52 }], exercises: [] });
+  });
+
+  it("lets you pick an exercise's activity, and sends it", async () => {
+    const fetchMock = mockFetch(() => jsonResponse({ entry: entry(), day: dayView() }, 201));
+    renderWithProviders(<EntryEditor date="2026-10-03" entry={null} onClose={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
+    await userEvent.type(screen.getByLabelText("Exercise"), "Kite session");
+    expect(screen.getByRole("radio", { name: "Other" })).toBeChecked();
+    await userEvent.click(screen.getByRole("radio", { name: "Kitesurfing" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    expect(body.exercises[0]).toMatchObject({ name: "Kite session", activity: "kitesurfing" });
+  });
+
+  it("shows the activity an exercise already has, and sends a change to it with the PATCH", async () => {
+    const sample = entry({ foods: [], exercises: [exerciseItem()] }); // a tennis session
+    const fetchMock = mockFetch(() => jsonResponse({ entry: sample, day: dayView({ entries: [sample] }) }));
+    renderWithProviders(<EntryEditor date="2026-10-03" entry={sample} onClose={() => {}} />);
+    expect(screen.getByRole("radio", { name: "Tennis" })).toBeChecked();
+    await userEvent.click(screen.getByRole("radio", { name: "Gym" }));
+    expect(screen.getByRole("radio", { name: "Gym" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Tennis" })).not.toBeChecked();
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/entries/e1");
+    expect(init?.method).toBe("PATCH");
+    expect(JSON.parse(String(init?.body)).exercises[0]).toMatchObject({ name: "Tennis", activity: "gym" });
+  });
+
+  it("keeps each exercise's activity to itself", async () => {
+    mockFetch(() => jsonResponse({ entry: entry(), day: dayView() }, 201));
+    renderWithProviders(<EntryEditor date="2026-10-03" entry={null} onClose={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
+    await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
+    // Each picker is named for its exercise, so a screen reader can tell them apart.
+    const first = screen.getByRole("group", { name: "Activity for exercise 1" });
+    const second = screen.getByRole("group", { name: "Activity for exercise 2" });
+    expect(within(first).getAllByRole("radio")).toHaveLength(5);
+    await userEvent.click(within(second).getByRole("radio", { name: "Gym" }));
+    expect(within(first).getByRole("radio", { name: "Other" })).toBeChecked();
+    expect(within(second).getByRole("radio", { name: "Gym" })).toBeChecked();
+    expect(within(second).getByRole("radio", { name: "Other" })).not.toBeChecked();
+  });
+
+  it("is one stop for the keyboard, and the arrow keys move between the activities", async () => {
+    mockFetch(() => jsonResponse({ entry: entry(), day: dayView() }, 201));
+    renderWithProviders(<EntryEditor date="2026-10-03" entry={null} onClose={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
+    await userEvent.click(screen.getByLabelText("Type"));
+    await userEvent.tab();
+    expect(screen.getByRole("radio", { name: "Other" })).toHaveFocus(); // the chosen one stands for the group
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(screen.getByRole("radio", { name: "Kitesurfing" })).toBeChecked();
+    await userEvent.tab();
+    expect(screen.getByLabelText("Minutes")).toHaveFocus(); // the rest of the group is skipped
   });
 
   it("explains a date too far back instead of blaming the numbers", async () => {
@@ -118,7 +175,7 @@ describe("EntryEditor", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).exercises).toEqual([{
-      name: "Outdoor run", category: "cardio", duration_min: null, sets: null, reps: null, weight_kg: null, distance_km: 5,
+      name: "Outdoor run", category: "cardio", activity: "other", duration_min: null, sets: null, reps: null, weight_kg: null, distance_km: 5,
       // The minutes changed and the kcal came from the MET, so the server works it out again.
       avg_hr: null, met: 9.8, kcal: null, assumption: "easy pace", muscles: [{ muscle: "quads", role: "primary" }],
     }]);

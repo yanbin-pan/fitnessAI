@@ -4,7 +4,7 @@ import type { Sql } from "../db/types.ts";
 import { getEntry, insertEntry, replaceEntryItems } from "../log/entries.ts";
 import type { ExerciseItemData, FoodItemData, NewEntry } from "../log/entries.ts";
 import { MAX_BACKDATE_DAYS, TIME_HHMM, daysBetween, isIsoDate } from "../shared.ts";
-import type { Profile } from "../shared.ts";
+import type { EntrySource, Profile } from "../shared.ts";
 import { exerciseKcal } from "../targets/targets.ts";
 import { zonedTimeToInstant } from "../time.ts";
 import { LogItemsInput, UpdateEntryInput, amountIssues } from "./tools.ts";
@@ -26,6 +26,8 @@ export interface ToolContext {
   sql: Sql;
   profile: Profile;
   messageId: string;
+  /** `photo` when the message had photos, otherwise `coach` (spec §5). */
+  source: EntrySource;
   /** The day the message belongs to. */
   messageDate: string;
   sentAt: Date;
@@ -87,7 +89,7 @@ function logItems(raw: unknown, ctx: ToolContext): ToolOutcome {
     id: ctx.newId(),
     date,
     logged_at: loggedAt.toISOString(),
-    source: "coach",
+    source: ctx.source,
     message_id: ctx.messageId,
     foods: input.foods.map(foodFromTool),
     exercises: input.exercises.map((item) => exerciseFromTool(item, weight)),

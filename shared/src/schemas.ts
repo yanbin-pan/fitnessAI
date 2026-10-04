@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { isIsoDate } from "./dates.ts";
 import {
-  ACTIVITY_LEVEL_KEYS, BODY_GOALS, EXERCISE_CATEGORIES, FOOD_GROUPS, MUSCLES, MUSCLE_ROLES, SEXES,
+  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, EXERCISE_CATEGORIES, FOOD_GROUPS, MAX_PHOTOS_PER_MESSAGE, MUSCLES, MUSCLE_ROLES, SEXES,
 } from "./vocab.ts";
 
 // Request bodies the API accepts. Each schema's parsed output (defaults filled in)
@@ -47,6 +47,7 @@ export type FoodItemInput = z.infer<typeof FoodItemInput>;
 export const ExerciseItemInput = z.object({
   name: z.string().trim().min(1).max(200),
   category: z.enum(EXERCISE_CATEGORIES),
+  activity: z.enum(ACTIVITIES).default("other"),
   duration_min: optionalPositive,
   sets: optionalPositive,
   reps: optionalPositive,
@@ -112,9 +113,16 @@ export type ProfileInput = z.input<typeof ProfileInput>;
 /** A stored profile, every field present. */
 export type Profile = z.output<typeof ProfileInput>;
 
-export const MessageInput = z.object({
-  id: z.uuid(),
-  sent_at: z.iso.datetime(),
-  text: z.string().trim().min(1).max(4000),
-});
+/** A photo id from POST /api/photos: 128 random bits in hex (spec §6.5). */
+export const PhotoId = z.string().regex(/^[0-9a-f]{32}$/);
+
+export const MessageInput = z
+  .object({
+    id: z.uuid(),
+    sent_at: z.iso.datetime(),
+    text: z.string().trim().max(4000).default(""),
+    photo_ids: z.array(PhotoId).max(MAX_PHOTOS_PER_MESSAGE).default([]),
+  })
+  .refine((m) => m.text.length > 0 || m.photo_ids.length > 0, { message: "A message needs text or a photo", path: ["text"] })
+  .refine((m) => new Set(m.photo_ids).size === m.photo_ids.length, { message: "Each photo can be attached once", path: ["photo_ids"] });
 export type MessageInput = z.infer<typeof MessageInput>;

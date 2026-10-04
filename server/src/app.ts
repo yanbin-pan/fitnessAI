@@ -6,6 +6,7 @@ import { AuthError } from "./auth/access.ts";
 import type { Identity } from "./auth/access.ts";
 import type { AppDeps } from "./deps.ts";
 import { LOGGER } from "./logging.ts";
+import { answerError } from "./routes/http.ts";
 import { registerRoutes } from "./routes/index.ts";
 
 declare module "fastify" {
@@ -70,13 +71,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     }
   });
 
-  app.setErrorHandler((err, req, reply) => {
-    // Fastify types the error as unknown; client errors (bad JSON, body too large) carry a 4xx statusCode.
-    const code = (err as { statusCode?: unknown }).statusCode;
-    const status = typeof code === "number" && code < 500 ? code : 500;
-    if (status === 500) req.log.error({ err }, "unhandled error");
-    return reply.code(status).send({ error: status === 500 ? "internal" : "bad_request" });
-  });
+  app.setErrorHandler(answerError);
 
   registerRoutes(app, deps);
 

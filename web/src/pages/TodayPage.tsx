@@ -8,6 +8,7 @@ import { EntryEditor } from "../components/EntryEditor.tsx";
 import { Feed } from "../components/Feed.tsx";
 import { SetupPrompt } from "../components/SetupPrompt.tsx";
 import { Summary } from "../components/Summary.tsx";
+import { Toggle, quietButton } from "../components/ui.tsx";
 import { storeDay, useDay } from "../queries.ts";
 import { MAX_BACKDATE_DAYS, daysBetween } from "../shared.ts";
 import type { DeleteResult, Entry, MessageResult } from "../shared.ts";
@@ -61,21 +62,26 @@ export function TodayPage() {
 
   if (day.error instanceof ApiError && day.error.code === "no_profile") return <SetupPrompt />;
   if (!day.data) {
-    return <main className="mx-auto max-w-xl p-6 text-slate-500">{day.isError ? "Couldn't load this day." : "Loading…"}</main>;
+    return <main className="mx-auto max-w-xl p-6 text-muted">{day.isError ? "Couldn't load this day." : "Loading…"}</main>;
   }
   const view = day.data;
   return (
-    <main className="mx-auto max-w-xl pb-48">
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
+    // The bottom padding leaves the end of the feed clear of the tab bar and of the composer, whose height changes
+    // (photos, notices, a longer message) and is published as --composer-h. A day without a composer uses the fallback.
+    <main className="mx-auto max-w-xl pb-[calc(var(--composer-h,8rem)_+_var(--tabbar-h)_+_env(safe-area-inset-bottom)_+_1rem)]">
+      {/* Only the day navigation stays pinned; the summary scrolls away with the feed. Sticky is bounded by its parent, so this must stay a direct child of main. */}
+      <div className="sticky top-0 z-10 bg-base px-4 pt-[env(safe-area-inset-top)]">
         <DayNav date={view.date} today={view.today} />
+      </div>
+      {/* The top padding gives the card's raised highlight room below the solid bar, which would otherwise paint over it. */}
+      <div className="px-4 py-3">
         <Summary view={view} />
-        <label className="flex items-center gap-2 pb-2 text-xs text-slate-500">
-          <input type="checkbox" checked={logOnly} onChange={(event) => setLogOnly(event.target.checked)} />
-          Log only
-        </label>
-      </header>
+        <div className="mt-3 flex justify-end">
+          <Toggle label="Log only" checked={logOnly} onChange={setLogOnly} />
+        </div>
+      </div>
       {(retry.isError || undo.isError) && (
-        <p role="alert" className="px-4 pt-3 text-sm text-red-600">
+        <p role="alert" className="px-4 pt-3 text-sm text-danger">
           {actionError(undo.error ?? retry.error)}
         </p>
       )}
@@ -96,7 +102,7 @@ export function TodayPage() {
       {/* The server refuses a new entry dated more than MAX_BACKDATE_DAYS back (too_old), so don't offer one there. */}
       {view.date <= view.today && daysBetween(view.date, view.today) <= MAX_BACKDATE_DAYS && (
         <div className="px-4">
-          <button type="button" onClick={() => setEditing({ date: view.date, entry: null })} className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+          <button type="button" onClick={() => setEditing({ date: view.date, entry: null })} className={`${quietButton} text-sm text-accent-ink`}>
             + Add manually
           </button>
         </div>

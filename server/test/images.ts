@@ -1,0 +1,21 @@
+// Minimal image headers for tests: real enough for the byte and size checks, never a
+// decodable picture. Nothing real is committed to this public repository (spec §13).
+
+/** SOI, a JFIF APP0 segment, a baseline start-of-frame with the size, optional padding, EOI. */
+export function fakeJpeg(width: number, height: number, padding = 0): Buffer {
+  const app0 = [0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00];
+  const sof0 = [
+    0xff, 0xc0, 0x00, 0x11, 0x08, height >> 8, height & 0xff, width >> 8, width & 0xff,
+    0x03, 0x01, 0x22, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01,
+  ];
+  return Buffer.concat([Buffer.from([0xff, 0xd8]), Buffer.from(app0), Buffer.from(sof0), Buffer.alloc(padding), Buffer.from([0xff, 0xd9])]);
+}
+
+/** The PNG signature and an IHDR chunk with the size (its CRC is not checked). */
+export function fakePng(width: number, height: number): Buffer {
+  const head = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52]);
+  const size = Buffer.alloc(8);
+  size.writeUInt32BE(width, 0);
+  size.writeUInt32BE(height, 4);
+  return Buffer.concat([head, size, Buffer.from([0x08, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])]);
+}

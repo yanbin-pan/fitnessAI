@@ -19,6 +19,10 @@ export type FoodGroup = (typeof FOOD_GROUPS)[number];
 export const EXERCISE_CATEGORIES = ["strength", "cardio", "mobility", "sport"] as const;
 export type ExerciseCategory = (typeof EXERCISE_CATEGORIES)[number];
 
+/** The sport an exercise was (spec §5.1). `category` drives muscle volume and habits; this drives the icon. */
+export const ACTIVITIES = ["tennis", "gym", "wakeboarding", "kitesurfing", "other"] as const;
+export type Activity = (typeof ACTIVITIES)[number];
+
 /** Day-to-day activity EXCLUDING workouts (spec §5, profile.activity_level); workouts are added back separately (spec §7.2). */
 export const ACTIVITY_LEVEL_KEYS = ["sedentary", "light", "moderate", "very"] as const;
 export type ActivityLevel = (typeof ACTIVITY_LEVEL_KEYS)[number];
@@ -40,3 +44,6 @@ export type EntrySource = (typeof ENTRY_SOURCES)[number];
 
 /** How far back the coach may log or change things (spec §7.5). */
 export const MAX_BACKDATE_DAYS = 7;
+
+/** How many photos one message can carry (spec §6.5). */
+export const MAX_PHOTOS_PER_MESSAGE = 4;

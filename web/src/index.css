@@ -1,9 +1,101 @@
 @import "tailwindcss";
 
+/* Neumorphic design tokens (spec §11.4): one base colour per theme; depth comes from a pair of shadows. */
+:root {
+  --nm-base: #e4e9f0;
+  --nm-hi: #ffffff;
+  --nm-lo: #bac4d2;
+  --nm-text: #28323f;
+  --nm-muted: #55637a;
+  --nm-accent: #087a54;
+  --nm-on-accent: #ffffff;
+  --nm-accent-text: #067052;
+  --nm-danger: #a8321f;
+  /* The tab bar's height above the home-indicator inset; the composer sits on top of it. */
+  --tabbar-h: 4rem;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --nm-base: #262a31;
+    --nm-hi: #31363f;
+    --nm-lo: #17191e;
+    --nm-text: #e8ecf1;
+    --nm-muted: #9aa5b5;
+    --nm-accent: #34d399;
+    --nm-on-accent: #0f2a1f;
+    --nm-accent-text: #34d399;
+    --nm-danger: #f2876f;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  /* bg-base only. As --color-base, "base" would also make text-base a colour (Tailwind tries the colour utility first),
+     and the 1rem font size that fieldClass and the composer rely on would be lost. */
+  --background-color-base: var(--nm-base);
+  --color-ink: var(--nm-text);
+  --color-muted: var(--nm-muted);
+  --color-accent: var(--nm-accent);
+  --color-on-accent: var(--nm-on-accent);
+  --color-accent-ink: var(--nm-accent-text);
+  --color-danger: var(--nm-danger);
+  --color-protein: #5b8def;
+  --color-carbs: #f2a93b;
+  --color-fat: #e8735a;
+  --color-fibre: #4cb782;
+}
+
+/* Raised from the surface: cards, the summary, the composer, sheets. */
+@utility raised {
+  background-color: var(--nm-base);
+  box-shadow: 6px 6px 12px var(--nm-lo), -6px -6px 12px var(--nm-hi);
+}
+
+/* Slightly raised: icon buttons, chips, bubbles, knobs, a segmented control's choice. */
+@utility raised-sm {
+  background-color: var(--nm-base);
+  box-shadow: 3px 3px 6px var(--nm-lo), -3px -3px 6px var(--nm-hi);
+}
+
+/* Pressed in: text boxes, tracks, the active tab, a segmented control's well. */
+@utility pressed {
+  background-color: var(--nm-base);
+  box-shadow: inset 3px 3px 6px var(--nm-lo), inset -3px -3px 6px var(--nm-hi);
+}
+
+/* Presses in while tapped. */
+@utility tap {
+  transition: box-shadow 150ms ease;
+  &:active:not(:disabled) {
+    box-shadow: inset 3px 3px 6px var(--nm-lo), inset -3px -3px 6px var(--nm-hi);
+  }
+}
+
 html {
   -webkit-text-size-adjust: 100%;
+  background-color: var(--nm-base);
 }
 
 body {
   overscroll-behavior-y: none;
+  background-color: var(--nm-base);
+  color: var(--nm-text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+}
+
+:focus-visible {
+  outline: 2px solid var(--nm-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

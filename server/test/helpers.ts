@@ -74,11 +74,13 @@ export const NOW = new Date("2026-10-03T12:00:00.000Z");
 export async function testApp(opts: { now?: Date; webDist?: string | null; ai?: AiClient | null; coachBudgetMs?: number; metrics?: Metrics } = {}) {
   const auth = await makeAccess();
   const database = openTestDb();
+  const photoDir = tempDir();
   const app = buildApp({
     db: database.db,
     verifier: auth.verifier,
     now: () => opts.now ?? NOW,
     webDist: opts.webDist ?? null,
+    photoDir,
     ai: opts.ai ?? null,
     coachBudgetMs: opts.coachBudgetMs ?? 90_000,
     metrics: opts.metrics,
@@ -88,6 +90,7 @@ export async function testApp(opts: { now?: Date; webDist?: string | null; ai?: 
   return {
     app,
     db: database.db,
+    photoDir,
     auth,
     headers: { "cf-access-jwt-assertion": owner },
     close: async () => {
@@ -109,7 +112,7 @@ export function sampleFood(overrides: Partial<FoodItemData> = {}): FoodItemData 
 
 export function sampleExercise(overrides: Partial<ExerciseItemData> = {}): ExerciseItemData {
   return {
-    name: "Run", category: "cardio", duration_min: 30, sets: null, reps: null, weight_kg: null,
+    name: "Run", category: "cardio", activity: "other", duration_min: 30, sets: null, reps: null, weight_kg: null,
     distance_km: 5, avg_hr: null, met: 9, kcal: 320, kcal_measured: false, assumption: "",
     muscles: [{ muscle: "quads", role: "primary" }], ...overrides,
   };
@@ -131,7 +134,7 @@ export const TOOL_EGGS = {
 
 /** A complete exercise item as Claude sends it: 30 minutes at MET 9 is 320 active kcal at 80 kg. */
 export const TOOL_RUN = {
-  name: "Run", category: "cardio", duration_min: 30, met: 9, sets: null, reps: null, weight_kg: null,
+  name: "Run", category: "cardio", activity: "other", duration_min: 30, met: 9, sets: null, reps: null, weight_kg: null,
   distance_km: 5, muscles: [{ muscle: "quads", role: "primary" }], assumption: "steady pace",
 };
 

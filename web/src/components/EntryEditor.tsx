@@ -1,12 +1,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { ApiError, api } from "../api.ts";
 import { storeDay } from "../queries.ts";
-import { EXERCISE_CATEGORIES, MAX_BACKDATE_DAYS } from "../shared.ts";
+import { ACTIVITIES, EXERCISE_CATEGORIES, MAX_BACKDATE_DAYS } from "../shared.ts";
 import type {
-  DeleteResult, Entry, EntryResult, ExerciseCategory, ExerciseItem, ExerciseItemInput, FoodItem, FoodItemInput,
+  Activity, DeleteResult, Entry, EntryResult, ExerciseCategory, ExerciseItem, ExerciseItemInput, FoodItem, FoodItemInput,
 } from "../shared.ts";
+import { SPORTS, SportBadge } from "./SportBadge.tsx";
+import { primaryButton, quietButton } from "./ui.tsx";
 
 export function toFoodInput(f: FoodItem): FoodItemInput {
   return {
@@ -18,7 +20,7 @@ export function toFoodInput(f: FoodItem): FoodItemInput {
 
 export function toExerciseInput(x: ExerciseItem): ExerciseItemInput {
   return {
-    name: x.name, category: x.category, duration_min: x.duration_min, sets: x.sets, reps: x.reps,
+    name: x.name, category: x.category, activity: x.activity, duration_min: x.duration_min, sets: x.sets, reps: x.reps,
     weight_kg: x.weight_kg, distance_km: x.distance_km, avg_hr: x.avg_hr, met: x.met, kcal: x.kcal,
     assumption: x.assumption, muscles: x.muscles,
   };
@@ -30,12 +32,12 @@ export const blankFood = (): FoodItemInput => ({
 });
 
 export const blankExercise = (): ExerciseItemInput => ({
-  name: "", category: "cardio", duration_min: null, sets: null, reps: null, weight_kg: null,
+  name: "", category: "cardio", activity: "other", duration_min: null, sets: null, reps: null, weight_kg: null,
   distance_km: null, avg_hr: null, met: null, kcal: 0, assumption: "", muscles: [],
 });
 
-const inputClass = "mt-0.5 rounded-lg border border-slate-300 px-2 py-1.5 text-base dark:border-slate-700 dark:bg-slate-950";
-const rowClass = "mt-3 rounded-xl border border-slate-200 p-2 dark:border-slate-700";
+const inputClass = "pressed mt-0.5 rounded-xl px-2 py-1.5 text-base text-ink";
+const rowClass = "pressed mt-3 rounded-2xl p-3";
 
 function NumberField({ label, value, onChange }: { label: string; value: number | null; onChange: (value: number | null) => void }) {
   return (
@@ -75,14 +77,52 @@ function FoodRow({ food, onChange, onRemove }: { food: FoodItemInput; onChange: 
         <NumberField label="Fat" value={food.fat_g} onChange={(v) => set({ fat_g: v ?? 0 })} />
         <NumberField label="Fibre" value={food.fibre_g} onChange={(v) => set({ fibre_g: v ?? 0 })} />
       </div>
-      <button type="button" onClick={onRemove} className="mt-1 text-xs text-slate-500">
+      <button type="button" onClick={onRemove} className="mt-2 text-xs font-medium text-muted">
         Remove
       </button>
     </div>
   );
 }
 
-function ExerciseRow({ item, onChange, onRemove }: { item: ExerciseItemInput; onChange: (item: ExerciseItemInput) => void; onRemove: () => void }) {
+/** The five activities as a radio row of their badges; the full name is each choice's label. */
+function ActivityPicker({ exercise, value, onChange }: { exercise: number; value: Activity; onChange: (value: Activity) => void }) {
+  const name = useId();
+  return (
+    <fieldset className="mt-2">
+      {/* Every exercise has a picker: the hidden words tell a screen reader which one this is. */}
+      <legend className="text-xs">
+        Activity <span className="sr-only">for exercise {exercise}</span>
+      </legend>
+      <div className="mt-1 grid grid-cols-5 gap-1">
+        {ACTIVITIES.map((activity) => {
+          const chosen = activity === value;
+          return (
+            <label
+              key={activity}
+              className={`flex cursor-pointer flex-col items-center gap-1 rounded-2xl py-1.5 text-xs has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${chosen ? "raised-sm font-semibold text-ink" : "text-muted"}`}
+            >
+              <input
+                type="radio"
+                name={name}
+                value={activity}
+                checked={chosen}
+                onChange={() => onChange(activity)}
+                aria-label={SPORTS[activity].label}
+                className="sr-only"
+              />
+              <SportBadge activity={activity} size={32} labelled={false} />
+              {SPORTS[activity].short}
+            </label>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+function ExerciseRow({
+  item, number, onChange, onRemove,
+}: { item: ExerciseItemInput; number: number; onChange: (item: ExerciseItemInput) => void; onRemove: () => void }) {
   const set = (patch: Partial<ExerciseItemInput>) => onChange({ ...item, ...patch });
   return (
     <div className={rowClass}>
@@ -102,11 +142,12 @@ function ExerciseRow({ item, onChange, onRemove }: { item: ExerciseItemInput; on
           </select>
         </label>
       </div>
+      <ActivityPicker exercise={number} value={item.activity} onChange={(activity) => set({ activity })} />
       <div className="mt-2 grid grid-cols-2 gap-2">
         <NumberField label="Minutes" value={item.duration_min} onChange={(v) => set({ duration_min: v, ...(item.met !== null ? { kcal: null } : {}) })} />
         <NumberField label="kcal burned" value={item.kcal} onChange={(v) => set({ kcal: v })} />
       </div>
-      <button type="button" onClick={onRemove} className="mt-1 text-xs text-slate-500">
+      <button type="button" onClick={onRemove} className="mt-2 text-xs font-medium text-muted">
         Remove
       </button>
     </div>
@@ -173,7 +214,7 @@ export function EntryEditor({ date, entry, onClose }: { date: string; entry: Ent
     <div role="dialog" aria-modal="true" aria-label={entry ? "Edit entry" : "Add manually"} className="fixed inset-0 z-40 flex items-end bg-black/40 sm:items-center">
       <form
         onSubmit={submit}
-        className="max-h-[90dvh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)] sm:mx-auto sm:max-w-xl sm:rounded-2xl dark:bg-slate-900"
+        className="raised max-h-[90dvh] w-full overflow-y-auto rounded-t-3xl p-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)] sm:mx-auto sm:max-w-xl sm:rounded-3xl"
       >
         <h2 className="text-lg font-semibold">{entry ? "Edit entry" : "Add manually"}</h2>
         {foods.map((food, i) => (
@@ -183,20 +224,21 @@ export function EntryEditor({ date, entry, onClose }: { date: string; entry: Ent
           <ExerciseRow
             key={`x${i}`}
             item={item}
+            number={i + 1}
             onChange={(next) => setExercises(replaceAt(exercises, i, next))}
             onRemove={() => setExercises(exercises.filter((_, j) => j !== i))}
           />
         ))}
-        <div className="mt-3 flex gap-4 text-sm font-medium text-emerald-700 dark:text-emerald-400">
-          <button type="button" onClick={() => setFoods([...foods, blankFood()])}>
+        <div className="mt-3 flex gap-3">
+          <button type="button" onClick={() => setFoods([...foods, blankFood()])} className={`${quietButton} text-sm text-accent-ink`}>
             + Food
           </button>
-          <button type="button" onClick={() => setExercises([...exercises, blankExercise()])}>
+          <button type="button" onClick={() => setExercises([...exercises, blankExercise()])} className={`${quietButton} text-sm text-accent-ink`}>
             + Exercise
           </button>
         </div>
         {(save.isError || remove.isError) && (
-          <p role="alert" className="mt-2 text-sm text-red-600">
+          <p role="alert" className="mt-2 text-sm text-danger">
             {failureText(remove.isError ? remove.error : save.error, remove.isError)}
           </p>
         )}
@@ -204,7 +246,7 @@ export function EntryEditor({ date, entry, onClose }: { date: string; entry: Ent
           {entry ? (
             <button
               type="button"
-              className="text-red-600"
+              className="font-medium text-danger"
               onClick={() => {
                 if (!window.confirm("Delete this entry?")) return;
                 save.reset();
@@ -217,10 +259,10 @@ export function EntryEditor({ date, entry, onClose }: { date: string; entry: Ent
             <span />
           )}
           <div className="flex gap-2">
-            <button type="button" onClick={onClose} className="px-3 py-2">
+            <button type="button" onClick={onClose} className={quietButton}>
               Cancel
             </button>
-            <button type="submit" disabled={save.isPending} className="rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white disabled:opacity-40">
+            <button type="submit" disabled={save.isPending} className={primaryButton}>
               Save
             </button>
           </div>

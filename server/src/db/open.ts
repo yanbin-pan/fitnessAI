@@ -82,6 +82,11 @@ export function openDatabase(opts: OpenOptions) {
     sqlite.pragma("journal_mode = DELETE");
     sqlite.pragma("synchronous = FULL");
     sqlite.pragma("temp_store = MEMORY");
+    // Conversations are deleted after 48 hours (spec §6.6). secure_delete overwrites their
+    // rows instead of leaving them in free pages, and a zero journal_size_limit truncates the
+    // rollback journal that exclusive locking keeps between transactions.
+    sqlite.pragma("secure_delete = ON");
+    sqlite.pragma("journal_size_limit = 0");
     if (existed && opts.snapshotDir && migrationPending(sqlite, migrationsFolder)) {
       snapshot(sqlite, opts.snapshotDir, `startup-${stamp(new Date())}.db`);
       pruneSnapshots(opts.snapshotDir, "startup-", 3);

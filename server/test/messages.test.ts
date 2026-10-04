@@ -3,13 +3,15 @@ import { sql } from "drizzle-orm";
 import { afterEach, describe, expect, it } from "vitest";
 import { AiError } from "../src/ai/client.ts";
 import { processMessage } from "../src/coach/process.ts";
-import { coachTurns } from "../src/db/schema.ts";
+import { coachTurns, messages } from "../src/db/schema.ts";
 import { failInterrupted, getMessage, insertUserMessage } from "../src/messages/messages.ts";
+import { getPhoto, savePhoto } from "../src/photos/photos.ts";
 import { saveProfile } from "../src/profile/profile.ts";
 import { fakeAi, hangUntilAborted, textReply, toolCall } from "./fake-ai.ts";
 import type { FakeStep } from "./fake-ai.ts";
-import { NOW, TOOL_EGGS, logItemsInput, makeProfile, testApp } from "./helpers.ts";
+import { NOW, TOOL_EGGS, logItemsInput, makeProfile, tempDir, testApp } from "./helpers.ts";
 import type { TestApp } from "./helpers.ts";
+import { fakeJpeg } from "./images.ts";
 
 let ctx: TestApp | undefined;
 afterEach(async () => {
@@ -30,6 +32,20 @@ function send(app: TestApp, text: string, id = randomUUID(), sentAt = "2026-10-0
 
 function retry(app: TestApp, id: string) {
   return app.app.inject({ method: "POST", url: `/api/messages/${id}/retry`, headers: app.headers });
+}
+
+function addPhoto(app: TestApp): string {
+  const saved = savePhoto(app.db, app.photoDir, fakeJpeg(8, 6), NOW.toISOString());
+  if (!saved.ok) throw new Error("the test photo was refused");
+  return saved.photo.id;
+}
+
+function sendWith(app: TestApp, body: { id?: string; text?: string; photo_ids?: string[] }) {
+  const { id = randomUUID(), ...rest } = body;
+  return app.app.inject({
+    method: "POST", url: "/api/messages", headers: app.headers,
+    payload: { id, sent_at: "2026-10-03T11:58:00.000Z", text: "", photo_ids: [], ...rest },
+  });
 }
 
 describe("POST /api/messages", () => {
@@ -61,7 +77,7 @@ describe("POST /api/messages", () => {
   it("reports a message that is still being processed", async () => {
     const { app } = await appWith([]);
     const id = randomUUID();
-    insertUserMessage(app.db, { id, date: "2026-10-03", text: "x", sentAt: NOW.toISOString(), nowIso: NOW.toISOString() });
+    insertUserMessage(app.db, { id, date: "2026-10-03", text: "x", photoIds: [], sentAt: NOW.toISOString(), nowIso: NOW.toISOString() });
     const res = await send(app, "x", id);
     expect(res.statusCode).toBe(409);
     expect(res.json()).toEqual({ error: "in_progress" });
@@ -133,6 +149,90 @@ describe("POST /api/messages", () => {
   });
 });
 
+describe("POST /api/messages with photos", () => {
+  it("attaches the photos to the message, in the order sent", async () => {
+    const { app } = await appWith([textReply("Looks like porridge.")]);
+    const [a, b] = [addPhoto(app), addPhoto(app)];
+    const res = await sendWith(app, { text: "breakfast", photo_ids: [a, b] });
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body.user.photo_ids).toEqual([a, b]);
+    expect(body.day.messages[0].photo_ids).toEqual([a, b]);
+    expect(getPhoto(app.db, a)?.message_id).toBe(body.user.id);
+  });
+
+  it("accepts photos without text", async () => {
+    const { app } = await appWith([textReply("Noted.")]);
+    const res = await sendWith(app, { photo_ids: [addPhoto(app)] });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().user.text).toBe("");
+  });
+
+  it("refuses a message with neither text nor photos", async () => {
+    const { app } = await appWith([]);
+    const res = await sendWith(app, {});
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("invalid_request");
+  });
+
+  it("refuses an unknown photo and stores nothing", async () => {
+    const { app, ai } = await appWith([]);
+    const id = randomUUID();
+    const res = await sendWith(app, { id, text: "lunch", photo_ids: ["f".repeat(32)] });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({ error: "photo_not_found" });
+    expect(getMessage(app.db, id)).toBeNull();
+    expect(ai?.requests).toHaveLength(0);
+  });
+
+  it("refuses a batch with one unknown photo, and leaves the known one free", async () => {
+    const { app, ai } = await appWith([]);
+    const free = addPhoto(app);
+    const id = randomUUID();
+    const res = await sendWith(app, { id, text: "lunch", photo_ids: [free, "f".repeat(32)] });
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({ error: "photo_not_found" });
+    expect(getPhoto(app.db, free)?.message_id).toBeNull();
+    expect(getMessage(app.db, id)).toBeNull();
+    expect(ai?.requests).toHaveLength(0);
+  });
+
+  it("refuses a photo that belongs to another message, stores nothing, and leaves the photo with the first", async () => {
+    const { app, ai } = await appWith([textReply("Noted.")]);
+    const photo = addPhoto(app);
+    const first = await sendWith(app, { photo_ids: [photo] });
+    const id = randomUUID();
+    const res = await sendWith(app, { id, text: "again", photo_ids: [photo] });
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({ error: "photo_taken" });
+    expect(getMessage(app.db, id)).toBeNull();
+    expect(app.db.select({ id: messages.id }).from(messages).all()).toHaveLength(2); // the first message and its reply
+    expect(getPhoto(app.db, photo)?.message_id).toBe(first.json().user.id);
+    expect(ai?.requests).toHaveLength(1);
+  });
+
+  it("returns the stored result when the same message and photos arrive again", async () => {
+    const { app, ai } = await appWith([textReply("Noted.")]);
+    const id = randomUUID();
+    const photo = addPhoto(app);
+    await sendWith(app, { id, photo_ids: [photo] });
+    const again = await sendWith(app, { id, photo_ids: [photo] });
+    expect(again.statusCode).toBe(200);
+    expect(again.json().user.photo_ids).toEqual([photo]);
+    expect(ai?.requests).toHaveLength(1);
+  });
+
+  it("leaves the photo free when storing the message fails", async () => {
+    const { app } = await appWith([textReply("Noted.")]);
+    const photo = addPhoto(app);
+    app.db.run(sql.raw("CREATE TRIGGER boom BEFORE INSERT ON messages WHEN NEW.role = 'user' BEGIN SELECT RAISE(ABORT, 'boom'); END"));
+    expect((await sendWith(app, { photo_ids: [photo] })).statusCode).toBe(500);
+    expect(getPhoto(app.db, photo)?.message_id).toBeNull();
+    app.db.run(sql.raw("DROP TRIGGER boom"));
+    expect((await sendWith(app, { photo_ids: [photo] })).statusCode).toBe(201);
+  });
+});
+
 describe("POST /api/messages/:id/retry", () => {
   it("404s for unknown ids and 409s for messages that did not fail", async () => {
     const { app } = await appWith([textReply("Hi")]);
@@ -145,7 +245,7 @@ describe("POST /api/messages/:id/retry", () => {
 describe("failInterrupted", () => {
   it("marks messages left pending by a restart so they can be retried", async () => {
     const { app } = await appWith([]);
-    insertUserMessage(app.db, { id: "m1", date: "2026-10-03", text: "x", sentAt: NOW.toISOString(), nowIso: NOW.toISOString() });
+    insertUserMessage(app.db, { id: "m1", date: "2026-10-03", text: "x", photoIds: [], sentAt: NOW.toISOString(), nowIso: NOW.toISOString() });
     expect(failInterrupted(app.db)).toBe(1);
     expect(getMessage(app.db, "m1")).toMatchObject({ status: "failed", error_code: "interrupted" });
   });
@@ -204,8 +304,8 @@ describe("the message's day is the local day it was sent (spec 7.5)", () => {
 describe("processMessage", () => {
   it("passes Claude's error text on for the log", async () => {
     const { app, ai } = await appWith([new AiError("api_error", "400 invalid_request_error: fallbacks")]);
-    insertUserMessage(app.db, { id: "m1", date: "2026-10-03", text: "2 eggs", sentAt: NOW.toISOString(), nowIso: NOW.toISOString() });
-    const outcome = await processMessage({ db: app.db, ai, now: () => NOW, budgetMs: 1000 }, "m1");
+    insertUserMessage(app.db, { id: "m1", date: "2026-10-03", text: "2 eggs", photoIds: [], sentAt: NOW.toISOString(), nowIso: NOW.toISOString() });
+    const outcome = await processMessage({ db: app.db, ai, now: () => NOW, budgetMs: 1000, photoDir: tempDir() }, "m1");
     expect(outcome).toMatchObject({ outcome: "ai_error", detail: "400 invalid_request_error: fallbacks" });
   });
 });

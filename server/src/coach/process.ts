@@ -3,10 +3,12 @@ import type { AiClient, AiMessage, AiUsage } from "../ai/client.ts";
 import { buildDayView, getDay, snapshotValues } from "../days/days.ts";
 import type { Sql } from "../db/types.ts";
 import { getMessage, insertReply, setMessageStatus } from "../messages/messages.ts";
+import { photoData } from "../photos/photos.ts";
 import { getProfile } from "../profile/profile.ts";
 import { todayIn } from "../time.ts";
 import { runCoachLoop } from "./loop.ts";
 import type { CoachFailure } from "./loop.ts";
+import { PHOTOS_ONLY_TEXT, hydrateTurns, photoRef } from "./photo-blocks.ts";
 import { buildSystemPrompt, buildTurnContext } from "./prompt.ts";
 import { applyStaging, executeTool, newStaging } from "./staging.ts";
 import type { ToolContext } from "./staging.ts";
@@ -20,6 +22,8 @@ export interface CoachDeps {
   ai: AiClient | null;
   now: () => Date;
   budgetMs: number;
+  /** Where the message's photos are stored (spec §6.5). */
+  photoDir: string;
   newId?: () => string;
 }
 
@@ -66,20 +70,26 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
   const nowIso = now.toISOString();
   const today = todayIn(profile.timezone, now);
   const system = getOrCreateThread(deps.db, message.date, () => buildSystemPrompt(profile, message.date), nowIso);
-  const history = loadTurns(deps.db, message.date);
+  const load = (id: string) => photoData(deps.db, deps.photoDir, id);
+  const history = hydrateTurns(loadTurns(deps.db, message.date), load);
   const view = buildDayView(deps.db, profile, message.date, today, nowIso);
-  const userTurn: AiMessage = {
+  // What is stored keeps a reference per photo. What Claude receives is rebuilt from it by
+  // the same function every later replay uses, so the two can never differ.
+  const storedTurn: AiMessage = {
     role: "user",
     content: [
       { type: "text", text: buildTurnContext(view, now, profile.timezone) },
-      { type: "text", text: message.text },
-    ],
+      ...message.photo_ids.map(photoRef),
+      { type: "text", text: message.text || PHOTOS_ONLY_TEXT },
+    ] as unknown as AiMessage["content"],
   };
+  const [userTurn] = hydrateTurns([storedTurn], load);
   const staging = newStaging();
   const context: ToolContext = {
     sql: deps.db,
     profile,
     messageId,
+    source: message.photo_ids.length > 0 ? "photo" : "coach",
     messageDate: message.date,
     sentAt: new Date(message.sent_at ?? message.created_at),
     today,
@@ -105,7 +115,7 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
   const doneIso = deps.now().toISOString();
   deps.db.transaction((tx) => {
     const changed = applyStaging(tx, staging, profile, doneIso);
-    appendTurns(tx, message.date, messageId, result.turns, doneIso);
+    appendTurns(tx, message.date, messageId, [storedTurn, ...result.turns.slice(1)], doneIso);
     insertReply(tx, {
       id: randomUUID(),
       replyTo: messageId,

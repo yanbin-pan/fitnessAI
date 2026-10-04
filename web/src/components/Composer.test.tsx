@@ -27,6 +27,11 @@ describe("Composer", () => {
     expect(Number.isNaN(Date.parse(body.sent_at))).toBe(false);
   });
 
+  it("sits on the page colour, so the feed never shows between it and the tab bar", () => {
+    renderWithProviders(<Composer />);
+    expect(screen.getByLabelText("Message your coach").closest("form")).toHaveClass("bg-base", "pt-2", "pb-2");
+  });
+
   it("keeps the text and explains when the phone is offline", async () => {
     mockFetch(() => {
       throw new TypeError("Failed to fetch");

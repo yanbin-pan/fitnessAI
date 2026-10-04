@@ -6,7 +6,7 @@
     "dev": "vite",
     "build": "vite build",
     "test": "vitest run",
-    "icons": "pwa-assets-generator --preset minimal-2023 public/logo.svg"
+    "icons": "pwa-assets-generator"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

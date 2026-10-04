@@ -1,4 +1,4 @@
-import type { ExerciseCategory, EntrySource, FoodGroup, Muscle, MuscleRole } from "./vocab.ts";
+import type { Activity, ExerciseCategory, EntrySource, FoodGroup, Muscle, MuscleRole } from "./vocab.ts";
 import type { Profile } from "./schemas.ts";
 
 // Shapes the API returns. The server builds them; the web app renders them.
@@ -35,6 +35,7 @@ export interface ExerciseItem {
   position: number;
   name: string;
   category: ExerciseCategory;
+  activity: Activity;
   duration_min: number | null;
   sets: number | null;
   reps: number | null;
@@ -79,6 +80,8 @@ export interface ChatMessage {
   date: string;
   role: MessageRole;
   text: string;
+  /** User messages only: the ids of its photos, in the order attached; empty otherwise. */
+  photo_ids: string[];
   /** User messages only. */
   status: MessageStatus | null;
   error_code: string | null;
@@ -120,6 +123,15 @@ export interface MessageResult {
   user: ChatMessage;
   reply: ChatMessage | null;
   day: DayView;
+}
+
+/** What POST /api/photos returns (spec §12). */
+export interface PhotoUpload {
+  id: string;
+  media_type: string;
+  bytes: number;
+  width: number;
+  height: number;
 }
 
 export interface ApiErrorBody {
