@@ -4,7 +4,7 @@ import { createVerifier, devVerifier } from "./auth/access.ts";
 import { loadConfig } from "./config.ts";
 import { prepareDataDir } from "./db/location.ts";
 import { openDatabase } from "./db/open.ts";
-import { startNightlySnapshot } from "./jobs.ts";
+import { startNightlySnapshot, startRetention } from "./jobs.ts";
 import { failInterrupted } from "./messages/messages.ts";
 import { createMetrics, serveMetrics } from "./metrics.ts";
 import { getProfile } from "./profile/profile.ts";
@@ -43,6 +43,7 @@ const job = startNightlySnapshot({
   timeZone: getProfile(database.db)?.timezone ?? "Europe/London",
   log: app.log,
 });
+const retention = startRetention({ sql: database.db, photoDir: paths.photoDir, hours: config.retentionHours, log: app.log });
 const metricsServer = await serveMetrics(metrics, config.metricsPort, host);
 await app.listen({ host, port: config.port });
 if (!ai) app.log.warn("ANTHROPIC_API_KEY is not set: the coach is off; manual logging still works");
@@ -53,6 +54,7 @@ async function shutdown(signal: string): Promise<void> {
   stopping = true;
   app.log.info({ signal }, "shutting down");
   job.stop();
+  retention.stop();
   metricsServer.close();
   await app.close();
   database.close();

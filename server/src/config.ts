@@ -21,6 +21,8 @@ export interface Config {
   anthropic: { apiKey: string | null; model: string; effort: Effort };
   coachBudgetMs: number;
   snapshotKeep: number;
+  /** How long conversations and photos are kept (spec §6.6). */
+  retentionHours: number;
 }
 
 export class ConfigError extends Error {
@@ -87,5 +89,6 @@ export function loadConfig(env: Env): Config {
     },
     coachBudgetMs: positiveInt(env, "COACH_BUDGET_MS", 90_000),
     snapshotKeep: positiveInt(env, "SNAPSHOT_KEEP", 7),
+    retentionHours: positiveInt(env, "RETENTION_HOURS", 48),
   };
 }

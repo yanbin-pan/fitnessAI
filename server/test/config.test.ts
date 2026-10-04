@@ -57,6 +57,12 @@ describe("loadConfig", () => {
     expect(c).toMatchObject({ port: 9000, metricsPort: 9100, dataDir: "/data", webDist: "/app/web/dist", coachBudgetMs: 60_000, snapshotKeep: 3 });
   });
 
+  it("keeps conversations for 48 hours unless RETENTION_HOURS says otherwise", () => {
+    expect(loadConfig(production).retentionHours).toBe(48);
+    expect(loadConfig({ ...production, RETENTION_HOURS: "24" }).retentionHours).toBe(24);
+    expect(() => loadConfig({ ...production, RETENTION_HOURS: "0" })).toThrow(/RETENTION_HOURS/);
+  });
+
   it("rejects an unknown effort level and a bad port", () => {
     expect(() => loadConfig({ ...production, ANTHROPIC_EFFORT: "extreme" })).toThrow(ConfigError);
     expect(() => loadConfig({ ...production, PORT: "eighty" })).toThrow(ConfigError);
