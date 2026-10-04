@@ -2438,7 +2438,7 @@ import { addDays } from "../shared.ts";
 export function DayNav({ date, today }: { date: string; today: string }) {
   const navigate = useNavigate();
   const go = (target: string) => navigate(target >= today ? "/day/today" : `/day/${target}`);
-  const arrow = "tap raised-sm flex h-10 w-10 items-center justify-center rounded-full text-ink disabled:opacity-30";
+  const arrow = "tap raised-sm flex h-11 w-11 items-center justify-center rounded-full text-ink disabled:opacity-30";
   return (
     <nav aria-label="Day" className="flex items-center justify-between gap-2 py-3">
       <button type="button" aria-label="Previous day" className={arrow} onClick={() => go(addDays(date, -1))}>
@@ -2487,7 +2487,8 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 function CalorieRing({ eaten, target }: { eaten: number; target: number }) {
   const shown = kcal10(target);
   const share = shown > 0 ? Math.min(1, eaten / shown) : 0;
-  const left = Math.round(shown - eaten);
+  // From the rounded total, so the ring always agrees with the "eaten / target" line beside it.
+  const left = shown - Math.round(eaten);
   return (
     <div className="pressed relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full">
       <svg viewBox="0 0 88 88" aria-hidden="true" className="absolute inset-0 h-full w-full -rotate-90">
@@ -2570,12 +2571,13 @@ In `web/src/pages/TodayPage.tsx`:
       <div className="sticky top-0 z-10 bg-base px-4 pt-[env(safe-area-inset-top)]">
         <DayNav date={view.date} today={view.today} />
       </div>
-      <section className="px-4 pb-3">
+      {/* pt-3 leaves room for the raised card's highlight below the pinned bar. */}
+      <div className="px-4 py-3">
         <Summary view={view} />
         <div className="mt-3 flex justify-end">
           <Toggle label="Log only" checked={logOnly} onChange={setLogOnly} />
         </div>
-      </section>
+      </div>
 ```
 
 - the action error `p` uses `text-danger` instead of `text-red-600`;
