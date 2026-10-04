@@ -6,7 +6,7 @@ import { addDays } from "../shared.ts";
 export function DayNav({ date, today }: { date: string; today: string }) {
   const navigate = useNavigate();
   const go = (target: string) => navigate(target >= today ? "/day/today" : `/day/${target}`);
-  const arrow = "tap raised-sm flex h-10 w-10 items-center justify-center rounded-full text-ink disabled:opacity-30";
+  const arrow = "tap raised-sm flex h-11 w-11 items-center justify-center rounded-full text-ink disabled:opacity-30";
   return (
     <nav aria-label="Day" className="flex items-center justify-between gap-2 py-3">
       <button type="button" aria-label="Previous day" className={arrow} onClick={() => go(addDays(date, -1))}>

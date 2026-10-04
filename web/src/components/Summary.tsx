@@ -15,7 +15,8 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 function CalorieRing({ eaten, target }: { eaten: number; target: number }) {
   const shown = kcal10(target);
   const share = shown > 0 ? Math.min(1, eaten / shown) : 0;
-  const left = Math.round(shown - eaten);
+  // Counted from the rounded figure on the line beside the ring, so the two never disagree; the arc can use the raw eaten.
+  const left = shown - Math.round(eaten);
   return (
     <div className="pressed relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full">
       <svg viewBox="0 0 88 88" aria-hidden="true" className="absolute inset-0 h-full w-full -rotate-90">

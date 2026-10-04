@@ -71,12 +71,13 @@ export function TodayPage() {
       <div className="sticky top-0 z-10 bg-base px-4 pt-[env(safe-area-inset-top)]">
         <DayNav date={view.date} today={view.today} />
       </div>
-      <section className="px-4 pb-3">
+      {/* The top padding gives the card's raised highlight room below the solid bar, which would otherwise paint over it. */}
+      <div className="px-4 py-3">
         <Summary view={view} />
         <div className="mt-3 flex justify-end">
           <Toggle label="Log only" checked={logOnly} onChange={setLogOnly} />
         </div>
-      </section>
+      </div>
       {(retry.isError || undo.isError) && (
         <p role="alert" className="px-4 pt-3 text-sm text-danger">
           {actionError(undo.error ?? retry.error)}
