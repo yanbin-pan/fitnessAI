@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { isIsoDate } from "./dates.ts";
 import {
-  ACTIVITY_LEVEL_KEYS, BODY_GOALS, EXERCISE_CATEGORIES, FOOD_GROUPS, MUSCLES, MUSCLE_ROLES, SEXES,
+  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, EXERCISE_CATEGORIES, FOOD_GROUPS, MUSCLES, MUSCLE_ROLES, SEXES,
 } from "./vocab.ts";
 
 // Request bodies the API accepts. Each schema's parsed output (defaults filled in)
@@ -47,6 +47,7 @@ export type FoodItemInput = z.infer<typeof FoodItemInput>;
 export const ExerciseItemInput = z.object({
   name: z.string().trim().min(1).max(200),
   category: z.enum(EXERCISE_CATEGORIES),
+  activity: z.enum(ACTIVITIES).default("other"),
   duration_min: optionalPositive,
   sets: optionalPositive,
   reps: optionalPositive,

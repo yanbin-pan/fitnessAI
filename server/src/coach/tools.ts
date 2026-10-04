@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AiTool } from "../ai/client.ts";
-import { EXERCISE_CATEGORIES, FOOD_GROUPS, MUSCLES, MUSCLE_ROLES } from "../shared.ts";
+import { ACTIVITIES, EXERCISE_CATEGORIES, FOOD_GROUPS, MUSCLES, MUSCLE_ROLES } from "../shared.ts";
 
 // The coach's tool inputs (spec §6.1). Strict tool use needs every property
 // required and every object closed, so optional values are nullable instead of
@@ -30,6 +30,9 @@ export type FoodToolItem = z.infer<typeof FoodToolItem>;
 const ExerciseToolItem = z.strictObject({
   name: z.string().describe("The activity, e.g. 'Barbell bench press' or 'Outdoor run'"),
   category: z.enum(EXERCISE_CATEGORIES),
+  activity: z
+    .enum(ACTIVITIES)
+    .describe("The sport: tennis, gym (any weight or machine training), wakeboarding, kitesurfing, or other for anything else"),
   duration_min: z.number().describe("Minutes, including rest between sets; estimate it when not stated"),
   met: z.number().describe("MET value of the activity at the intensity described"),
   sets: z.number().nullable(),

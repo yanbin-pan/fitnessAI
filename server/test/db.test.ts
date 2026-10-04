@@ -29,6 +29,16 @@ function migrationsWith(tag: string, statements: string[]): string {
   return folder;
 }
 
+/** server/drizzle as it stood after its first `count` migrations — milestone 1 is `migrationsUpTo(1)`. */
+function migrationsUpTo(count: number): string {
+  const folder = path.join(tempDir(), "drizzle");
+  fs.cpSync(MIGRATIONS, folder, { recursive: true });
+  const journal = readJournal(folder);
+  journal.entries = journal.entries.slice(0, count);
+  fs.writeFileSync(path.join(folder, "meta", "_journal.json"), JSON.stringify(journal, null, 2));
+  return folder;
+}
+
 const ENTRY_COLUMNS = "id, date, logged_at, source, message_id, external_id, merged_into_entry_id, edited, deleted_at, created_at, updated_at";
 
 /** Rebuilds `entries` the way drizzle-kit does when a column change needs a new table. */
@@ -53,13 +63,46 @@ describe("openDatabase", () => {
     const tables = db.sqlite.prepare("select name from sqlite_master where type = 'table'").pluck().all();
     expect(tables).toEqual(expect.arrayContaining([
       "profile", "days", "entries", "food_items", "food_item_groups",
-      "exercise_items", "exercise_muscles", "messages", "coach_threads", "coach_turns",
+      "exercise_items", "exercise_muscles", "messages", "coach_threads", "coach_turns", "photos",
     ]));
     expect(db.sqlite.pragma("journal_mode", { simple: true })).toBe("delete");
     expect(db.sqlite.pragma("synchronous", { simple: true })).toBe(2); // FULL
     expect(db.sqlite.pragma("foreign_keys", { simple: true })).toBe(1);
     expect(db.sqlite.pragma("locking_mode", { simple: true })).toBe("exclusive");
     db.close();
+  });
+
+  it("upgrades a milestone 1 database: activities guessed from names, empty photo lists, a photos table", () => {
+    const file = path.join(tempDir(), "fitness.db");
+    const m1 = openDatabase({ file, snapshotDir: null, migrationsFolder: migrationsUpTo(1) });
+    m1.sqlite
+      .prepare("INSERT INTO entries (id, date, logged_at, source, edited, created_at, updated_at) VALUES ('e1', '2026-10-03', '2026-10-03T10:00:00.000Z', 'manual', 0, 'x', 'x')")
+      .run();
+    const exercise = m1.sqlite.prepare(
+      "INSERT INTO exercise_items (id, entry_id, position, name, category, kcal, kcal_measured, assumption) VALUES (?, 'e1', ?, ?, ?, 0, 0, '')",
+    );
+    const items = [
+      ["x1", "Tennis singles", "sport"],
+      ["x2", "Kitesurf session", "sport"],
+      ["x3", "Wakeboarding at the cable park", "sport"],
+      ["x4", "Bench press", "strength"],
+      ["x5", "Run", "cardio"],
+    ];
+    items.forEach(([id, name, category], position) => exercise.run(id, position, name, category));
+    m1.sqlite.prepare("INSERT INTO messages (id, date, role, text, cards, created_at) VALUES ('m1', '2026-10-03', 'user', 'hi', '[]', 'x')").run();
+    m1.close();
+
+    const m2 = openDatabase({ file, snapshotDir: null });
+    expect(m2.sqlite.prepare("SELECT id, activity FROM exercise_items ORDER BY position").all()).toEqual([
+      { id: "x1", activity: "tennis" },
+      { id: "x2", activity: "kitesurfing" },
+      { id: "x3", activity: "wakeboarding" },
+      { id: "x4", activity: "gym" },
+      { id: "x5", activity: "other" },
+    ]);
+    expect(m2.sqlite.prepare("SELECT photo_ids FROM messages").pluck().get()).toBe("[]");
+    expect(m2.sqlite.prepare("SELECT count(*) FROM photos").pluck().get()).toBe(0);
+    m2.close();
   });
 
   it("refuses a second opener while the first holds the lock, and lets it in afterwards", () => {

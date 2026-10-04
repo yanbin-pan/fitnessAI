@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 // Column names are snake_case and match the spec (§5) and the API, so rows map
@@ -105,6 +106,7 @@ export const exerciseItems = sqliteTable(
     position: integer().notNull(),
     name: text().notNull(),
     category: text().notNull(),
+    activity: text().notNull().default("other"),
     duration_min: real(),
     sets: real(),
     reps: real(),
@@ -136,6 +138,7 @@ export const messages = sqliteTable(
     date: text().notNull(),
     role: text().notNull(),
     text: text().notNull(),
+    photo_ids: text({ mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
     cards: text({ mode: "json" }).$type<{ type: "entry"; id: string }[]>().notNull(),
     status: text(),
     error_code: text(),
@@ -143,7 +146,7 @@ export const messages = sqliteTable(
     sent_at: text(),
     created_at: text().notNull(),
   },
-  (t) => [index("messages_date_idx").on(t.date)],
+  (t) => [index("messages_date_idx").on(t.date), index("messages_created_idx").on(t.created_at)],
 );
 
 /** One coach thread per day; `system` is frozen at the day's first message (spec §6.2). */
@@ -166,4 +169,20 @@ export const coachTurns = sqliteTable(
     created_at: text().notNull(),
   },
   (t) => [uniqueIndex("coach_turns_date_seq_idx").on(t.date, t.seq)],
+);
+
+/** Photos for the coach (spec §6.5). The file is <photoDir>/<id>.jpg or .png; the row and the file go together. */
+export const photos = sqliteTable(
+  "photos",
+  {
+    id: text().primaryKey(),
+    /** Null until a message claims the photo. */
+    message_id: text(),
+    media_type: text().notNull(),
+    bytes: integer().notNull(),
+    width: integer().notNull(),
+    height: integer().notNull(),
+    created_at: text().notNull(),
+  },
+  (t) => [index("photos_message_idx").on(t.message_id), index("photos_created_idx").on(t.created_at)],
 );

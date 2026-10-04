@@ -30,6 +30,13 @@ describe("ExerciseItemInput", () => {
     const curl = { name: "Curl", category: "strength", muscles: [{ muscle: "pecs", role: "primary" }] };
     expect(ExerciseItemInput.safeParse(curl).success).toBe(false);
   });
+
+  it("defaults the activity to other and accepts only the fixed list", () => {
+    const base = { name: "Session", category: "sport" as const };
+    expect(ExerciseItemInput.parse(base).activity).toBe("other");
+    expect(ExerciseItemInput.parse({ ...base, activity: "kitesurfing" }).activity).toBe("kitesurfing");
+    expect(ExerciseItemInput.safeParse({ ...base, activity: "surfing" }).success).toBe(false);
+  });
 });
 
 describe("ManualEntryInput and EntryPatch", () => {

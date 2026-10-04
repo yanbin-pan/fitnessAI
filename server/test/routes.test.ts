@@ -125,6 +125,20 @@ describe("entry routes", () => {
     expect(res.json().day.targets.add_back_kcal).toBe(160);
   });
 
+  it("stores a manual exercise's activity, defaulting to other", async () => {
+    ctx = await testApp();
+    saveProfile(ctx.db, makeProfile(), NOW.toISOString());
+    const post = (exercise: Record<string, unknown>) =>
+      ctx!.app.inject({
+        method: "POST", url: "/api/entries", headers: ctx!.headers,
+        payload: { id: randomUUID(), date: "2026-10-03", time: null, foods: [], exercises: [exercise] },
+      });
+    const plain = await post({ name: "Walk", category: "cardio", duration_min: 30, met: 3.5 });
+    expect(plain.json().entry.exercises[0].activity).toBe("other");
+    const kite = await post({ name: "Kite session", category: "sport", activity: "kitesurfing", duration_min: 60, met: 8 });
+    expect(kite.json().entry.exercises[0].activity).toBe("kitesurfing");
+  });
+
   it("refuse a future date", async () => {
     ctx = await withProfile();
     const res = await ctx.app.inject({ method: "POST", url: "/api/entries", headers: ctx.headers, payload: { id: randomUUID(), date: "2026-10-04", foods: [banana] } });

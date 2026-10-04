@@ -18,7 +18,7 @@ export function toFoodInput(f: FoodItem): FoodItemInput {
 
 export function toExerciseInput(x: ExerciseItem): ExerciseItemInput {
   return {
-    name: x.name, category: x.category, duration_min: x.duration_min, sets: x.sets, reps: x.reps,
+    name: x.name, category: x.category, activity: x.activity, duration_min: x.duration_min, sets: x.sets, reps: x.reps,
     weight_kg: x.weight_kg, distance_km: x.distance_km, avg_hr: x.avg_hr, met: x.met, kcal: x.kcal,
     assumption: x.assumption, muscles: x.muscles,
   };
@@ -30,7 +30,7 @@ export const blankFood = (): FoodItemInput => ({
 });
 
 export const blankExercise = (): ExerciseItemInput => ({
-  name: "", category: "cardio", duration_min: null, sets: null, reps: null, weight_kg: null,
+  name: "", category: "cardio", activity: "other", duration_min: null, sets: null, reps: null, weight_kg: null,
   distance_km: null, avg_hr: null, met: null, kcal: 0, assumption: "", muscles: [],
 });
 

@@ -11,6 +11,7 @@ export function toChatMessage(row: MessageRow): ChatMessage {
     date: row.date,
     role: row.role as MessageRole,
     text: row.text,
+    photo_ids: row.photo_ids,
     status: row.status as MessageStatus | null,
     error_code: row.error_code,
     cards: row.cards,
@@ -43,7 +44,7 @@ export function insertUserMessage(sql: Sql, m: { id: string; date: string; text:
   sql
     .insert(messages)
     .values({
-      id: m.id, date: m.date, role: "user", text: m.text, cards: [], status: "pending",
+      id: m.id, date: m.date, role: "user", text: m.text, photo_ids: [], cards: [], status: "pending",
       error_code: null, reply_to: null, sent_at: m.sentAt, created_at: m.nowIso,
     })
     .run();
@@ -57,7 +58,7 @@ export function insertReply(sql: Sql, r: { id: string; replyTo: string; date: st
   sql
     .insert(messages)
     .values({
-      id: r.id, date: r.date, role: "assistant", text: r.text, cards: r.cards, status: null,
+      id: r.id, date: r.date, role: "assistant", text: r.text, photo_ids: [], cards: r.cards, status: null,
       error_code: null, reply_to: r.replyTo, sent_at: null, created_at: r.nowIso,
     })
     .run();

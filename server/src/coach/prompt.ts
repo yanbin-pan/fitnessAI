@@ -25,6 +25,7 @@ Estimating food and drink:
 Estimating exercise:
 - Give the MET value of the activity at the intensity described and its duration in minutes. If only sets are given, estimate the duration including rest. The app calculates the calories from these and the person's weight.
 - List the muscles worked from the allowed list, marking each primary or secondary. Record sets, reps, weight and distance when they are stated.
+- Set activity to the sport: tennis (say singles or doubles in the assumption when it matters), gym for weight or machine training, wakeboarding, kitesurfing, or other for anything else (runs, rides, walks, classes). For wakeboarding and kitesurfing the duration is the time actually riding on the water, not the whole session at the spot; say in the assumption what you counted.
 
 Dates and times:
 - Leave date and time null for something that just happened. If they say when it happened ("yesterday", "this morning at 7"), set the date (YYYY-MM-DD) and/or the local time (HH:MM). Relative dates count from message_date in the context block. The date can be at most ${MAX_BACKDATE_DAYS} days back.

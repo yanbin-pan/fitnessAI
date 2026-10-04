@@ -55,6 +55,13 @@ describe("tool definitions", () => {
     expect(COACH_TOOLS.map((t) => [t.name, t.strict])).toEqual([["log_items", true], ["update_entry", false]]);
   });
 
+  it("ask for each exercise's activity from the fixed list", () => {
+    const schema = COACH_TOOLS[0].input_schema as { properties: { exercises: { items: { properties: Record<string, { enum?: string[] }>; required: string[] } } } };
+    const exercise = schema.properties.exercises.items;
+    expect(exercise.properties.activity.enum).toEqual(["tennis", "gym", "wakeboarding", "kitesurfing", "other"]);
+    expect(exercise.required).toContain("activity");
+  });
+
   it("make at most one tool strict, because the API rejects the grammar of both together", () => {
     // Live check, 4 Oct 2026: both strict gave 400 "The compiled grammar is too large"; either one alone was accepted.
     expect(COACH_TOOLS.filter((t) => t.strict).length).toBeLessThanOrEqual(1);
@@ -83,6 +90,12 @@ describe("log_items", () => {
     expect(ctx.staging.creates[0]).toMatchObject({ id: "entry-1", source: "coach", message_id: "msg-1", logged_at: "2026-10-03T11:58:00.000Z" });
     expect(ctx.staging.creates[0].exercises[0]).toMatchObject({ kcal: 320, kcal_measured: false, avg_hr: null });
     expect(getEntry(db.db, "entry-1")).toBeNull(); // staged, not written
+  });
+
+  it("keeps the activity Claude chose", () => {
+    const ctx = context();
+    executeTool("log_items", logItemsInput({ foods: [], exercises: [{ ...TOOL_RUN, name: "Tennis", category: "sport", activity: "tennis" }] }), ctx);
+    expect(ctx.staging.creates[0].exercises[0].activity).toBe("tennis");
   });
 
   it("places a stated time and an earlier date", () => {

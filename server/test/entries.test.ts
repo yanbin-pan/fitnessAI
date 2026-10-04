@@ -29,6 +29,13 @@ describe("entries", () => {
     expect(stored?.exercises[0].muscles).toEqual([{ muscle: "quads", role: "primary" }, { muscle: "calves", role: "secondary" }]);
   });
 
+  it("stores and returns each exercise's activity", () => {
+    db = openTestDb();
+    const entry = sampleEntry({ foods: [], exercises: [sampleExercise({ name: "Kite session", category: "sport", activity: "kitesurfing" })] });
+    insertEntry(db.db, entry, NOW_ISO);
+    expect(getEntry(db.db, entry.id)?.exercises[0].activity).toBe("kitesurfing");
+  });
+
   it("lists one day's entries in time order", () => {
     db = openTestDb();
     const late = sampleEntry({ logged_at: "2026-10-03T18:00:00.000Z" });

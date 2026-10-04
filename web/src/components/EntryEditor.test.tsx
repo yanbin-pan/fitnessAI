@@ -9,7 +9,7 @@ import { EntryEditor } from "./EntryEditor.tsx";
 const outdoorRun = () => entry({
   foods: [],
   exercises: [{
-    id: "x1", position: 0, name: "Outdoor run", category: "cardio", duration_min: 30, sets: null, reps: null, weight_kg: null,
+    id: "x1", position: 0, name: "Outdoor run", category: "cardio", activity: "other", duration_min: 30, sets: null, reps: null, weight_kg: null,
     distance_km: 5, avg_hr: null, met: 9.8, kcal: 287.4, kcal_measured: false, assumption: "easy pace",
     muscles: [{ muscle: "quads", role: "primary" }],
   }],
@@ -118,7 +118,7 @@ describe("EntryEditor", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).exercises).toEqual([{
-      name: "Outdoor run", category: "cardio", duration_min: null, sets: null, reps: null, weight_kg: null, distance_km: 5,
+      name: "Outdoor run", category: "cardio", activity: "other", duration_min: null, sets: null, reps: null, weight_kg: null, distance_km: 5,
       // The minutes changed and the kcal came from the MET, so the server works it out again.
       avg_hr: null, met: 9.8, kcal: null, assumption: "easy pace", muscles: [{ muscle: "quads", role: "primary" }],
     }]);

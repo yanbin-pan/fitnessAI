@@ -4,7 +4,7 @@ import { entries, exerciseItems, exerciseMuscles, foodItemGroups, foodItems } fr
 import type { Sql } from "../db/types.ts";
 import { FOOD_GROUPS, MUSCLES } from "../shared.ts";
 import type {
-  Entry, EntrySource, ExerciseCategory, ExerciseItem, FoodGroup, FoodItem, Muscle, MuscleRole,
+  Activity, Entry, EntrySource, ExerciseCategory, ExerciseItem, FoodGroup, FoodItem, Muscle, MuscleRole,
 } from "../shared.ts";
 
 export interface FoodItemData {
@@ -29,6 +29,7 @@ export interface FoodItemData {
 export interface ExerciseItemData {
   name: string;
   category: ExerciseCategory;
+  activity: Activity;
   duration_min: number | null;
   sets: number | null;
   reps: number | null;
@@ -167,6 +168,7 @@ function hydrate(sql: Sql, rows: (typeof entries.$inferSelect)[]): Entry[] {
       .map(({ entry_id: _entryId, ...exercise }): ExerciseItem => ({
         ...exercise,
         category: exercise.category as ExerciseCategory,
+        activity: exercise.activity as Activity,
         muscles: muscles
           .filter((m) => m.exercise_item_id === exercise.id)
           .map((m) => ({ muscle: m.muscle as Muscle, role: m.role as MuscleRole }))
