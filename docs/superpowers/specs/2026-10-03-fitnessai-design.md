@@ -804,20 +804,23 @@ press or read as a unit, pressed in for things you type into or that hold a valu
 | dark shadow | `#BAC4D2` | `#17191E` |
 | text | `#28323F` | `#E8ECF1` |
 | secondary text | `#55637A` | `#9AA5B5` |
-| accent fill (calorie ring, Send, focus ring) | `#0E9F6E` | `#34D399` |
+| accent fill (calorie ring, Send, primary buttons, focus ring) | `#087A54` | `#34D399` |
+| text and icons on the accent fill | `#FFFFFF` | `#0F2A1F` |
 | accent text (links, the active tab, small accent icons) | `#067052` | `#34D399` |
 | danger (delete, errors) | `#A8321F` | `#F2876F` |
 
 Contrast on the base: text 10.6:1 light / 12:1 dark; secondary text 5.0:1 / 5.8:1; accent
-text 5.0:1 / 7.5:1; danger 5.5:1 / 5.8:1. The light accent fill (2.8:1) is only ever a fill
-behind white or a graphic whose meaning is also written in text.
+text 5.0:1 / 7.5:1; danger 5.5:1 / 5.8:1; the accent fill itself 4.4:1 / 7.5:1. On the
+accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3.4:1.)
 
 - **Macro colours:** protein `#5B8DEF`, carbs `#F2A93B`, fat `#E8735A`, fibre `#4CB782`.
   Activities have theirs (§5.1).
 - **Raised** (`6px 6px 12px` dark, `-6px -6px 12px` highlight): cards, the summary, the
   composer, sheets. **Small raised** (3px/6px): icon buttons, chips, bubbles, the toggle
-  knob. **Pressed in** (inset 3px/6px): text boxes, progress tracks, the toggle track, the
-  active tab, the selected option of a segmented control's container.
+  knob, the selected option of a segmented control. **Pressed in** (inset 3px/6px): text
+  boxes and selects, progress tracks, the toggle track, the active tab, a segmented
+  control's container. Settings shows sex and goal as segmented controls; its other
+  choices stay selects.
 - **Buttons** press in while tapped. Disabled controls go flat with secondary text.
   Keyboard focus shows a 2px accent ring. Transitions are 150 ms and switch off under
   `prefers-reduced-motion`.
@@ -831,8 +834,9 @@ behind white or a graphic whose meaning is also written in text.
   per scheme (the base colour), so the status bar text is dark on light and light on dark.
   The home-screen icon is a green ring raised on the light base colour.
 - **Built with** Tailwind 4: the tokens are CSS variables (light, and dark under
-  `prefers-color-scheme`), exposed through `@theme`, plus three utilities — `raised`,
-  `raised-sm`, `inset`. No component library.
+  `prefers-color-scheme`), exposed through `@theme inline`, plus utilities — `raised`,
+  `raised-sm`, `pressed` (pressed in) and `tap` (presses in while tapped). No component
+  library.
 
 ---
 
@@ -963,8 +967,9 @@ No DNS or tunnel changes in either.
 - **Location:** `/data/db/fitness.db`. Milestone 1 kept it at `/data/fitness.db`; the
   first start of milestone 2 moves it (and a `-journal` file, if any) into `db/` with a
   rename on the same volume, before opening it.
-- **`secure_delete=ON`**, so deleted conversations are overwritten in the file rather than
-  left in free pages.
+- **`secure_delete=ON` and `journal_size_limit=0`**, so deleted conversations are
+  overwritten in the file rather than left in free pages, and don't linger in the rollback
+  journal that exclusive locking keeps between transactions.
 - **Snapshots:** at 03:00 in the profile timezone, `VACUUM INTO
   /data/snapshots/fitness-YYYY-MM-DD.db`, keeping 7; and `startup-<time>.db`, keeping 3,
   before a startup applies pending migrations. Each snapshot then has its conversations
