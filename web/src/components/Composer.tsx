@@ -189,8 +189,9 @@ export function Composer() {
     send.mutate(attempt.current.input);
   }
 
+  // The band behind the card is the page colour, so the feed scrolling under it never shows between the card and the tab bar.
   return (
-    <form ref={form} onSubmit={submit} className="fixed inset-x-0 bottom-[calc(var(--tabbar-h)_+_env(safe-area-inset-bottom))] z-10 px-3 pb-2">
+    <form ref={form} onSubmit={submit} className="fixed inset-x-0 bottom-[calc(var(--tabbar-h)_+_env(safe-area-inset-bottom))] z-10 bg-base px-3 pt-2 pb-2">
       <div className="raised mx-auto max-w-xl rounded-3xl p-2">
         {attachments.length > 0 && (
           <ul aria-label="Attached photos" className="mb-2 flex gap-2 px-1 pt-1.5">
