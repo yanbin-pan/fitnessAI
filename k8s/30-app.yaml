@@ -54,7 +54,7 @@ spec:
             - name: ACCESS_TEAM_DOMAIN
               value: jolly-fire-e5fd.cloudflareaccess.com
             - name: ACCESS_AUD
-              value: "__FITNESS_AUD__"
+              value: "c62501835f111f7d265f7eaf4a9d969c2b302ae51613837d470e1192b096f5b5"
             - name: OWNER_EMAIL
               valueFrom:
                 secretKeyRef:
