@@ -16,6 +16,17 @@ describe("api", () => {
     expect(init).toMatchObject({ method: "POST", redirect: "manual", body: '{"text":"hi"}', headers: { "content-type": "application/json" } });
   });
 
+  it("posts a blob as the body with its own type", async () => {
+    const fetchMock = mockFetch(() => jsonResponse({ id: "x" }, 201));
+    const blob = new Blob(["jpeg"], { type: "image/jpeg" });
+    await api("/api/photos", { blob });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/photos");
+    expect(init).toMatchObject({ method: "POST", redirect: "manual", body: blob, headers: { "content-type": "image/jpeg" } });
+    // A Blob has no keys of its own, so toMatchObject alone would accept a missing body.
+    expect(init?.body).toBe(blob);
+  });
+
   it("treats Cloudflare's sign-in redirect as signed out and tells listeners", async () => {
     const listener = vi.fn();
     const stop = onSignedOut(listener);

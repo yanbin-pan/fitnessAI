@@ -27,18 +27,23 @@ export function onSignedOut(listener: () => void): () => void {
   };
 }
 
-export async function api<T>(path: string, options: { method?: string; json?: unknown } = {}): Promise<T> {
-  const hasBody = options.json !== undefined;
+export async function api<T>(path: string, options: { method?: string; json?: unknown; blob?: Blob } = {}): Promise<T> {
+  const hasJson = options.json !== undefined;
+  const blob = options.blob;
   let res: Response;
   try {
     res = await fetch(path, {
-      method: options.method ?? (hasBody ? "POST" : "GET"),
+      method: options.method ?? (hasJson || blob ? "POST" : "GET"),
       // Our API never redirects. Asking to see redirects is how an expired Access
       // session (a redirect to its login page) is told apart from being offline.
       redirect: "manual",
       credentials: "same-origin",
-      headers: hasBody ? { "content-type": "application/json" } : undefined,
-      body: hasBody ? JSON.stringify(options.json) : undefined,
+      headers: hasJson
+        ? { "content-type": "application/json" }
+        : blob
+          ? { "content-type": blob.type || "application/octet-stream" }
+          : undefined,
+      body: hasJson ? JSON.stringify(options.json) : blob,
     });
   } catch {
     throw new ApiError("offline", 0, "offline", "You appear to be offline.");
