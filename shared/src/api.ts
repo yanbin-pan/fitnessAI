@@ -125,6 +125,15 @@ export interface MessageResult {
   day: DayView;
 }
 
+/** What POST /api/photos returns (spec §12). */
+export interface PhotoUpload {
+  id: string;
+  media_type: string;
+  bytes: number;
+  width: number;
+  height: number;
+}
+
 export interface ApiErrorBody {
   error: string;
   issues?: { path: string; message: string }[];

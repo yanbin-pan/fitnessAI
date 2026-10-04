@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.ts";
 import { LOGGER, serializeError } from "../src/logging.ts";
 import { insertUserMessage } from "../src/messages/messages.ts";
-import { NOW, makeAccess, openTestDb } from "./helpers.ts";
+import { NOW, makeAccess, openTestDb, tempDir } from "./helpers.ts";
 
 const NOW_ISO = "2026-10-03T12:00:00.000Z";
 
@@ -49,7 +49,7 @@ async function loggingApp() {
   const database = openTestDb();
   const lines: string[] = [];
   const app = buildApp({
-    db: database.db, verifier: auth.verifier, now: () => NOW, webDist: null, ai: null, coachBudgetMs: 1,
+    db: database.db, verifier: auth.verifier, now: () => NOW, webDist: null, photoDir: tempDir(), ai: null, coachBudgetMs: 1,
     logger: true, logStream: { write: (line: string) => void lines.push(line) },
   });
   await app.ready();
@@ -107,7 +107,7 @@ describe("buildApp logging", () => {
   it("logs errors through the scrubbing serializer", async () => {
     const auth = await makeAccess();
     const database = openTestDb();
-    const app = buildApp({ db: database.db, verifier: auth.verifier, now: () => NOW, webDist: null, ai: null, coachBudgetMs: 1, logger: true });
+    const app = buildApp({ db: database.db, verifier: auth.verifier, now: () => NOW, webDist: null, photoDir: tempDir(), ai: null, coachBudgetMs: 1, logger: true });
     try {
       // pino keeps a logger's serializers under this symbol; Fastify itself reads it the same way.
       const serializers = (app.log as unknown as Record<symbol, Record<string, unknown>>)[Symbol.for("pino.serializers")];

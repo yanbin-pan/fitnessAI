@@ -74,11 +74,13 @@ export const NOW = new Date("2026-10-03T12:00:00.000Z");
 export async function testApp(opts: { now?: Date; webDist?: string | null; ai?: AiClient | null; coachBudgetMs?: number; metrics?: Metrics } = {}) {
   const auth = await makeAccess();
   const database = openTestDb();
+  const photoDir = tempDir();
   const app = buildApp({
     db: database.db,
     verifier: auth.verifier,
     now: () => opts.now ?? NOW,
     webDist: opts.webDist ?? null,
+    photoDir,
     ai: opts.ai ?? null,
     coachBudgetMs: opts.coachBudgetMs ?? 90_000,
     metrics: opts.metrics,
@@ -88,6 +90,7 @@ export async function testApp(opts: { now?: Date; webDist?: string | null; ai?: 
   return {
     app,
     db: database.db,
+    photoDir,
     auth,
     headers: { "cf-access-jwt-assertion": owner },
     close: async () => {

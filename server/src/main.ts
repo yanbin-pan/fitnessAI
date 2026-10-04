@@ -28,6 +28,7 @@ const app = buildApp({
   ai,
   now: () => new Date(),
   webDist: config.webDist,
+  photoDir: paths.photoDir,
   coachBudgetMs: config.coachBudgetMs,
   metrics,
   logger: true,
