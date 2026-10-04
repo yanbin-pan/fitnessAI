@@ -1,5 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#0b0f14"/>
-  <circle cx="256" cy="256" r="150" fill="none" stroke="#34d399" stroke-width="48"/>
-  <path d="M232 168 196 272h56l-24 88 92-124h-60l32-68z" fill="#34d399"/>
+  <defs>
+    <filter id="raise" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14" result="blur" />
+      <feOffset in="blur" dx="14" dy="14" result="offsetDark" />
+      <feFlood flood-color="#BAC4D2" result="colourDark" />
+      <feComposite in="colourDark" in2="offsetDark" operator="in" result="shadowDark" />
+      <feOffset in="blur" dx="-14" dy="-14" result="offsetLight" />
+      <feFlood flood-color="#FFFFFF" result="colourLight" />
+      <feComposite in="colourLight" in2="offsetLight" operator="in" result="shadowLight" />
+      <feMerge>
+        <feMergeNode in="shadowDark" />
+        <feMergeNode in="shadowLight" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" fill="#E4E9F0" />
+  <circle cx="256" cy="256" r="150" fill="#E4E9F0" filter="url(#raise)" />
+  <circle cx="256" cy="256" r="98" fill="none" stroke="#D3DAE4" stroke-width="34" />
+  <circle cx="256" cy="256" r="98" fill="none" stroke="#087A54" stroke-width="34" stroke-linecap="round"
+    stroke-dasharray="430 616" transform="rotate(-90 256 256)" />
 </svg>

@@ -22,7 +22,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <SessionProvider>
         <BrowserRouter>
-          <div className="min-h-dvh bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+          <div className="min-h-dvh bg-base text-ink">
             <SignedOutBanner />
             <Routes>
               <Route path="/" element={<Navigate to="/day/today" replace />} />
