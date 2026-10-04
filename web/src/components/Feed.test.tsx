@@ -1,8 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { dayLabel } from "../format.ts";
-import { dayView, entry, foodItem, message } from "../test/fixtures.ts";
+import type { ChatMessage } from "../shared.ts";
+import { dayView, entry, exerciseItem, foodItem, message } from "../test/fixtures.ts";
 import { Feed, buildFeed } from "./Feed.tsx";
 
 describe("buildFeed", () => {
@@ -71,5 +72,81 @@ describe("Feed", () => {
     const [first, second] = screen.getAllByRole("button", { name: "Retry" });
     expect(first).toBeEnabled();
     expect(second).toBeDisabled();
+  });
+
+  it("shows a message's photos, and a placeholder for one that can't load", () => {
+    const [a, b] = ["a".repeat(32), "b".repeat(32)];
+    render(<Feed view={dayView({ messages: [message({ text: "lunch", photo_ids: [a, b] })] })} logOnly={false} onRetry={() => {}} />);
+    const first = screen.getByRole("img", { name: "Photo 1" });
+    expect(first).toHaveAttribute("src", `/api/photos/${a}`);
+    expect(screen.getByRole("img", { name: "Photo 2" })).toHaveAttribute("src", `/api/photos/${b}`);
+    fireEvent.error(first);
+    expect(screen.getByText("Photo unavailable")).toBeInTheDocument();
+  });
+
+  it("shows an exercise's sport as its icon", () => {
+    const kite = entry({ foods: [], exercises: [exerciseItem({ name: "Kite session", activity: "kitesurfing" })] });
+    render(<Feed view={dayView({ entries: [kite] })} logOnly={false} onRetry={() => {}} />);
+    expect(screen.getByRole("img", { name: "Kitesurfing" })).toBeInTheDocument();
+  });
+
+  it("says when an entry came from a photo, and shows a meal's macros", () => {
+    render(<Feed view={dayView({ entries: [entry({ source: "photo" })] })} logOnly={false} onRetry={() => {}} />);
+    expect(screen.getByText("from photo")).toBeInTheDocument();
+    expect(screen.getByText("P 10 · C 50 · F 6")).toBeInTheDocument();
+  });
+
+  it("explains that an earlier day's conversation has gone", () => {
+    const past = dayView({ date: "2026-10-01", today: "2026-10-03", entries: [entry({ date: "2026-10-01" })] });
+    const { rerender } = render(<Feed view={past} logOnly={false} onRetry={() => {}} />);
+    expect(screen.getByText("Conversations are kept for 48 hours.")).toBeInTheDocument();
+    rerender(<Feed view={dayView({ entries: [entry()] })} logOnly={false} onRetry={() => {}} />);
+    expect(screen.queryByText("Conversations are kept for 48 hours.")).toBeNull();
+  });
+
+  it("keeps quiet about the 48 hours while the day still has its conversation, and in Log only", () => {
+    const earlier = { date: "2026-10-01", today: "2026-10-03" };
+    const logged = entry({ date: "2026-10-01" });
+    const { rerender } = render(<Feed view={dayView({ ...earlier, entries: [logged], messages: [message({ date: "2026-10-01" })] })} logOnly={false} onRetry={() => {}} />);
+    expect(screen.queryByText("Conversations are kept for 48 hours.")).toBeNull();
+    rerender(<Feed view={dayView({ ...earlier, entries: [logged] })} logOnly={true} onRetry={() => {}} />);
+    expect(screen.queryByText("Conversations are kept for 48 hours.")).toBeNull();
+  });
+
+  it("invites a message or a photo when today is empty", () => {
+    render(<Feed view={dayView()} logOnly={false} onRetry={() => {}} />);
+    expect(screen.getByText("Nothing logged yet. Tell the coach what you ate or did, or send a photo.")).toBeInTheDocument();
+    expect(screen.queryByText("Conversations are kept for 48 hours.")).toBeNull();
+  });
+
+  it("explains an empty earlier day too", () => {
+    render(<Feed view={dayView({ date: "2026-10-01", today: "2026-10-03" })} logOnly={false} onRetry={() => {}} />);
+    expect(screen.getByText("Nothing logged this day.")).toBeInTheDocument();
+    expect(screen.getByText("Conversations are kept for 48 hours.")).toBeInTheDocument();
+  });
+
+  it("gives food a meal's icon and macros, and an exercise only its sport", () => {
+    const meal = entry({ id: "meal", exercises: [exerciseItem({ id: "x-gym", name: "Row machine", activity: "gym" })] });
+    const tennis = entry({ id: "tennis", foods: [], exercises: [exerciseItem()] });
+    render(<Feed view={dayView({ entries: [meal, tennis] })} logOnly={false} onRetry={() => {}} />);
+    // One sport badge, for the exercise-only entry; the entry with food and a workout shows a meal, not Gym.
+    expect(screen.getAllByRole("img").map((icon) => icon.getAttribute("aria-label"))).toEqual(["Tennis"]);
+    // One macros line, for the entry with food.
+    expect(screen.getAllByText(/^P \d+ · C \d+ · F \d+$/)).toHaveLength(1);
+  });
+
+  it("adds up a meal's foods before rounding its macros to whole grams", () => {
+    const half = { protein_g: 10.4, carbs_g: 20.4, fat_g: 5.4 };
+    const meal = entry({ foods: [foodItem({ id: "f1", ...half }), foodItem({ id: "f2", ...half })] });
+    render(<Feed view={dayView({ entries: [meal] })} logOnly={false} onRetry={() => {}} />);
+    // 20.8, 40.8 and 10.8 round to 21, 41 and 11; rounding each food first would give 20, 40 and 10.
+    expect(screen.getByText("P 21 · C 41 · F 11")).toBeInTheDocument();
+  });
+
+  it("still shows a message when an older server leaves photo_ids out", () => {
+    const older = { ...message({ text: "porridge" }), photo_ids: undefined } as unknown as ChatMessage;
+    render(<Feed view={dayView({ messages: [older] })} logOnly={false} onRetry={() => {}} />);
+    expect(screen.getByText("porridge")).toBeInTheDocument();
+    expect(screen.queryByRole("img")).toBeNull();
   });
 });

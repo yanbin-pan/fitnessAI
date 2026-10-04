@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { dayLabel, failureText } from "../format.ts";
+import { Icon } from "../icons/Icon.tsx";
 import type { ChatMessage, DayView, Entry } from "../shared.ts";
 import { EntryCard } from "./EntryCard.tsx";
 
@@ -28,16 +30,36 @@ interface FeedProps {
   retrying?: string | null;
 }
 
+function PhotoThumb({ id, index, single }: { id: string; index: number; single: boolean }) {
+  const [failed, setFailed] = useState(false);
+  const size = single ? "h-32 w-44" : "h-20 w-20";
+  if (failed) {
+    return <span className={`pressed flex ${size} items-center justify-center rounded-xl p-2 text-center text-xs text-muted`}>Photo unavailable</span>;
+  }
+  return <img src={`/api/photos/${id}`} alt={`Photo ${index + 1}`} loading="lazy" onError={() => setFailed(true)} className={`${size} rounded-xl object-cover`} />;
+}
+
 function Bubble({
   message, entries, date, today, onRetry, onEdit, onUndo, retrying,
 }: { message: ChatMessage; entries: Map<string, Entry>; date: string; today: string } & Pick<FeedProps, "onRetry" | "onEdit" | "onUndo" | "retrying">) {
   if (message.role === "user") {
+    // An older server may not send photo_ids yet.
+    const photoIds = message.photo_ids ?? [];
     return (
       <div className="ml-10 flex flex-col items-end">
-        <p className="whitespace-pre-wrap rounded-2xl rounded-br-sm bg-emerald-600 px-3 py-2 text-white">{message.text}</p>
-        {message.status === "pending" && <span className="mt-1 text-xs text-slate-500">Sending…</span>}
+        <div className="raised-sm max-w-full rounded-2xl rounded-br-md p-1.5">
+          {photoIds.length > 0 && (
+            <div className="flex flex-wrap justify-end gap-1.5">
+              {photoIds.map((id, index) => (
+                <PhotoThumb key={id} id={id} index={index} single={photoIds.length === 1} />
+              ))}
+            </div>
+          )}
+          {message.text && <p className="whitespace-pre-wrap px-2 py-1">{message.text}</p>}
+        </div>
+        {message.status === "pending" && <span className="mt-1 text-xs text-muted">Sending…</span>}
         {message.status === "failed" && (
-          <span className="mt-1 text-xs text-red-600">
+          <span className="mt-1 text-xs text-danger">
             {failureText(message.error_code)}{" "}
             <button type="button" disabled={retrying === message.id} className="font-semibold underline disabled:opacity-40" onClick={() => onRetry(message.id)}>
               Retry
@@ -54,13 +76,20 @@ function Bubble({
     .filter((entry): entry is Entry => entry !== undefined && message.reply_to !== null && entry.message_id === message.reply_to)
     .map((entry) => entry.id);
   return (
-    <div className="mr-10 flex flex-col gap-2">
-      {message.text && <p className="whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-slate-100 px-3 py-2 dark:bg-slate-800">{message.text}</p>}
+    <div className="mr-6 flex flex-col gap-2">
+      {message.text && (
+        <div className="flex items-start gap-2">
+          <span className="raised-sm flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-accent-ink">
+            <Icon name="sports" size={16} />
+          </span>
+          <p className="whitespace-pre-wrap pt-0.5">{message.text}</p>
+        </div>
+      )}
       {message.cards.map((card) => {
         const entry = entries.get(card.id);
         if (!entry) {
           return (
-            <p key={card.id} className="text-xs text-slate-500">
+            <p key={card.id} className="text-xs text-muted">
               Entry removed
             </p>
           );
@@ -69,13 +98,13 @@ function Bubble({
         // Back-dated by the coach ("yesterday I had..."): it belongs to another day, so say which.
         return (
           <div key={card.id} className="flex flex-col gap-1">
-            <span className="text-xs text-slate-500">Logged to {dayLabel(entry.date, today)}</span>
+            <span className="text-xs text-muted">Logged to {dayLabel(entry.date, today)}</span>
             <EntryCard entry={entry} onEdit={onEdit} />
           </div>
         );
       })}
       {onUndo && undoable.length > 0 && (
-        <button type="button" onClick={() => onUndo(undoable)} className="self-start text-xs font-medium text-slate-500 underline">
+        <button type="button" onClick={() => onUndo(undoable)} className="tap raised-sm self-start rounded-xl px-3 py-1 text-xs font-medium text-muted">
           Undo
         </button>
       )}
@@ -88,26 +117,37 @@ export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying }: FeedP
   // A card can point at an entry dated another day (back-dated), which travels in linked_entries.
   // (An older server does not send the field yet.)
   const entries = new Map([...view.entries, ...(view.linked_entries ?? [])].map((e) => [e.id, e]));
+  // Conversations last 48 hours (spec §6.6): say so on an earlier day that has none left.
+  const note =
+    !logOnly && view.date < view.today && view.messages.length === 0 ? (
+      <p className="px-4 pb-4 text-center text-xs text-muted">Conversations are kept for 48 hours.</p>
+    ) : null;
   if (items.length === 0) {
     return (
-      <p className="px-4 py-10 text-center text-sm text-slate-500">
-        {view.date === view.today ? "Nothing logged yet. Tell the coach what you ate or did." : "Nothing logged this day."}
-      </p>
+      <>
+        <p className="px-4 py-10 text-center text-sm text-muted">
+          {view.date === view.today ? "Nothing logged yet. Tell the coach what you ate or did, or send a photo." : "Nothing logged this day."}
+        </p>
+        {note}
+      </>
     );
   }
   return (
-    <ol className="flex flex-col gap-3 px-4 py-4">
-      {items.map((item) =>
-        item.kind === "entry" ? (
-          <li key={`e-${item.entry.id}`}>
-            <EntryCard entry={item.entry} onEdit={onEdit} />
-          </li>
-        ) : (
-          <li key={`m-${item.message.id}`}>
-            <Bubble message={item.message} entries={entries} date={view.date} today={view.today} onRetry={onRetry} onEdit={onEdit} onUndo={onUndo} retrying={retrying} />
-          </li>
-        ),
-      )}
-    </ol>
+    <>
+      <ol className="flex flex-col gap-3 px-4 py-4">
+        {items.map((item) =>
+          item.kind === "entry" ? (
+            <li key={`e-${item.entry.id}`}>
+              <EntryCard entry={item.entry} onEdit={onEdit} />
+            </li>
+          ) : (
+            <li key={`m-${item.message.id}`}>
+              <Bubble message={item.message} entries={entries} date={view.date} today={view.today} onRetry={onRetry} onEdit={onEdit} onUndo={onUndo} retrying={retrying} />
+            </li>
+          ),
+        )}
+      </ol>
+      {note}
+    </>
   );
 }
