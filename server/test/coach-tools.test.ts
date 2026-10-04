@@ -51,8 +51,13 @@ function strictProblems(node: unknown, path: string, problems: string[] = []): s
 }
 
 describe("tool definitions", () => {
-  it("are log_items and update_entry, both strict", () => {
-    expect(COACH_TOOLS.map((t) => [t.name, t.strict])).toEqual([["log_items", true], ["update_entry", true]]);
+  it("are log_items, strict, and update_entry", () => {
+    expect(COACH_TOOLS.map((t) => [t.name, t.strict])).toEqual([["log_items", true], ["update_entry", false]]);
+  });
+
+  it("make at most one tool strict, because the API rejects the grammar of both together", () => {
+    // Live check, 4 Oct 2026: both strict gave 400 "The compiled grammar is too large"; either one alone was accepted.
+    expect(COACH_TOOLS.filter((t) => t.strict).length).toBeLessThanOrEqual(1);
   });
 
   it("use only JSON Schema that strict tool use accepts", () => {

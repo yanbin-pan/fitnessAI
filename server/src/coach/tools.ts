@@ -81,6 +81,11 @@ export function strictJsonSchema(schema: z.ZodType): Record<string, unknown> {
   return normalize(json) as Record<string, unknown>;
 }
 
+// Only one tool can be strict. The API compiles a grammar per strict tool, and both item
+// schemas together exceed its limit (400 "The compiled grammar is too large"). log_items,
+// used on nearly every message, keeps the guarantee. update_entry's input is still
+// validated by UpdateEntryInput like every call, and a bad call goes back to Claude as a
+// tool error it can fix.
 export const COACH_TOOLS: AiTool[] = [
   {
     name: "log_items",
@@ -93,7 +98,7 @@ export const COACH_TOOLS: AiTool[] = [
     name: "update_entry",
     description:
       "Correct an entry that is already logged by replacing all of its items. Send the complete corrected list, including the items that did not change.",
-    strict: true,
+    strict: false,
     input_schema: strictJsonSchema(UpdateEntryInput) as AiTool["input_schema"],
   },
 ];

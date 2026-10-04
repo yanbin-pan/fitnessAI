@@ -470,7 +470,7 @@ Any failure — timeout, API error, refusal, an invalid tool call — marks the 
 
 - Model from `ANTHROPIC_MODEL` (default `claude-opus-5-5`); effort from `ANTHROPIC_EFFORT`
   (default `medium`).
-- Every tool is `strict: true`, with schemas generated from the shared Zod definitions.
+- Tool schemas are generated from the shared Zod definitions, and every call is validated against them on the server; an invalid call goes back to Claude as a tool error it can correct. `log_items` is also `strict: true`. The API compiles a grammar for each strict tool and rejects two schemas this size together ("The compiled grammar is too large"), so at most one coach tool can be strict. New tools in later milestones must fit that budget or be non-strict.
   `tool_choice` is `auto`; current models reject forced tool choice.
 - Server-side refusal fallback is enabled (`fallbacks: "default"`, beta
   `server-side-fallback-2026-07-01`).

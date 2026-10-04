@@ -18,7 +18,7 @@
 - **Pinned majors:** TypeScript `~6.0.3` (typescript-eslint 8 supports `<6.1.0`), ESLint `^9`, React Router `^7`. Do not upgrade these in this milestone.
 - **Names:** database columns, API fields and shared types are snake_case and match the spec's column names exactly.
 - **Time:** timestamps are UTC ISO-8601 strings (`Date.prototype.toISOString()`); `date` values are `YYYY-MM-DD` in the profile timezone (default `Europe/London`). The pod runs in UTC — never use the process timezone for a calendar date.
-- **Claude:** model from `ANTHROPIC_MODEL` (default `claude-opus-5-5`), effort from `ANTHROPIC_EFFORT` (default `medium`), every tool `strict: true`, `tool_choice` left at auto, `fallbacks: "default"`, conversation history append-only.
+- **Claude:** model from `ANTHROPIC_MODEL` (default `claude-opus-5-5`), effort from `ANTHROPIC_EFFORT` (default `medium`), `log_items` `strict: true` (the API rejects the compiled grammar of two strict tools this size, so `update_entry` is validated server-side only), `tool_choice` left at auto, `fallbacks: "default"`, conversation history append-only.
 - **Auth fails closed:** every `/api/*` route except `/api/health` needs a valid Cloudflare Access JWT whose `email` equals `OWNER_EMAIL`; any failure is a bodiless 401.
 - **Privacy:** never log message text or health values; never commit real health data or a plaintext secret (the repository is public).
 - **Deployment shape:** 1 replica, `strategy: Recreate`, `ReadWriteOnce` PVC on `ssd`, memory limit 384 Mi, metrics on port 9464 with no Ingress route.
@@ -3666,7 +3666,7 @@ git commit -m "feat(server): Claude client with fallbacks and a scriptable fake"
 
 **Interfaces:**
 - Consumes: `AiTool` (Task 12), entries persistence (Task 9), `ensureDay` (Task 10), `exerciseKcal` (Task 3), `zonedTimeToInstant` (Task 4), `MAX_BACKDATE_DAYS`, `TIME_HHMM` (shared).
-- Produces (`tools.ts`): Zod schemas `LogItemsInput` (`{ date: string | null; time: string | null; foods; exercises }`) and `UpdateEntryInput` (`{ entry_id; foods; exercises }`); types `FoodToolItem`, `ExerciseToolItem`; `strictJsonSchema(schema): Record<string, unknown>`; `COACH_TOOLS: AiTool[]` (`log_items`, `update_entry`, both `strict: true`); `amountIssues(input): string[]`.
+- Produces (`tools.ts`): Zod schemas `LogItemsInput` (`{ date: string | null; time: string | null; foods; exercises }`) and `UpdateEntryInput` (`{ entry_id; foods; exercises }`); types `FoodToolItem`, `ExerciseToolItem`; `strictJsonSchema(schema): Record<string, unknown>`; `COACH_TOOLS: AiTool[]` (`log_items` `strict: true`, `update_entry` `strict: false`, see the note in Step 3); `amountIssues(input): string[]`.
 - Produces (`staging.ts`): `interface Staging { creates: NewEntry[]; updates: Map<string, { foods; exercises }> }`, `newStaging()`, `interface ToolContext { sql; profile; messageId; messageDate; sentAt: Date; today; weightKg(date): number; staging; newId(): string }`, `interface ToolOutcome { content: string; isError: boolean }`, `executeTool(name, input, ctx): ToolOutcome` (stages, never writes), `applyStaging(sql, staging, profile, nowIso): string[]` (writes; returns the ids it created or changed).
 - Produces (`helpers.ts`): `TOOL_EGGS` (a complete food tool item, 180 kcal), `TOOL_RUN` (30 min at MET 9), `logItemsInput(overrides?)`.
 
@@ -3960,7 +3960,10 @@ export const COACH_TOOLS: AiTool[] = [
     name: "update_entry",
     description:
       "Correct an entry that is already logged by replacing all of its items. Send the complete corrected list, including the items that did not change.",
-    strict: true,
+    // Amended after the live check (Task 17 Step 7): with both tools strict, the API answered
+    // 400 "The compiled grammar is too large". Only log_items stays strict; this tool's input is
+    // validated by UpdateEntryInput, and a bad call goes back to Claude as a tool error.
+    strict: false,
     input_schema: strictJsonSchema(UpdateEntryInput) as AiTool["input_schema"],
   },
 ];
