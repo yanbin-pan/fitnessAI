@@ -3866,3 +3866,20 @@ Write the owner's iPhone checklist for milestone 2:
 - milestone 1's Access re-login test.
 
 Then the ledger and the report to the owner.
+
+---
+
+## Appendix: changes made during execution
+
+What the reviews changed relative to the task text above, in task order. Each change is backed by a failing test or a reviewer finding; the commits carry the details.
+
+- **Task 2** — `snapshot()` builds its copy beside the live database (`<db>.snapshot-part`, in the backup-skipped `db/`), strips it there, then renames it into `snapshots/`, so an unstripped copy never sits in a backed-up folder (9652e76). `prepareDataDir` removes a stale `.snapshot-part` at startup; `CONVERSATION_TABLES` is exported and a test makes every table either a conversation table or explicitly kept; a regression test runs a milestone 1 database through its first milestone 2 start with a real snapshot folder (ca6032b).
+- **Task 3** — four extra tests (exactly 8 MiB accepted, a JPEG cut inside its frame header, near-miss signatures, file cleanup when the row insert fails).
+- **Task 4** — an extra test that a failed message insert leaves its photos unclaimed (the claim shares the insert's transaction).
+- **Task 5** — an extra test that a text-only message is still sent and stored as `[context, text]`.
+- **Task 6** — the purge never expires a message whose status is `pending` (a Retry in flight), the orphan sweep tolerates a file vanishing between `readdir` and `stat`, `RETENTION_HOURS` is capped at 8760, and the tests pin the sweep's row lookup (backdated file), an assistant row, and the job's failure path (4b9b4f1).
+- **Task 7** — the base colour is `--background-color-base`, not `--color-base`: a colour named `base` turns `text-base` into a colour rule and drops its font size. The icon test accepts a relative moveto (`chevron_left` starts with `m`).
+- **Task 8** — `quietButton` sets no text colour (with `text-ink` the equal-specificity tie beat `text-accent-ink`). Only the day navigation is pinned; the summary and the Log only switch scroll with the feed (the pinned header was 322 px). The summary container has top padding so the card's highlight shows below the bar, the ring computes `left` from the rounded total, and the arrows are 44 px (e83f9bc, eec8725).
+- **Task 9** — `SportBadge.test.tsx` (an unlabelled badge has no name) and six extra feed tests (the note's quiet cases, both empty states, meal vs sport icon, macros summed before rounding, an older server without `photo_ids`).
+- **Task 10** — the original file's object URL is made before `setAttachments` (StrictMode runs updaters twice); unmounting marks every attachment removed, so nothing still being prepared is uploaded; the API test asserts `body` with `toBe(blob)` (a Blob has no own keys). `sendError` gives actionable copy for `photo_taken` and `photo_not_found` (no automatic re-upload, which could log a meal twice); the composer publishes its height as `--composer-h` and TodayPage's bottom padding is `calc(var(--composer-h,8rem) + var(--tabbar-h) + env(safe-area-inset-bottom) + 1rem)`; a photo removed during preparation never shows the "couldn't be read" notice (165d7ac, 4fdbc40).
+- **Task 11** — four extra tests (an exercise's existing activity shown and sent in the PATCH; each exercise's activity independent; one keyboard stop with arrow keys; the Saved note cleared when sex or goal changes). The leftover-class grep needs a left boundary — `translate-x-4` contains `slate-`.
