@@ -17,6 +17,9 @@ concurrency:
   group: deploy-main
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     name: Verify
@@ -25,7 +28,9 @@ jobs:
   build:
     name: Build image (linux/arm64)
     needs: verify
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     permissions:
       contents: read
       packages: write
@@ -49,6 +54,7 @@ jobs:
           context: .
           platforms: linux/arm64
           load: true
+          # No attestation index: the pushed object stays a plain arm64 image, which the arm64 check below reads.
           provenance: false
           tags: fitnessai:arm64-candidate
           labels: org.opencontainers.image.source=https://github.com/yanbin-pan/fitnessAI
@@ -69,12 +75,12 @@ jobs:
           ready=0
           for i in $(seq 120); do
             [ "$(docker inspect -f '{{.State.Running}}' app)" = "true" ] || fail "The arm64 container exited instead of serving."
-            if curl -fsS http://127.0.0.1:8080/api/health > /tmp/health.json 2>/dev/null; then ready=1; break; fi
+            if curl -fsS --max-time 5 http://127.0.0.1:8080/api/health > /tmp/health.json 2>/dev/null; then ready=1; break; fi
             sleep 1
           done
           [ "$ready" = "1" ] || fail "/api/health never answered under arm64 emulation."
           grep -q '"ok":true' /tmp/health.json || fail "/api/health did not report ok."
-          [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/profile)" = "401" ] || fail "/api/profile must require Access."
+          [ "$(curl -s --max-time 5 -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/profile)" = "401" ] || fail "/api/profile must require Access."
           echo "The arm64 image boots and refuses unauthenticated API calls."
       - name: Tear down the probe container
         if: always()
@@ -98,7 +104,9 @@ jobs:
   deploy:
     name: Pin the image for Flux
     needs: build
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
