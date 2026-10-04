@@ -155,7 +155,7 @@ SQLite. Timestamps are UTC ISO-8601 strings. `date` columns are local calendar d
 (`YYYY-MM-DD`) in the profile's timezone. Rows created from the phone use client-generated
 UUIDs so that repeated submissions are idempotent.
 
-**`profile`** — exactly one row.
+**`profile`** — exactly one row (`id` = 1).
 
 | Column | Notes |
 |---|---|
@@ -280,17 +280,19 @@ and ticking again removes it.
 | `date` | derived from `sent_at` in the profile timezone |
 | `role` | `user` / `assistant` / `note` (non-AI notices such as "Logged usual breakfast") |
 | `text` | |
-| `photo_ids` | JSON array |
+| `photo_ids` | JSON array — added in milestone 2, with photos |
 | `cards` | JSON references to logged entries, drafts, measurements and check-ins |
+| `reply_to` | on an assistant or note message: the id of the user message it answers (unique, so a repeated message returns its stored reply) |
 | `status`, `error_code` | user messages: `pending` / `done` / `failed` |
 | `sent_at`, `created_at` | |
 
-**`coach_threads`** — `date` (primary key), `prefix` (the frozen system prompt and context
-blocks), `created_at`.
+**`coach_threads`** — `date` (primary key), `system` (the frozen system prompt and context
+blocks — the day's "prefix", §6.2), `created_at`.
 
 **`coach_turns`** — the exact Claude API turns, replayed append-only: `id`, `date`, `seq`,
 `role` (`user` / `assistant`), `blocks` (JSON content blocks exactly as sent or received,
-including tool calls, tool results and thinking blocks), `created_at`.
+including tool calls, tool results and thinking blocks), `message_id` (the user message
+whose processing produced the turn), `created_at`.
 
 **`photos`** — `id` (random 128-bit hex), `message_id`, `path`, `media_type`, `bytes`,
 `created_at`, `purged_at`.
@@ -401,7 +403,8 @@ Rules in the coach's instructions:
 
 Every write appears in the feed as a card with **Undo**. Every item shows its `assumption`
 (for example "medium latte, whole milk, ~350 ml") so a wrong guess is visible and one tap
-from being fixed.
+from being fixed. A correction (`update_entry`) is reverted by editing the entry, because
+Undo deletes created entries only.
 
 ### 6.2 Context
 
@@ -449,8 +452,9 @@ are replayed exactly as stored in `coach_turns` and never edited.
 3. If today's AI call cap is reached, mark the message `failed` with `ai_cap`.
 4. Build the request — the frozen prefix (created if this is the date's first message),
    the prior turns, and the new turn — and run the tool loop: at most 5 model calls and
-   90 seconds in total, which stays under Cloudflare's 100-second proxy timeout. Each tool
-   runs in its own database transaction.
+   90 seconds in total, which stays under Cloudflare's 100-second proxy timeout. Tool calls
+   are validated and staged, and nothing is written while the loop runs: once it succeeds,
+   everything, including what step 6 saves, commits in one transaction.
 5. For exercises, Claude supplies `met` and `duration_min` (estimating duration from sets
    where needed); the server computes active kcal (§7.3).
 6. Save the assistant message and its cards, the raw turns and the `ai_usage` row; mark
@@ -466,7 +470,7 @@ Any failure — timeout, API error, refusal, an invalid tool call — marks the 
 
 - Model from `ANTHROPIC_MODEL` (default `claude-opus-5-5`); effort from `ANTHROPIC_EFFORT`
   (default `medium`).
-- Every tool is `strict: true`, with schemas generated from the shared Zod definitions.
+- Tool schemas are generated from the shared Zod definitions, and every call is validated against them on the server; an invalid call goes back to Claude as a tool error it can correct. `log_items` is also `strict: true`. The API compiles a grammar for each strict tool and rejects two schemas this size together ("The compiled grammar is too large"), so at most one coach tool can be strict. New tools in later milestones must fit that budget or be non-strict.
   `tool_choice` is `auto`; current models reject forced tool choice.
 - Server-side refusal fallback is enabled (`fallbacks: "default"`, beta
   `server-side-fallback-2026-07-01`).
@@ -718,7 +722,7 @@ mode follows the system setting.
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/health` | Liveness; registered before authentication; returns `{ok:true}` only |
-| `GET` | `/api/days/:date` | Day view (`:date` may be `today`): base and adjusted targets, totals, habit progress, entries, messages, drafts, measurements, check-ins, burn |
+| `GET` | `/api/days/:date` | Day view (`:date` may be `today`): base and adjusted targets, totals, habit progress, entries, `linked_entries` (entries this day's coach replies logged or changed on another day, such as back-dated ones: shown with their reply, never counted in this day's totals), messages, drafts, measurements, check-ins, burn |
 | `GET` | `/api/days?from=&to=` | Day summaries for the calendar |
 | `POST` | `/api/messages` | Send a message (multipart: `id`, `sent_at`, `text`, `photos[]`) |
 | `POST` | `/api/messages/:id/retry` | Retry a failed message |
@@ -805,7 +809,7 @@ mode follows the system setting.
   `prometheus.io/scrape: "true"` and `prometheus.io/port: "9464"`.
 - Service; Ingress for `fitness.minipi.net`; Traefik rate-limit middlewares (general for
   `/api`, stricter for `/api/messages` and `/api/ingest`).
-- Secret `anthropic` (SOPS-encrypted).
+- Secret `fitnessai-secrets` (SOPS-encrypted): `ANTHROPIC_API_KEY` and `OWNER_EMAIL`.
 - Environment: `PORT`, `METRICS_PORT`, `DATA_DIR`, `NODE_ENV`, `ACCESS_TEAM_DOMAIN`,
   `ACCESS_AUD`, `ACCESS_INGEST_AUD`, `ACCESS_INGEST_CLIENT_ID`, `OWNER_EMAIL`,
   `ANTHROPIC_MODEL`, `ANTHROPIC_EFFORT`, `AI_DAILY_CALL_CAP`, `PHOTO_RETENTION_HOURS`,

@@ -1,0 +1,16 @@
+**/node_modules
+.git
+.github
+.data
+docs
+k8s
+web/dist
+web/dev-dist
+**/test
+**/*.test.ts
+**/*.test.tsx
+*.md
+**/.env*
+.superpowers
+**/coverage
+**/.DS_Store

@@ -18,7 +18,7 @@
 - **Pinned majors:** TypeScript `~6.0.3` (typescript-eslint 8 supports `<6.1.0`), ESLint `^9`, React Router `^7`. Do not upgrade these in this milestone.
 - **Names:** database columns, API fields and shared types are snake_case and match the spec's column names exactly.
 - **Time:** timestamps are UTC ISO-8601 strings (`Date.prototype.toISOString()`); `date` values are `YYYY-MM-DD` in the profile timezone (default `Europe/London`). The pod runs in UTC — never use the process timezone for a calendar date.
-- **Claude:** model from `ANTHROPIC_MODEL` (default `claude-opus-5-5`), effort from `ANTHROPIC_EFFORT` (default `medium`), every tool `strict: true`, `tool_choice` left at auto, `fallbacks: "default"`, conversation history append-only.
+- **Claude:** model from `ANTHROPIC_MODEL` (default `claude-opus-5-5`), effort from `ANTHROPIC_EFFORT` (default `medium`), `log_items` `strict: true` (the API rejects the compiled grammar of two strict tools this size, so `update_entry` is validated server-side only), `tool_choice` left at auto, `fallbacks: "default"`, conversation history append-only.
 - **Auth fails closed:** every `/api/*` route except `/api/health` needs a valid Cloudflare Access JWT whose `email` equals `OWNER_EMAIL`; any failure is a bodiless 401.
 - **Privacy:** never log message text or health values; never commit real health data or a plaintext secret (the repository is public).
 - **Deployment shape:** 1 replica, `strategy: Recreate`, `ReadWriteOnce` PVC on `ssd`, memory limit 384 Mi, metrics on port 9464 with no Ingress route.
@@ -713,6 +713,8 @@ export interface DayView {
   targets: DayTargets;
   totals: Totals;
   entries: Entry[];
+  /** Entries that this day's coach replies created or changed but that are dated another day (back-dated); shown with their reply, never counted in this day's totals. */
+  linked_entries: Entry[];
   messages: ChatMessage[];
 }
 
@@ -2280,6 +2282,11 @@ function pathOf(url: string): string {
   return query === -1 ? url : url.slice(0, query);
 }
 
+/** True for "/api" itself and everything under "/api/". */
+function isApi(path: string | undefined): boolean {
+  return path === "/api" || (path?.startsWith("/api/") ?? false);
+}
+
 /** Hashed build assets never change; everything else (index.html, sw.js, the manifest) must revalidate. */
 export function cacheControlFor(filePath: string): string {
   return /[\\/]assets[\\/]/.test(filePath) ? "public, max-age=31536000, immutable" : "no-cache";
@@ -2289,11 +2296,14 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   const app = Fastify({ logger: deps.logger ?? false, bodyLimit: 1_048_576 });
   app.decorateRequest("identity", null);
 
-  // Fail closed: everything under /api/ except the health probe needs the owner's
-  // Access token (spec §13). A refusal carries no body, so a caller learns nothing.
+  // Fail closed: everything under /api except the health probe needs the owner's
+  // Access token (spec §13). A refusal carries no body.
+  // The router decodes percent-escapes and absolute-form targets before matching
+  // ("/%61pi/x" reaches /api/x), so the matched route counts as well as the raw path.
   app.addHook("onRequest", async (req, reply) => {
-    const path = pathOf(req.url);
-    if (!path.startsWith("/api/") || path === "/api/health") return;
+    const route = req.routeOptions.url;
+    if (route === "/api/health") return;
+    if (!isApi(route) && !isApi(pathOf(req.url))) return;
     const header = req.headers["cf-access-jwt-assertion"];
     try {
       req.identity = await deps.verifier.verify(typeof header === "string" ? header : "");
@@ -2323,7 +2333,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
 
   // Unknown GETs outside /api/ are client-side routes of the PWA: answer with index.html.
   app.setNotFoundHandler((req, reply) => {
-    if (!webDist || req.method !== "GET" || pathOf(req.url).startsWith("/api/")) {
+    if (!webDist || req.method !== "GET" || isApi(pathOf(req.url))) {
       return reply.code(404).send({ error: "not_found" });
     }
     return reply.header("cache-control", "no-cache").sendFile("index.html");
@@ -2332,6 +2342,8 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   return app;
 }
 ```
+
+> Amended during execution: the plan's first hook tested only the raw `req.url`, so `/%61pi/…` and absolute-form targets (`GET http://host/api/…`) reached API handlers without a token. The hook above is the fix. `server/test/app.test.ts` gained probes for those spellings, for a route at exactly `/api`, and for auth with a web build mounted (12 tests, not 8).
 
 - [ ] **Step 5: Run the tests**
 
@@ -3654,7 +3666,7 @@ git commit -m "feat(server): Claude client with fallbacks and a scriptable fake"
 
 **Interfaces:**
 - Consumes: `AiTool` (Task 12), entries persistence (Task 9), `ensureDay` (Task 10), `exerciseKcal` (Task 3), `zonedTimeToInstant` (Task 4), `MAX_BACKDATE_DAYS`, `TIME_HHMM` (shared).
-- Produces (`tools.ts`): Zod schemas `LogItemsInput` (`{ date: string | null; time: string | null; foods; exercises }`) and `UpdateEntryInput` (`{ entry_id; foods; exercises }`); types `FoodToolItem`, `ExerciseToolItem`; `strictJsonSchema(schema): Record<string, unknown>`; `COACH_TOOLS: AiTool[]` (`log_items`, `update_entry`, both `strict: true`); `amountIssues(input): string[]`.
+- Produces (`tools.ts`): Zod schemas `LogItemsInput` (`{ date: string | null; time: string | null; foods; exercises }`) and `UpdateEntryInput` (`{ entry_id; foods; exercises }`); types `FoodToolItem`, `ExerciseToolItem`; `strictJsonSchema(schema): Record<string, unknown>`; `COACH_TOOLS: AiTool[]` (`log_items` `strict: true`, `update_entry` `strict: false`, see the note in Step 3); `amountIssues(input): string[]`.
 - Produces (`staging.ts`): `interface Staging { creates: NewEntry[]; updates: Map<string, { foods; exercises }> }`, `newStaging()`, `interface ToolContext { sql; profile; messageId; messageDate; sentAt: Date; today; weightKg(date): number; staging; newId(): string }`, `interface ToolOutcome { content: string; isError: boolean }`, `executeTool(name, input, ctx): ToolOutcome` (stages, never writes), `applyStaging(sql, staging, profile, nowIso): string[]` (writes; returns the ids it created or changed).
 - Produces (`helpers.ts`): `TOOL_EGGS` (a complete food tool item, 180 kcal), `TOOL_RUN` (30 min at MET 9), `logItemsInput(overrides?)`.
 
@@ -3948,7 +3960,10 @@ export const COACH_TOOLS: AiTool[] = [
     name: "update_entry",
     description:
       "Correct an entry that is already logged by replacing all of its items. Send the complete corrected list, including the items that did not change.",
-    strict: true,
+    // Amended after the live check (Task 17 Step 7): with both tools strict, the API answered
+    // 400 "The compiled grammar is too large". Only log_items stays strict; this tool's input is
+    // validated by UpdateEntryInput, and a bad call goes back to Claude as a tool error.
+    strict: false,
     input_schema: strictJsonSchema(UpdateEntryInput) as AiTool["input_schema"],
   },
 ];
@@ -7843,7 +7858,7 @@ stringData:
   OWNER_EMAIL: "<the email you sign in to Cloudflare Access with>"
 EOF
 sops --encrypt --in-place k8s/80-secrets.sops.yaml
-grep -c 'ENC\[' k8s/80-secrets.sops.yaml
+grep -cE '^[[:space:]]+(ANTHROPIC_API_KEY|OWNER_EMAIL): ENC\[' k8s/80-secrets.sops.yaml
 ```
 
 Expected: `2` (both values encrypted). The email stays out of the public repository this way too.

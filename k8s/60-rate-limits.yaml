@@ -1,0 +1,28 @@
+# Per client. Behind Cloudflare and the tunnel the source address Traefik sees is
+# an internal pod address; the real client survives only in Cf-Connecting-Ip,
+# which Cloudflare overwrites on every request, so it cannot be spoofed.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: rate-limit
+spec:
+  rateLimit:
+    average: 120
+    period: 1m
+    burst: 60
+    sourceCriterion:
+      requestHeaderName: Cf-Connecting-Ip
+---
+# Every coach message is up to five Claude calls, so this is the cost guard
+# against a runaway client (spec §6.4).
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: coach-rate-limit
+spec:
+  rateLimit:
+    average: 20
+    period: 1m
+    burst: 10
+    sourceCriterion:
+      requestHeaderName: Cf-Connecting-Ip
