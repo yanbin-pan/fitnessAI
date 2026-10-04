@@ -121,8 +121,10 @@ flux suspend kustomization fitnessai
 kubectl -n fitnessai scale deploy/fitnessai --replicas=0
 # on rpi-01, in the PVC's directory under /mnt/ssd/nfs/k8s:
 sudo mv db/fitness.db fitness.db
-[ -e db/fitness.db-journal ] && sudo mv db/fitness.db-journal fitness.db-journal   # a journal travels with its database
-# revert milestone 2's Deploy commit on main, then:
+sudo test -e db/fitness.db-journal && sudo mv db/fitness.db-journal fitness.db-journal   # a journal travels with its database
+# revert milestone 2's Deploy commit on main and push it, then fetch it before resuming,
+# so Flux never re-applies milestone 2 to the moved database:
+flux reconcile source git fitnessai
 flux resume kustomization fitnessai
 kubectl -n fitnessai scale deploy/fitnessai --replicas=1
 ```
