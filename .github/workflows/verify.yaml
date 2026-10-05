@@ -58,10 +58,30 @@ jobs:
           grep -q 'router.middlewares: fitnessai-rate-limit@kubernetescrd' "$r" || fail "The main ingress lost its rate limiter."
           grep -q 'router.middlewares: fitnessai-coach-rate-limit@kubernetescrd' "$r" || fail "The coach ingress lost its rate limiter."
           [ "$(grep -c 'requestHeaderName: Cf-Connecting-Ip' "$r")" = "2" ] || fail "Both rate limiters must key on Cf-Connecting-Ip."
-          [ "$(grep -c '^kind: Middleware$' "$r")" = "2" ] || fail "Expected exactly two Middlewares."
-          for m in rate-limit coach-rate-limit; do
+          [ "$(grep -c '^kind: Middleware$' "$r")" = "3" ] || fail "Expected exactly three Middlewares: two rate limiters and the old address's redirect."
+          for m in rate-limit coach-rate-limit to-zabaione; do
             grep -q "^  name: $m$" "$r" || fail "Middleware $m is referenced by an ingress but not defined."
           done
+          # The app answers at zabaione.minipi.net; fitness.minipi.net, its first address,
+          # only redirects there, permanently and to the same path.
+          [ "$(grep -c 'host: zabaione.minipi.net$' "$r")" = "2" ] || fail "Both app ingresses must serve zabaione.minipi.net."
+          awk '/^---$/ { if (h && !(m && p && t)) bad = 1; seen += h; h = m = p = t = 0; next }
+               /host: fitness\.minipi\.net$/ { h = 1 }
+               /router\.middlewares: fitnessai-to-zabaione@kubernetescrd$/ { m = 1 }
+               /^ +path: "?\/"?$/ { p = 1 }
+               /^ +pathType: Prefix$/ { t = 1 }
+               END { if (h && !(m && p && t)) bad = 1; seen += h; if (seen != 1) bad = 1; exit bad }' "$r" \
+            || fail "fitness.minipi.net must be one Ingress that redirects every path to zabaione.minipi.net."
+          grep -qF 'replacement: https://zabaione.minipi.net/${1}' "$r" || fail "The old address must redirect to the same path on zabaione.minipi.net."
+          grep -q 'permanent: true' "$r" || fail "The old address's redirect must be permanent."
+          # Try the pattern on URLs as Traefik builds them (http://, the raw Host, the request
+          # URI), so a typo or a lost capture group fails here rather than in the cluster.
+          RE="$(sed -n 's/^    regex: //p' "$r")"
+          export RE
+          redirect() { printf '%s' "$1" | perl -pe 's{$ENV{RE}}{https://zabaione.minipi.net/$1}'; }
+          [ "$(redirect 'http://fitness.minipi.net/day/2026-10-04?x=1&y=2')" = 'https://zabaione.minipi.net/day/2026-10-04?x=1&y=2' ] || fail "The redirect must keep the path and query."
+          [ "$(redirect 'http://FITNESS.minipi.net.:8080/')" = 'https://zabaione.minipi.net/' ] || fail "The redirect must ignore the Host's case, port and trailing dot."
+          [ "$(redirect 'http://zabaione.minipi.net/day/today')" = 'http://zabaione.minipi.net/day/today' ] || fail "The redirect must never match the new address."
           grep -A1 'name: ACCESS_AUD' "$r" | grep -qE 'value: "?[0-9a-f]{64}"?$' || fail "ACCESS_AUD must be the 64-hex audience tag from Terraform."
           grep -A1 'name: ACCESS_TEAM_DOMAIN' "$r" | grep -q 'cloudflareaccess.com' || fail "ACCESS_TEAM_DOMAIN is not set."
           grep -A1 'name: NODE_ENV' "$r" | grep -q 'value: production' || fail "NODE_ENV must be production."

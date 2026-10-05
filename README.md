@@ -27,9 +27,10 @@ web/      React PWA (Vite, Tailwind, TanStack Query), neumorphic design
 k8s/      what Flux deploys to the cluster
 ```
 
-One container serves the API and the built PWA at `fitness.minipi.net`, behind
-Cloudflare Access. Each person has a SQLite database of their own on the `ssd`
-volume.
+One container serves the API and the built PWA at `zabaione.minipi.net`, behind
+Cloudflare Access; on the phone the app is called Zabaione. The first address,
+`fitness.minipi.net`, redirects there permanently and stays behind Access too. Each
+person has a SQLite database of their own on the `ssd` volume.
 
 ## Develop
 
@@ -112,7 +113,7 @@ id: `printf %s 'friend@example.com' | sha256sum | cut -c1-8`.
    (never committed) and run `terraform apply` there.
 3. Once Flux has applied the secret, restart the app:
    `kubectl -n fitnessai rollout restart deploy/fitnessai`.
-4. They open <https://fitness.minipi.net>, sign in with the emailed code, add it to
+4. They open <https://zabaione.minipi.net>, sign in with the emailed code, add it to
    their home screen and set up their profile.
 
 A malformed `ALLOWED_EMAILS` entry stops the app from starting until the secret is fixed
@@ -235,17 +236,22 @@ Milestone 1 ignores the new columns and the photos table, but it keeps its datab
 
 ## On the iPhone
 
-Open `https://fitness.minipi.net` in Safari, sign in, then Share → Add to Home
+Open `https://zabaione.minipi.net` in Safari, sign in, then Share → Add to Home
 Screen. Voice input is the keyboard's microphone; the camera button beside the
 text box takes or picks up to four photos. If the app shows "Signed out", tap
 the banner to sign in again; the Access session lasts 30 days.
 
+An icon added from the first address, `fitness.minipi.net`, keeps opening its saved
+copy of the app, which shows "Signed out"; tapping the banner goes on to the new
+address. Delete that icon and add the app again from `zabaione.minipi.net`.
+
 The home-screen icon is the zabaione ball. iOS keeps the icon it saw when the
-app was added, so after an icon change remove fitnessAI from the home screen
-and add it again; your data lives on the server and is not touched.
+app was added, so after an icon change remove the app (Zabaione, or fitnessAI on
+an icon added before the rename) from the home screen and add it again; your data
+lives on the server and is not touched.
 
 ## Known issues
 
 - The Access re-login test from milestone 1 (Cloudflare Zero Trust → Access →
-  Applications → fitnessAI → Revoke existing tokens, then reopen the installed
+  Applications → Zabaione → Revoke existing tokens, then reopen the installed
   app) has not been run on the iPhone yet.
