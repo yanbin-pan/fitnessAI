@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { buildDayView, daySummaries, ensureDay } from "../days/days.ts";
+import { starterFor } from "../days/featured.ts";
 import { forRequest } from "../deps.ts";
 import type { AppDeps } from "../deps.ts";
 import { getProfile } from "../profile/profile.ts";
@@ -19,7 +20,7 @@ export function registerDayRoutes(app: FastifyInstance, appDeps: AppDeps): void 
     if (!isIsoDate(date)) return reply.code(400).send({ error: "invalid_date" });
     // Opening today creates its row, so a new day page simply exists (spec §7.5).
     if (date === today) ensureDay(deps.db, profile, date, nowIso);
-    return buildDayView(deps.db, profile, date, today, nowIso);
+    return buildDayView(deps.db, profile, date, today, nowIso, starterFor(deps.person.owner));
   });
 
   // The calendar's month (spec §12). A repeated parameter arrives as an array, which counts as missing.

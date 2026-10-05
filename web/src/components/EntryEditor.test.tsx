@@ -1,9 +1,13 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import type { Activity } from "../shared.ts";
 import { dayView, entry, exerciseItem } from "../test/fixtures.ts";
 import { jsonResponse, mockFetch, renderWithProviders } from "../test/render.tsx";
 import { EntryEditor } from "./EntryEditor.tsx";
+
+/** The owner's four, which is what a day view features until someone has logged four activities of their own. */
+const FOUR: Activity[] = ["tennis", "gym", "wakeboarding", "kitesurfing"];
 
 /** An entry with one exercise whose kcal the server derived from its MET. */
 const outdoorRun = () => entry({
@@ -20,7 +24,7 @@ describe("EntryEditor", () => {
     const sample = entry();
     const fetchMock = mockFetch(() => jsonResponse({ entry: sample, day: dayView({ entries: [sample] }) }));
     const onClose = vi.fn();
-    renderWithProviders(<EntryEditor date="2026-10-03" entry={sample} onClose={onClose} />);
+    renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-03" entry={sample} onClose={onClose} />);
 
     const kcal = screen.getByLabelText("kcal");
     await userEvent.clear(kcal);
@@ -40,7 +44,7 @@ describe("EntryEditor", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     const fetchMock = mockFetch(() => jsonResponse({ day: dayView() }));
     const onClose = vi.fn();
-    renderWithProviders(<EntryEditor date="2026-10-03" entry={entry()} onClose={onClose} />);
+    renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-03" entry={entry()} onClose={onClose} />);
     await userEvent.click(screen.getByRole("button", { name: "Delete" }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(fetchMock.mock.calls[0][1]?.method).toBe("DELETE");
@@ -49,7 +53,7 @@ describe("EntryEditor", () => {
   it("adds a manual entry with a POST", async () => {
     const created = entry({ id: "new" });
     const fetchMock = mockFetch(() => jsonResponse({ entry: created, day: dayView({ entries: [created] }) }, 201));
-    renderWithProviders(<EntryEditor date="2026-10-02" entry={null} onClose={vi.fn()} />);
+    renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-02" entry={null} onClose={vi.fn()} />);
     await userEvent.type(screen.getByLabelText("Food"), "Apple");
     await userEvent.type(screen.getByLabelText("kcal"), "52");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -62,7 +66,7 @@ describe("EntryEditor", () => {
 
   it("lets you pick an exercise's activity, and sends it", async () => {
     const fetchMock = mockFetch(() => jsonResponse({ entry: entry(), day: dayView() }, 201));
-    renderWithProviders(<EntryEditor date="2026-10-03" entry={null} onClose={() => {}} />);
+    renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-03" entry={null} onClose={() => {}} />);
     await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
     await userEvent.type(screen.getByLabelText("Exercise"), "Kite session");
     expect(screen.getByRole("radio", { name: "Other" })).toBeChecked();
@@ -76,7 +80,7 @@ describe("EntryEditor", () => {
   it("shows the activity an exercise already has, and sends a change to it with the PATCH", async () => {
     const sample = entry({ foods: [], exercises: [exerciseItem()] }); // a tennis session
     const fetchMock = mockFetch(() => jsonResponse({ entry: sample, day: dayView({ entries: [sample] }) }));
-    renderWithProviders(<EntryEditor date="2026-10-03" entry={sample} onClose={() => {}} />);
+    renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-03" entry={sample} onClose={() => {}} />);
     expect(screen.getByRole("radio", { name: "Tennis" })).toBeChecked();
     await userEvent.click(screen.getByRole("radio", { name: "Gym" }));
     expect(screen.getByRole("radio", { name: "Gym" })).toBeChecked();
@@ -89,18 +93,30 @@ describe("EntryEditor", () => {
     expect(JSON.parse(String(init?.body)).exercises[0]).toMatchObject({ name: "Tennis", activity: "gym" });
   });
 
-  it("offers the owner's four sports, and the exercise's own activity when it is another", () => {
+  it("offers the featured four, and the exercise's own activity when it is another", () => {
     const ride = entry({ foods: [], exercises: [exerciseItem({ name: "Bike ride", category: "cardio", activity: "cycling" })] });
     mockFetch(() => jsonResponse({ entry: ride, day: dayView() }));
-    renderWithProviders(<EntryEditor date="2026-10-03" entry={ride} onClose={() => {}} />);
+    renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-03" entry={ride} onClose={() => {}} />);
     const group = screen.getByRole("group", { name: "Activity for exercise 1" });
     expect(within(group).getAllByRole("radio").map((radio) => radio.getAttribute("aria-label"))).toEqual(["Tennis", "Gym", "Wakeboarding", "Kitesurfing", "Cycling"]);
     expect(within(group).getByRole("radio", { name: "Cycling" })).toBeChecked();
   });
 
+  it("features the person's own four, and keeps every other activity in the grid", async () => {
+    mockFetch(() => jsonResponse({ entry: entry(), day: dayView() }, 201));
+    renderWithProviders(<EntryEditor featured={["running", "walking", "cycling", "gym"]} date="2026-10-03" entry={null} onClose={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
+    const picker = screen.getByRole("group", { name: "Activity for exercise 1" });
+    expect(within(picker).getAllByRole("radio").map((radio) => radio.getAttribute("aria-label"))).toEqual(["Running", "Walking", "Cycling", "Gym", "Other"]);
+    await userEvent.click(within(picker).getByRole("button", { name: "More" }));
+    expect(within(picker).getByText("Your sports")).toBeInTheDocument();
+    expect(within(picker).getAllByRole("radio", { name: "Running" })).toHaveLength(1); // once, under Your sports
+    expect(within(picker).getByRole("radio", { name: "Tennis" })).toBeInTheDocument(); // in Racket now
+  });
+
   it("keeps each exercise's activity to itself", async () => {
     mockFetch(() => jsonResponse({ entry: entry(), day: dayView() }, 201));
-    renderWithProviders(<EntryEditor date="2026-10-03" entry={null} onClose={() => {}} />);
+    renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-03" entry={null} onClose={() => {}} />);
     await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
     await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
     // Each picker is named for its exercise, so a screen reader can tell them apart.
@@ -116,7 +132,7 @@ describe("EntryEditor", () => {
 
   it("is one stop for the keyboard, and the arrow keys move between the activities", async () => {
     mockFetch(() => jsonResponse({ entry: entry(), day: dayView() }, 201));
-    renderWithProviders(<EntryEditor date="2026-10-03" entry={null} onClose={() => {}} />);
+    renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-03" entry={null} onClose={() => {}} />);
     await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
     await userEvent.click(screen.getByLabelText("Type"));
     await userEvent.tab();
@@ -131,7 +147,7 @@ describe("EntryEditor", () => {
 
   it("opens every activity by family under More, and a tap picks one and folds them away", async () => {
     const fetchMock = mockFetch(() => jsonResponse({ entry: entry(), day: dayView() }, 201));
-    renderWithProviders(<EntryEditor date="2026-10-03" entry={null} onClose={() => {}} />);
+    renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-03" entry={null} onClose={() => {}} />);
     await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
     await userEvent.type(screen.getByLabelText("Exercise"), "Boxing class");
     const more = screen.getByRole("button", { name: "More" });
@@ -139,7 +155,7 @@ describe("EntryEditor", () => {
     await userEvent.click(more);
     const group = screen.getByRole("group", { name: "Activity for exercise 1" });
     expect(within(group).getAllByRole("radio")).toHaveLength(33);
-    expect(within(group).getByText("Combat, body and mind")).toBeInTheDocument();
+    expect(within(group).getByText("Gym, combat and mind")).toBeInTheDocument();
     await userEvent.click(within(group).getByRole("radio", { name: "Boxing" }));
     expect(screen.getByRole("button", { name: "More" })).toHaveAttribute("aria-expanded", "false");
     expect(within(group).getAllByRole("radio").map((radio) => radio.getAttribute("aria-label"))).toEqual(["Tennis", "Gym", "Wakeboarding", "Kitesurfing", "Boxing"]);
@@ -150,7 +166,7 @@ describe("EntryEditor", () => {
 
   it("keeps the open grid for the keyboard: the arrow keys move through every activity", async () => {
     mockFetch(() => jsonResponse({ entry: entry(), day: dayView() }, 201));
-    renderWithProviders(<EntryEditor date="2026-10-03" entry={null} onClose={() => {}} />);
+    renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-03" entry={null} onClose={() => {}} />);
     await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
     await userEvent.click(screen.getByRole("button", { name: "More" }));
     screen.getByRole("radio", { name: "Other" }).focus();
@@ -164,7 +180,7 @@ describe("EntryEditor", () => {
 
   it("folds the grid for a tap even when the radio's click has no detail, as WebKit sends a label's", async () => {
     mockFetch(() => jsonResponse({ entry: entry(), day: dayView() }, 201));
-    renderWithProviders(<EntryEditor date="2026-10-03" entry={null} onClose={() => {}} />);
+    renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-03" entry={null} onClose={() => {}} />);
     await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
     await userEvent.click(screen.getByRole("button", { name: "More" }));
     const boxing = screen.getByRole("radio", { name: "Boxing" });
@@ -178,7 +194,7 @@ describe("EntryEditor", () => {
 
   it("presses in the chosen activity's badge", async () => {
     mockFetch(() => jsonResponse({ entry: entry(), day: dayView() }, 201));
-    renderWithProviders(<EntryEditor date="2026-10-03" entry={null} onClose={() => {}} />);
+    renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-03" entry={null} onClose={() => {}} />);
     await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
     await userEvent.click(screen.getByRole("radio", { name: "Gym" }));
     const gym = screen.getByRole("radio", { name: "Gym" }).closest("label");
@@ -191,7 +207,7 @@ describe("EntryEditor", () => {
 
   it("explains a date too far back instead of blaming the numbers", async () => {
     mockFetch(() => jsonResponse({ error: "too_old" }, 400));
-    renderWithProviders(<EntryEditor date="2026-09-20" entry={null} onClose={vi.fn()} />);
+    renderWithProviders(<EntryEditor featured={FOUR} date="2026-09-20" entry={null} onClose={vi.fn()} />);
     await userEvent.type(screen.getByLabelText("Food"), "Apple");
     await userEvent.type(screen.getByLabelText("kcal"), "52");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -207,7 +223,7 @@ describe("EntryEditor", () => {
       return jsonResponse({ entry: created, day: dayView({ entries: [created] }) }, 201);
     });
     const onClose = vi.fn();
-    renderWithProviders(<EntryEditor date="2026-10-02" entry={null} onClose={onClose} />);
+    renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-02" entry={null} onClose={onClose} />);
     await userEvent.type(screen.getByLabelText("Food"), "Apple");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByRole("alert")).toBeInTheDocument();
@@ -227,7 +243,7 @@ describe("EntryEditor", () => {
       return jsonResponse({ entry: created, day: dayView({ entries: [created] }) }, 201);
     });
     const onClose = vi.fn();
-    renderWithProviders(<EntryEditor date="2026-10-02" entry={null} onClose={onClose} />);
+    renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-02" entry={null} onClose={onClose} />);
     await userEvent.type(screen.getByLabelText("Food"), "Apple");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByRole("alert")).toBeInTheDocument();
@@ -242,7 +258,7 @@ describe("EntryEditor", () => {
     const sample = outdoorRun();
     const fetchMock = mockFetch(() => jsonResponse({ entry: sample, day: dayView({ entries: [sample] }) }));
     const onClose = vi.fn();
-    renderWithProviders(<EntryEditor date="2026-10-03" entry={sample} onClose={onClose} />);
+    renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-03" entry={sample} onClose={onClose} />);
     await userEvent.clear(screen.getByLabelText("Minutes"));
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
@@ -257,7 +273,7 @@ describe("EntryEditor", () => {
     const sample = outdoorRun();
     const fetchMock = mockFetch(() => jsonResponse({ entry: sample, day: dayView({ entries: [sample] }) }));
     const onClose = vi.fn();
-    renderWithProviders(<EntryEditor date="2026-10-03" entry={sample} onClose={onClose} />);
+    renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-03" entry={sample} onClose={onClose} />);
     const minutes = screen.getByLabelText("Minutes");
     await userEvent.clear(minutes);
     await userEvent.type(minutes, "60");
@@ -272,7 +288,7 @@ describe("EntryEditor", () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const fetchMock = mockFetch(() => jsonResponse({ day: dayView() }));
     const onClose = vi.fn();
-    renderWithProviders(<EntryEditor date="2026-10-03" entry={entry()} onClose={onClose} />);
+    renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-03" entry={entry()} onClose={onClose} />);
     await userEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(confirm).toHaveBeenCalledWith("Delete this entry?");
     await waitFor(() => expect(fetchMock).not.toHaveBeenCalled());
@@ -283,7 +299,7 @@ describe("EntryEditor", () => {
     async function failWith(handler: () => Response, action: "save" | "delete") {
       vi.spyOn(window, "confirm").mockReturnValue(true);
       mockFetch(handler);
-      renderWithProviders(<EntryEditor date="2026-10-02" entry={action === "delete" ? entry() : null} onClose={vi.fn()} />);
+      renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-02" entry={action === "delete" ? entry() : null} onClose={vi.fn()} />);
       if (action === "save") {
         await userEvent.type(screen.getByLabelText("Food"), "Apple");
         await userEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -306,7 +322,7 @@ describe("EntryEditor", () => {
     it("shows the reason for the latest failure, not for an earlier one", async () => {
       vi.spyOn(window, "confirm").mockReturnValue(true);
       mockFetch((_url, init) => (init?.method === "DELETE" ? jsonResponse({ error: "internal" }, 500) : offline()));
-      renderWithProviders(<EntryEditor date="2026-10-03" entry={entry()} onClose={vi.fn()} />);
+      renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-03" entry={entry()} onClose={vi.fn()} />);
       await userEvent.click(screen.getByRole("button", { name: "Delete" }));
       expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't delete this entry");
       await userEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -318,7 +334,7 @@ describe("EntryEditor", () => {
       let finishDelete: (response: Response) => void = () => {};
       mockFetch((_url, init) => (init?.method === "DELETE" ? new Promise<Response>((resolve) => (finishDelete = resolve)) : offline()));
       const onClose = vi.fn();
-      renderWithProviders(<EntryEditor date="2026-10-03" entry={entry()} onClose={onClose} />);
+      renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-03" entry={entry()} onClose={onClose} />);
       await userEvent.click(screen.getByRole("button", { name: "Save" }));
       expect(await screen.findByRole("alert")).toHaveTextContent("You're offline");
       await userEvent.click(screen.getByRole("button", { name: "Delete" }));

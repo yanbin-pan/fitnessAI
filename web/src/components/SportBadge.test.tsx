@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ICON_PATHS } from "../icons/paths.ts";
 import { ACTIVITIES } from "../shared.ts";
 import type { Activity } from "../shared.ts";
-import { FAMILIES, FEATURED, SPORTS, SportBadge, sportOf } from "./SportBadge.tsx";
+import { FAMILIES, SPORTS, SportBadge, familiesFor, sportOf } from "./SportBadge.tsx";
 
 const channel = (hex: string, i: number) => {
   const v = parseInt(hex.slice(i, i + 2), 16) / 255;
@@ -72,14 +72,27 @@ describe("SportBadge", () => {
     expect(container.firstElementChild).not.toHaveClass("pressed");
   });
 
-  it("features the owner's four sports", () => {
-    expect(FEATURED).toEqual(["tennis", "gym", "wakeboarding", "kitesurfing"]);
+  it("puts every activity in exactly one family", () => {
+    const listed = FAMILIES.flatMap((family) => family.activities);
+    expect([...listed].sort()).toEqual([...ACTIVITIES].sort());
+    expect(new Set(listed).size).toBe(ACTIVITIES.length);
+    expect(FAMILIES.map((family) => family.name)).toEqual([
+      "Racket", "On foot and wheels", "Water", "Gym, combat and mind", "Team", "Snow and ice", "Everything else",
+    ]);
   });
 
-  it("puts every activity in exactly one family, in the vocabulary's order", () => {
-    expect(FAMILIES.flatMap((family) => family.activities)).toEqual([...ACTIVITIES]);
-    expect(FAMILIES.map((family) => family.name)).toEqual([
-      "Your sports", "Racket", "On foot and wheels", "Water", "Combat, body and mind", "Team", "Snow and ice", "Everything else",
-    ]);
+  it("leads the grid with the person's own four, and lists every other activity once, in its family", () => {
+    const grid = familiesFor(["running", "walking", "cycling", "gym"]);
+    expect(grid[0]).toEqual({ name: "Your sports", activities: ["running", "walking", "cycling", "gym"] });
+    const listed = grid.flatMap((family) => family.activities);
+    expect([...listed].sort()).toEqual([...ACTIVITIES].sort());
+    expect(grid.find((family) => family.name === "Racket")?.activities).toEqual(["tennis", "padel", "badminton"]);
+    expect(grid.find((family) => family.name === "On foot and wheels")?.activities).toEqual(["hiking", "photography", "skateboarding"]);
+  });
+
+  it("drops a family that the person's four have emptied", () => {
+    const grid = familiesFor(["skiing", "snowboarding", "skating", "golf"]);
+    expect(grid.map((family) => family.name)).not.toContain("Snow and ice");
+    expect(grid.find((family) => family.name === "Everything else")?.activities).toEqual(["other"]);
   });
 });

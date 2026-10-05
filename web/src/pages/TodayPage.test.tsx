@@ -123,6 +123,15 @@ describe("TodayPage", () => {
     expect(screen.getByRole("dialog", { name: "Edit entry" })).toBeInTheDocument();
   });
 
+  it("offers the day's featured activities in the editor", async () => {
+    mockFetch(() => jsonResponse(dayView({ featured: ["climbing", "running", "walking", "cycling"] })));
+    renderDay();
+    await userEvent.click(await screen.findByRole("button", { name: "+ Add manually" }));
+    await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
+    const picker = screen.getByRole("group", { name: "Activity for exercise 1" });
+    expect(within(picker).getAllByRole("radio").map((radio) => radio.getAttribute("aria-label"))).toEqual(["Climbing", "Running", "Walking", "Cycling", "Other"]);
+  });
+
   it("raises the signed-out banner when Retry finds the Access session expired", async () => {
     const failed = message({ id: "m9", status: "failed", error_code: "timeout" });
     mockFetch((_url, init) => (init?.method === "POST" ? new Response(null, { status: 401 }) : jsonResponse(dayView({ messages: [failed] }))));

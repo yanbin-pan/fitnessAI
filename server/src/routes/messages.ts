@@ -2,6 +2,7 @@ import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest }
 import { processMessage } from "../coach/process.ts";
 import type { ProcessOutcome } from "../coach/process.ts";
 import { buildDayView, ensureDay } from "../days/days.ts";
+import { starterFor } from "../days/featured.ts";
 import { forRequest } from "../deps.ts";
 import type { AppDeps, RequestDeps } from "../deps.ts";
 import { getMessage, getReply, insertUserMessage, setMessageStatus, toChatMessage } from "../messages/messages.ts";
@@ -48,7 +49,7 @@ function messageResult(deps: RequestDeps, id: string): MessageResult {
   return {
     user: toChatMessage(user),
     reply: reply ? toChatMessage(reply) : null,
-    day: buildDayView(deps.db, profile, user.date, todayIn(profile.timezone, now), now.toISOString()),
+    day: buildDayView(deps.db, profile, user.date, todayIn(profile.timezone, now), now.toISOString(), starterFor(deps.person.owner)),
   };
 }
 
@@ -65,7 +66,7 @@ function dayOf(deps: RequestDeps, date: string): DayView {
   const profile = getProfile(deps.db);
   if (!profile) throw new Error("the profile disappeared");
   const now = deps.now();
-  return buildDayView(deps.db, profile, date, todayIn(profile.timezone, now), now.toISOString());
+  return buildDayView(deps.db, profile, date, todayIn(profile.timezone, now), now.toISOString(), starterFor(deps.person.owner));
 }
 
 /**

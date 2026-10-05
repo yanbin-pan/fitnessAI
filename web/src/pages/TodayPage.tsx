@@ -145,7 +145,7 @@ export function TodayPage() {
         </div>
       )}
       {view.date === view.today && <Composer />}
-      {editing?.date === view.date && <EntryEditor date={view.date} entry={editing.entry} onClose={() => setEditing(null)} />}
+      {editing?.date === view.date && <EntryEditor date={view.date} entry={editing.entry} featured={view.featured} onClose={() => setEditing(null)} />}
     </main>
   );
 }

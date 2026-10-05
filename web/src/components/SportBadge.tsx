@@ -55,20 +55,25 @@ export function sportOf(activity: string): Sport {
   return (SPORTS as Record<string, Sport | undefined>)[activity] ?? SPORTS.other;
 }
 
-/** The owner's main sports, offered first wherever an activity is picked (spec §5.1). */
-export const FEATURED: readonly Activity[] = ["tennis", "gym", "wakeboarding", "kitesurfing"];
-
-/** Every activity by family, in the order the editor's More grid shows them (spec §11.1). */
+/** Every activity in its family, each once, in the order the editor's More grid shows them (spec §11.1). */
 export const FAMILIES: readonly { name: string; activities: readonly Activity[] }[] = [
-  { name: "Your sports", activities: ["tennis", "gym", "wakeboarding", "kitesurfing"] },
-  { name: "Racket", activities: ["padel", "badminton"] },
+  { name: "Racket", activities: ["tennis", "padel", "badminton"] },
   { name: "On foot and wheels", activities: ["running", "walking", "hiking", "photography", "cycling", "skateboarding"] },
-  { name: "Water", activities: ["swimming", "surfing", "rowing", "kayaking", "sailing", "diving"] },
-  { name: "Combat, body and mind", activities: ["boxing", "martial_arts", "yoga", "climbing"] },
+  { name: "Water", activities: ["swimming", "surfing", "wakeboarding", "kitesurfing", "rowing", "kayaking", "sailing", "diving"] },
+  { name: "Gym, combat and mind", activities: ["gym", "boxing", "martial_arts", "yoga", "climbing"] },
   { name: "Team", activities: ["football", "basketball", "volleyball", "rugby", "cricket", "hockey"] },
   { name: "Snow and ice", activities: ["skiing", "snowboarding", "skating"] },
   { name: "Everything else", activities: ["golf", "other"] },
 ];
+
+/**
+ * The More grid for someone: their featured four as "Your sports", then every other activity in its family, so each
+ * appears once (one radio per activity); a family the four have emptied is left out.
+ */
+export function familiesFor(featured: readonly Activity[]): { name: string; activities: readonly Activity[] }[] {
+  const rest = FAMILIES.map((family) => ({ name: family.name, activities: family.activities.filter((activity) => !featured.includes(activity)) }));
+  return [{ name: "Your sports", activities: featured }, ...rest.filter((family) => family.activities.length > 0)];
+}
 
 /**
  * The activity's pictogram in its soft colour on a matte disc, raised from the surface (spec §11.4).

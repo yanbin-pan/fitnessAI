@@ -81,7 +81,8 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
   const system = getOrCreateThread(deps.db, message.date, () => buildSystemPrompt(profile, message.date), nowIso);
   const load = (id: string) => photoData(deps.db, deps.photoDir, id);
   const history = hydrateTurns(loadTurns(deps.db, message.date), load);
-  const view = buildDayView(deps.db, profile, message.date, today, nowIso);
+  // The coach's context never shows the featured row.
+  const view = buildDayView(deps.db, profile, message.date, today, nowIso, []);
   // What is stored keeps a reference per photo. What Claude receives is rebuilt from it by
   // the same function every later replay uses, so the two can never differ.
   const storedTurn: AiMessage = {
