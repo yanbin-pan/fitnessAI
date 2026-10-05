@@ -27,6 +27,8 @@ const OWNER = { person: "c8cd3c64", role: "owner" } as const; // owner@example.c
 const GUEST = { person: "f387373a", role: "guest" } as const; // friend@example.com
 /** The same two people as startup knows them: their keys, and whether they own the app. */
 const PEOPLE = [{ key: personKey("owner@example.com"), owner: true }, { key: personKey(FRIEND), owner: false }];
+/** Every outcome a coach message can end with, written out here independently of the source. */
+const OUTCOMES = ["done", "ai_cap", "ai_unavailable", "no_profile", "timeout", "ai_error", "ai_rate_limited", "refused", "max_tokens", "tool_loop_limit", "internal"];
 
 /** One metric's series as exposed (`name{labels} value`), sorted so the order they arrived in doesn't matter. */
 const seriesOf = (text: string, name: string) => text.split("\n").filter((line) => line.startsWith(`${name}{`)).sort();
@@ -191,9 +193,9 @@ describe("metrics", () => {
     const zeros = (name: string, before = "") => [OWNER, GUEST].map((who) => `${name}{${before}person="${who.person}",role="${who.role}"} 0`).sort();
     expect(seriesOf(text, "fitnessai_requests_by_person_total")).toEqual(zeros("fitnessai_requests_by_person_total"));
     expect(seriesOf(text, "fitnessai_coach_model_calls_total")).toEqual(zeros("fitnessai_coach_model_calls_total"));
-    // "done" and "ai_cap" are seeded (the dashboard reads both per person); any other outcome is born with its first occurrence.
+    // Every outcome is seeded, so a first refusal or failure after a restart still shows as growth.
     expect(seriesOf(text, "fitnessai_coach_messages_total")).toEqual(
-      ["done", "ai_cap"].flatMap((outcome) => zeros("fitnessai_coach_messages_total", `outcome="${outcome}",`)).sort(),
+      OUTCOMES.flatMap((outcome) => zeros("fitnessai_coach_messages_total", `outcome="${outcome}",`)).sort(),
     );
     const kinds = ["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"];
     expect(seriesOf(text, "fitnessai_coach_tokens_total")).toEqual(kinds.flatMap((kind) => zeros("fitnessai_coach_tokens_total", `kind="${kind}",`)).sort());
@@ -212,12 +214,11 @@ describe("metrics", () => {
       'fitnessai_requests_by_person_total{person="c8cd3c64",role="owner"} 2',
       'fitnessai_requests_by_person_total{person="f387373a",role="guest"} 1',
     ]);
-    expect(seriesOf(text, "fitnessai_coach_messages_total")).toEqual([
-      'fitnessai_coach_messages_total{outcome="ai_cap",person="c8cd3c64",role="owner"} 0',
-      'fitnessai_coach_messages_total{outcome="ai_cap",person="f387373a",role="guest"} 0',
-      'fitnessai_coach_messages_total{outcome="done",person="c8cd3c64",role="owner"} 2',
-      'fitnessai_coach_messages_total{outcome="done",person="f387373a",role="guest"} 1',
-    ]);
+    const messages = seriesOf(text, "fitnessai_coach_messages_total");
+    expect(messages).toHaveLength(OUTCOMES.length * 2);
+    expect(messages).toContain('fitnessai_coach_messages_total{outcome="done",person="c8cd3c64",role="owner"} 2');
+    expect(messages).toContain('fitnessai_coach_messages_total{outcome="done",person="f387373a",role="guest"} 1');
+    expect(messages.filter((line) => !line.includes('outcome="done"')).every((line) => line.endsWith(" 0"))).toBe(true);
     expect(seriesOf(text, "fitnessai_coach_model_calls_total")).toEqual([
       'fitnessai_coach_model_calls_total{person="c8cd3c64",role="owner"} 2',
       'fitnessai_coach_model_calls_total{person="f387373a",role="guest"} 1',

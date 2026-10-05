@@ -1,6 +1,6 @@
 import http from "node:http";
 import { Counter, Histogram, Registry, collectDefaultMetrics } from "prom-client";
-import type { ProcessOutcome } from "./coach/process.ts";
+import type { ProcessOutcome, ProcessOutcomeCode } from "./coach/process.ts";
 import { shortKey } from "./people/people.ts";
 
 /** How a metric names a person: the short id the logs use, and owner or guest. Never an email, never the whole key (2.2 §8). */
@@ -60,6 +60,15 @@ export function personLabels(person: { key: string; owner: boolean }): PersonLab
 /** The kinds of Claude token a coach run counts. */
 const TOKEN_KINDS = ["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"] as const;
 
+/**
+ * Every outcome a coach message can end with ("internal" for a run that crashed). Written as a Record so tsc names
+ * any outcome missing here: each is seeded per person, so a first failure after a restart still shows as growth.
+ */
+const OUTCOMES = Object.keys({
+  done: 0, ai_cap: 0, ai_unavailable: 0, no_profile: 0, timeout: 0, ai_error: 0, ai_rate_limited: 0, refused: 0,
+  max_tokens: 0, tool_loop_limit: 0, internal: 0,
+} satisfies Record<ProcessOutcomeCode | "internal", 0>);
+
 export function recordCoach(metrics: Metrics | undefined, result: ProcessOutcome | null, who: PersonLabels): void {
   if (!metrics) return;
   // Exactly these two labels, whatever else the caller's object carries.
@@ -77,15 +86,14 @@ export function recordCoach(metrics: Metrics | undefined, result: ProcessOutcome
 /**
  * Starts each person's counters at zero when the app starts. Prometheus reads growth between two scrapes, so a series
  * that is born at 1 (a person's first request or message after a restart) shows no growth in increase() or rate().
- * Of the message outcomes "done" and "ai_cap" are seeded, the two the dashboard reads per person; any other is born
- * with its first occurrence.
+ * Every message outcome is seeded, so the first refusal or failure after a restart shows too.
  */
 export function seedPeople(metrics: Metrics, people: { key: string; owner: boolean }[]): void {
   for (const person of people) {
     const labels = personLabels(person);
     metrics.requestsByPerson.inc(labels, 0);
     metrics.coachModelCalls.inc(labels, 0);
-    for (const outcome of ["done", "ai_cap"]) metrics.coachMessages.inc({ outcome, ...labels }, 0);
+    for (const outcome of OUTCOMES) metrics.coachMessages.inc({ outcome, ...labels }, 0);
     for (const kind of TOKEN_KINDS) metrics.coachTokens.inc({ kind, ...labels }, 0);
   }
 }

@@ -1186,7 +1186,7 @@ No DNS or tunnel changes in either.
 - Structured logs from Fastify (pino).
 - Prometheus metrics: HTTP request counts and latency; coach calls; failures by error code;
   tokens and estimated cost; ingest counts and the time of the last successful sync.
-- A Grafana dashboard (home-cluster `infra/monitoring/dashboards/fitnessai.yaml`) shows
+- A Grafana dashboard (home-cluster `infra/monitoring/dashboards/fitnessai-usage.yaml`) shows
   active people, each person's requests, coach messages, model calls against their cap, cap
   refusals and tokens, by short id, and the app's traffic, errors, latency and memory.
 
