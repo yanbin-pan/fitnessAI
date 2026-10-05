@@ -2511,3 +2511,4 @@ What the reviews and rulings changed relative to the task text above. The execut
   - Pins for each person's starter on every route (including the streamed send and Retry), "Your sports" membership, the KNOWN filter, and request-path isolation.
   - A README and spec docs pass (R42–R44): the rollback waits for the pod, checks the database before reverting and removes the emptied owner folder; removal guards an empty key; P8 is stated.
 - **Merge:** merged as soon as it was open, since the same checks ran green locally and main re-verifies (R45).
+- **After deploy (owner's request):** metrics now name each person by the first 8 characters of their key and owner/guest — never an email — for a per-person Grafana dashboard; the "Metrics carry no per-person labels" constraint above is superseded (spec §8 and the main design's §13 updated).

@@ -1075,7 +1075,9 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
   - CI fails if a key-shaped string appears in `web/` or if any `*.sops.yaml` file is
     unencrypted.
 - **Exposure:**
-  - Metrics are on a separate port with no Ingress route, and carry no per-person labels.
+  - Metrics are on a separate port with no Ingress route, and name a person only by the
+    first 8 characters of their key and whether they are the owner or a guest — never an
+    email — so the owner's dashboard can show each person's usage.
   - Photos are reachable only through the authenticated API, with unguessable 128-bit IDs;
     their type is checked from the file's first bytes and they're served with `nosniff`.
   - Logs record request metadata only — never message text, photos, goals, health values
@@ -1184,6 +1186,9 @@ No DNS or tunnel changes in either.
 - Structured logs from Fastify (pino).
 - Prometheus metrics: HTTP request counts and latency; coach calls; failures by error code;
   tokens and estimated cost; ingest counts and the time of the last successful sync.
+- A Grafana dashboard (home-cluster `infra/monitoring/dashboards/fitnessai-usage.yaml`) shows
+  active people, each person's requests, coach messages, model calls against their cap, cap
+  refusals and tokens, by short id, and the app's traffic, errors, latency and memory.
 
 ---
 

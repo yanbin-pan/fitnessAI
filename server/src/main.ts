@@ -4,7 +4,7 @@ import { createVerifier, devVerifier } from "./auth/access.ts";
 import { loadConfig } from "./config.ts";
 import { moveOwnerIn } from "./db/location.ts";
 import { startNightlySnapshot, startRetention } from "./jobs.ts";
-import { createMetrics, serveMetrics } from "./metrics.ts";
+import { createMetrics, seedPeople, serveMetrics } from "./metrics.ts";
 import { createPeople, personKey, shortKey } from "./people/people.ts";
 import { getProfile } from "./profile/profile.ts";
 
@@ -25,6 +25,12 @@ const ai = config.anthropic.apiKey
   ? anthropicClient({ apiKey: config.anthropic.apiKey, model: config.anthropic.model, effort: config.anthropic.effort })
   : null;
 const metrics = createMetrics();
+// So a restart doesn't hide anyone's first request or message from increase() and rate(). The people on the list, not the folders
+// under users/: those still include guests who were taken off it.
+seedPeople(metrics, [
+  { key: ownerKey, owner: true },
+  ...(config.access?.allowedEmails ?? []).map((email) => ({ key: personKey(email), owner: false })),
+]);
 const app = buildApp({
   people,
   verifier,

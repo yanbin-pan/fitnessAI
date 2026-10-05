@@ -109,7 +109,9 @@ conversation-free snapshots that the cluster backs up.
 ## 8. Privacy and logs
 
 - Logs never contain an email. Where a job has to name a person it uses the first 8 hex
-  characters of their key. Metrics carry no per-person labels.
+  characters of their key. Metrics name a person only by the first 8 characters of their
+  key and whether they are the owner or a guest — never an email — so the owner's dashboard
+  can show each person's usage.
 - Guests' entries and photos live on the owner's home server, and their messages go to
   Anthropic under the owner's account. The README carries a short note for invitees saying so,
   and that conversations are deleted after 48 hours while the numbers are kept.

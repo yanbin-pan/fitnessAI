@@ -101,7 +101,8 @@ it starts, so once Flux has applied the change, restart it:
 Each person signs in with their own email and gets the whole app, with a database of
 their own that nobody else sees — the owner included. Guests get the coach too, up to
 `GUEST_DAILY_CALL_CAP` calls a day (about 20–30 messages); every call is billed to the
-owner's Anthropic key.
+owner's Anthropic key. Usage per person shows on the fitnessAI Grafana dashboard by short
+id: `printf %s 'friend@example.com' | sha256sum | cut -c1-8`.
 
 **Adding someone** — both lists, because the app checks its own as well as Cloudflare's:
 
@@ -135,7 +136,9 @@ Their snapshots age out of the backups under the 6-month retention.
 **For invitees** (send this with the invite): your entries, photos and coach
 conversations are stored on the owner's home server, and what you send the coach goes to
 Anthropic under the owner's account. Conversations and photos are deleted after 48
-hours; the numbers you log are kept, and backed up off-site for up to six months.
+hours; the numbers you log are kept, and backed up off-site for up to six months. The
+owner also sees how much each person uses the app — requests, coach messages and model
+calls — by a short id, never by name or email.
 
 ## Data, backups and restore
 
