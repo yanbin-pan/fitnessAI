@@ -99,6 +99,7 @@ export const zh: Messages = {
     tooMany: (n) => `每条消息最多 ${n} 张照片。`,
     cantSend: "这张照片无法发送，请换一张。",
     cantRead: "无法读取这张照片，请换一张。",
+    cantPaste: "无法从剪贴板获取图片。请改用相机按钮添加。",
     uploadFailed: "有一张照片没有上传成功，点击它重试。",
     offline: "你已离线，消息可能没有发出。点击发送重试。",
     signedOut: "你已退出登录。请重新登录后再发送。",

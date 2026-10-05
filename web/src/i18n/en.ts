@@ -115,6 +115,7 @@ export const en = {
     tooMany: (n: number) => `Up to ${n} photos per message.`,
     cantSend: "That photo can't be sent. Try another.",
     cantRead: "That photo couldn't be read. Try another.",
+    cantPaste: "Couldn't get the image from the clipboard. Attach it with the camera button instead.",
     uploadFailed: "A photo didn't upload. Tap it to try again.",
     offline: "You're offline, so the message may not have been sent. Tap Send to try again.",
     signedOut: "You're signed out. Sign in again, then resend.",

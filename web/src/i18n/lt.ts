@@ -99,6 +99,7 @@ export const lt: Messages = {
     tooMany: (n) => `Vienoje žinutėje – ne daugiau kaip ${n} nuotr.`,
     cantSend: "Šios nuotraukos išsiųsti negalima. Pabandykite kitą.",
     cantRead: "Nepavyko nuskaityti šios nuotraukos. Pabandykite kitą.",
+    cantPaste: "Nepavyko paimti vaizdo iš iškarpinės. Pridėkite jį fotoaparato mygtuku.",
     uploadFailed: "Viena nuotrauka neįsikėlė. Palieskite ją, kad bandytumėte dar kartą.",
     offline: "Esate neprisijungę prie interneto, todėl žinutė galėjo būti neišsiųsta. Palieskite „Siųsti“, kad bandytumėte dar kartą.",
     signedOut: "Atsijungėte. Prisijunkite iš naujo ir siųskite dar kartą.",

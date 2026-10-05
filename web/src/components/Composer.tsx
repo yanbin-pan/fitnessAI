@@ -45,6 +45,20 @@ export function imagesIn(data: DataTransfer | null): File[] {
   return fromItems.length > 0 ? fromItems : Array.from(data.files ?? []).filter((file) => file.type.startsWith("image/"));
 }
 
+/**
+ * The images on the clipboard, asked of the clipboard itself. iOS Safari can paste into a plain text box without
+ * handing the box the image it lists; reading the clipboard during that same paste still gets it.
+ */
+export async function clipboardImages(): Promise<File[]> {
+  if (typeof navigator.clipboard?.read !== "function") return [];
+  const files: File[] = [];
+  for (const item of await navigator.clipboard.read()) {
+    const type = item.types.find((t) => t.startsWith("image/"));
+    if (type) files.push(new File([await item.getType(type)], `pasted.${type.slice(6)}`, { type }));
+  }
+  return files;
+}
+
 /** Talks to the coach about today: text — voice works through the keyboard's microphone — and up to four photos. */
 export function Composer() {
   const client = useQueryClient();
@@ -185,12 +199,24 @@ export function Composer() {
 
   // A screenshot pasted into the text box becomes a photo, as if picked with the camera button.
   function onPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    if (phase === "storing") return;
+    const hasText = Array.from(event.clipboardData?.types ?? []).includes("text/plain");
     const images = imagesIn(event.clipboardData);
-    if (images.length === 0 || phase === "storing") return; // plain text pastes as usual
-    // Words copied along with the image (part of a web page) still paste into the box; an image on its own
-    // must not, or some browsers write its file name there.
-    if (!event.clipboardData.types.includes("text/plain")) event.preventDefault();
-    attach(images);
+    if (images.length > 0) {
+      // Words copied along with the image (part of a web page) still paste into the box; an image on its own
+      // must not, or some browsers write its file name there.
+      if (!hasText) event.preventDefault();
+      attach(images);
+      return;
+    }
+    if (hasText) return; // plain text pastes as usual
+    // Nothing the box can use: most likely an image the browser kept back. Ask the clipboard for it; the read must
+    // start now, while the paste is still the person's own gesture.
+    event.preventDefault();
+    clipboardImages().then(
+      (files) => (files.length > 0 ? attach(files) : setNotice(t.composer.cantPaste)),
+      () => setNotice(t.composer.cantPaste),
+    );
   }
 
   const trimmed = text.trim();

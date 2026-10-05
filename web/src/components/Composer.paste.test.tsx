@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { preparePhoto } from "../photos/prepare.ts";
 import { dayView, message } from "../test/fixtures.ts";
 import { jsonResponse, mockFetch, renderWithProviders } from "../test/render.tsx";
-import { Composer, imagesIn } from "./Composer.tsx";
+import { Composer, clipboardImages, imagesIn } from "./Composer.tsx";
 
 vi.mock("../photos/prepare.ts", () => ({
   preparePhoto: vi.fn(async () => ({ blob: new Blob(["resized"], { type: "image/jpeg" }), width: 1568, height: 1176 })),
@@ -69,6 +69,52 @@ describe("Composer: pasting a screenshot", () => {
     paste(clipboard({ files: ["1", "2", "3", "4", "5"].map((n) => screenshot(`${n}.png`)) }));
     expect(await screen.findByText("Up to 4 photos per message.")).toBeInTheDocument();
     expect(screen.getAllByRole("img")).toHaveLength(4);
+  });
+});
+
+describe("Composer: a paste that keeps the image back (iOS Safari)", () => {
+  const readClipboard = (read: () => Promise<unknown[]>) =>
+    Object.defineProperty(navigator, "clipboard", { value: { read: vi.fn(read) }, configurable: true });
+  const clipboardItem = (type: string) => ({ types: [type], getType: async () => new Blob(["pixels"], { type }) });
+
+  beforeEach(() => {
+    vi.mocked(preparePhoto).mockClear();
+  });
+
+  it("asks the clipboard for the image and attaches it", async () => {
+    readClipboard(async () => [clipboardItem("image/png")]);
+    mockFetch((url) => (url === "/api/photos" ? uploaded("c".repeat(32)) : stored()));
+    renderWithProviders(<Composer />);
+    // The paste lists an image but hands over no file.
+    expect(paste({ items: [], files: [], types: ["image/png"] } as unknown as DataTransfer)).toBe(false);
+    expect(navigator.clipboard.read).toHaveBeenCalledOnce();
+    expect(await screen.findByRole("img", { name: "Photo 1" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
+  });
+
+  it("says so, and points to the camera button, when the clipboard won't give it up", async () => {
+    readClipboard(async () => {
+      throw new DOMException("Not allowed", "NotAllowedError");
+    });
+    mockFetch(() => stored());
+    renderWithProviders(<Composer />);
+    paste({ items: [], files: [], types: [] } as unknown as DataTransfer);
+    expect(await screen.findByText(/Attach it with the camera button instead/)).toBeInTheDocument();
+    expect(screen.queryByRole("img")).toBeNull();
+  });
+
+  it("never asks the clipboard about a paste of text", () => {
+    readClipboard(async () => []);
+    mockFetch(() => stored());
+    renderWithProviders(<Composer />);
+    expect(paste(clipboard({ text: "toast" }))).toBe(true);
+    expect(navigator.clipboard.read).not.toHaveBeenCalled();
+  });
+
+  it("finds only images on the clipboard", async () => {
+    readClipboard(async () => [clipboardItem("text/html"), clipboardItem("image/jpeg")]);
+    const files = await clipboardImages();
+    expect(files.map((file) => [file.name, file.type])).toEqual([["pasted.jpeg", "image/jpeg"]]);
   });
 });
 
