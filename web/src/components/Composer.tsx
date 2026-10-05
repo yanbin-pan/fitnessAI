@@ -5,6 +5,8 @@ import { ApiError, api } from "../api.ts";
 import { dropLive, finishLive, firstStep, pushStep, startLive } from "../coach/live.ts";
 import { addPending, removePending } from "../coach/pending.ts";
 import { streamCoach } from "../coach/stream.ts";
+import { useT } from "../i18n/index.tsx";
+import type { Messages } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
 import { preparePhoto } from "../photos/prepare.ts";
 import { storeDay } from "../queries.ts";
@@ -21,20 +23,21 @@ interface Attachment {
   photoId: string | null;
 }
 
-function sendError(error: unknown): string {
-  if (error instanceof ApiError && error.kind === "offline") return "You're offline, so the message may not have been sent. Tap Send to try again.";
-  if (error instanceof ApiError && error.kind === "signed_out") return "You're signed out. Sign in again, then resend.";
-  if (error instanceof ApiError && error.code === "in_progress") return "The coach is still working on that message. Give it a moment, then tap Send.";
+function sendError(error: unknown, t: Messages): string {
+  if (error instanceof ApiError && error.kind === "offline") return t.composer.offline;
+  if (error instanceof ApiError && error.kind === "signed_out") return t.composer.signedOut;
+  if (error instanceof ApiError && error.code === "in_progress") return t.composer.inProgress;
   // Sending again can't change either of these, and uploading the photos again by itself could log the same meal twice,
   // so the person is told what to do instead.
-  if (error instanceof ApiError && error.code === "photo_taken") return "Those photos went with your last message. Remove them to send this one.";
-  if (error instanceof ApiError && error.code === "photo_not_found") return "A photo is no longer on the server. Remove it and attach it again.";
-  return "Couldn't send. Try again.";
+  if (error instanceof ApiError && error.code === "photo_taken") return t.composer.photoTaken;
+  if (error instanceof ApiError && error.code === "photo_not_found") return t.composer.photoNotFound;
+  return t.composer.failed;
 }
 
 /** Talks to the coach about today: text — voice works through the keyboard's microphone — and up to four photos. */
 export function Composer() {
   const client = useQueryClient();
+  const t = useT();
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
@@ -108,7 +111,7 @@ export function Composer() {
       if (error instanceof ApiError && (error.code === "image_too_large" || error.code === "not_an_image")) {
         if (!removed.current.has(key)) {
           remove(key);
-          setNotice("That photo can't be sent. Try another.");
+          setNotice(t.composer.cantSend);
         }
         return;
       }
@@ -135,7 +138,7 @@ export function Composer() {
       // If it was removed in the meantime, there is nothing to report.
       if (!removed.current.has(key)) {
         remove(key);
-        setNotice("That photo couldn't be read. Try another.");
+        setNotice(t.composer.cantRead);
       }
       return;
     }
@@ -159,7 +162,7 @@ export function Composer() {
     const files = Array.from(event.target.files ?? []);
     event.target.value = ""; // so choosing the same photo again still counts as a change
     const room = MAX_PHOTOS_PER_MESSAGE - attachments.length;
-    setNotice(files.length > room ? `Up to ${MAX_PHOTOS_PER_MESSAGE} photos per message.` : null);
+    setNotice(files.length > room ? t.composer.tooMany(MAX_PHOTOS_PER_MESSAGE) : null);
     setSendFailure(null);
     for (const file of files.slice(0, Math.max(0, room))) void add(file);
   }
@@ -186,7 +189,7 @@ export function Composer() {
     setText("");
     setAttachments([]);
     setPhase("storing");
-    startLive(input.id, firstStep(input.photo_ids.length));
+    startLive(input.id, firstStep(input.photo_ids.length, t));
     // A message the feed has already is the server's own copy, from an earlier try: it is not ours to take out again.
     const added = addPending(client, input);
     let stored = false;
@@ -230,19 +233,19 @@ export function Composer() {
     <form ref={form} onSubmit={(event) => void submit(event)} className="fixed inset-x-0 bottom-[calc(var(--tabbar-h)_+_env(safe-area-inset-bottom))] z-10 bg-base px-3 pt-2 pb-2">
       <div className="raised mx-auto max-w-xl rounded-3xl p-2">
         {attachments.length > 0 && (
-          <ul aria-label="Attached photos" className="mb-2 flex gap-2 px-1 pt-1.5">
+          <ul aria-label={t.composer.attached} className="mb-2 flex gap-2 px-1 pt-1.5">
             {attachments.map((a, index) => (
               <li key={a.key} className="relative">
-                <img src={a.preview} alt={`Photo ${index + 1}`} className={`h-14 w-14 rounded-xl object-cover ${a.status === "failed" ? "opacity-40" : ""}`} />
+                <img src={a.preview} alt={t.common.photo(index + 1)} className={`h-14 w-14 rounded-xl object-cover ${a.status === "failed" ? "opacity-40" : ""}`} />
                 {(a.status === "preparing" || a.status === "uploading") && (
-                  <span role="status" aria-label={`Uploading photo ${index + 1}`} className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/30">
+                  <span role="status" aria-label={t.composer.uploading(index + 1)} className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/30">
                     <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
                   </span>
                 )}
                 {a.status === "failed" && a.blob && (
                   <button
                     type="button"
-                    aria-label={`Retry photo ${index + 1}`}
+                    aria-label={t.composer.retryPhoto(index + 1)}
                     onClick={() => void upload(a.key, a.blob as Blob)}
                     className="absolute inset-0 flex items-center justify-center rounded-xl text-danger"
                   >
@@ -251,7 +254,7 @@ export function Composer() {
                 )}
                 <button
                   type="button"
-                  aria-label={`Remove photo ${index + 1}`}
+                  aria-label={t.composer.removePhoto(index + 1)}
                   disabled={phase === "storing"}
                   onClick={() => remove(a.key)}
                   className="raised-sm absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-ink disabled:opacity-40"
@@ -267,21 +270,21 @@ export function Composer() {
             className={`tap raised-sm flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${full || phase === "storing" ? "opacity-40" : "cursor-pointer"}`}
           >
             <Icon name="add_a_photo" size={22} />
-            <input type="file" accept="image/*" multiple aria-label="Add photos" disabled={full || phase === "storing"} onChange={onFiles} className="sr-only" />
+            <input type="file" accept="image/*" multiple aria-label={t.composer.addPhotos} disabled={full || phase === "storing"} onChange={onFiles} className="sr-only" />
           </label>
           <textarea
-            aria-label="Message your coach"
+            aria-label={t.composer.message}
             rows={1}
             value={text}
             // Locked until the server has the message, so it can come back here intact.
             readOnly={phase === "storing"}
             onChange={(event) => setText(event.target.value)}
-            placeholder={attachments.length > 0 ? "Add a note, or just send" : "What did you eat or do?"}
+            placeholder={attachments.length > 0 ? t.composer.placeholderPhotos : t.composer.placeholder}
             className="pressed field-sizing-content max-h-36 min-h-11 flex-1 resize-none rounded-2xl px-3 py-2.5 text-base text-ink placeholder:text-muted"
           />
           <button
             type="submit"
-            aria-label="Send"
+            aria-label={t.composer.send}
             disabled={!canSend}
             className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent shadow-[3px_3px_6px_var(--nm-lo),-3px_-3px_6px_var(--nm-hi)] disabled:opacity-40"
           >
@@ -295,12 +298,12 @@ export function Composer() {
         )}
         {failed && (
           <p role="alert" className="mt-1.5 px-2 text-sm text-danger">
-            A photo didn't upload. Tap it to try again.
+            {t.composer.uploadFailed}
           </p>
         )}
         {sendFailure !== null && (
           <p role="alert" className="mt-1.5 px-2 text-sm text-danger">
-            {sendError(sendFailure)}
+            {sendError(sendFailure, t)}
           </p>
         )}
       </div>

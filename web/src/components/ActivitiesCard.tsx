@@ -1,7 +1,9 @@
 import { useId, useState } from "react";
 import { thousands, timeOf } from "../format.ts";
+import { useT } from "../i18n/index.tsx";
+import type { Messages } from "../i18n/index.tsx";
 import type { Activity, DayView, Entry, ExerciseItem } from "../shared.ts";
-import { SportBadge, sportOf } from "./SportBadge.tsx";
+import { SportBadge, sportName } from "./SportBadge.tsx";
 import { quietButton } from "./ui.tsx";
 
 export interface ActivityGroup {
@@ -31,10 +33,10 @@ export function activityGroups(view: DayView): ActivityGroup[] {
 }
 
 /** "90 min · 788 kcal · MET 7.3", with sets × reps × weight or the distance when known. */
-function facts(item: ExerciseItem): string {
+function facts(item: ExerciseItem, t: Messages): string {
   return [
-    item.duration_min !== null ? `${Math.round(item.duration_min)} min` : null,
-    `${Math.round(item.kcal)} kcal`,
+    item.duration_min !== null ? t.activity.minutes(Math.round(item.duration_min)) : null,
+    `${Math.round(item.kcal)} ${t.units.kcal}`,
     item.met !== null ? `MET ${item.met}` : null,
     item.sets !== null && item.reps !== null ? `${item.sets} × ${item.reps}${item.weight_kg !== null ? ` × ${item.weight_kg} kg` : ""}` : null,
     item.distance_km !== null ? `${item.distance_km} km` : null,
@@ -45,6 +47,7 @@ function facts(item: ExerciseItem): string {
 
 /** The day's activity at a glance, under the nutrients (spec §11.1). Only there when something was done. */
 export function ActivitiesCard({ view, onEdit }: { view: DayView; onEdit: (entry: Entry) => void }) {
+  const t = useT();
   const groups = activityGroups(view);
   const [openKey, setOpenKey] = useState<string | null>(null);
   const panelId = useId();
@@ -52,10 +55,12 @@ export function ActivitiesCard({ view, onEdit }: { view: DayView; onEdit: (entry
   const open = groups.find((g) => g.key === openKey) ?? null;
   const total = groups.reduce((sum, g) => sum + g.kcal, 0);
   return (
-    <section aria-label="Activity" className="raised mt-3 rounded-3xl p-4">
+    <section aria-label={t.activity.title} className="raised mt-3 rounded-3xl p-4">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Activity</h2>
-        <span className="text-sm">{thousands(total)} kcal</span>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">{t.activity.title}</h2>
+        <span className="text-sm">
+          {thousands(total, t)} {t.units.kcal}
+        </span>
       </div>
       <ul className="mt-3 flex flex-wrap justify-around gap-3">
         {groups.map((group) => {
@@ -66,7 +71,7 @@ export function ActivitiesCard({ view, onEdit }: { view: DayView; onEdit: (entry
                 type="button"
                 aria-expanded={isOpen}
                 aria-controls={isOpen ? panelId : undefined}
-                aria-label={`${group.items.map((item) => item.name).join(", ")}, ${Math.round(group.kcal)} kcal`}
+                aria-label={`${group.items.map((item) => item.name).join(", ")}, ${Math.round(group.kcal)} ${t.units.kcal}`}
                 onClick={() => setOpenKey(isOpen ? null : group.key)}
                 className="flex w-16 flex-col items-center gap-1.5 rounded-2xl py-1"
               >
@@ -78,18 +83,18 @@ export function ActivitiesCard({ view, onEdit }: { view: DayView; onEdit: (entry
         })}
       </ul>
       {open && (
-        <div id={panelId} role="region" aria-label={`${sportOf(open.activity).label} details`} className="pressed mt-3 rounded-2xl p-3">
-          <p className="text-right text-xs text-muted">{timeOf(open.entry.logged_at)}</p>
+        <div id={panelId} role="region" aria-label={t.activity.details(sportName(open.activity, t).label)} className="pressed mt-3 rounded-2xl p-3">
+          <p className="text-right text-xs text-muted">{timeOf(open.entry.logged_at, t)}</p>
           {open.items.map((item) => (
             <div key={item.id} className="mt-1">
               <p className="font-medium">{item.name}</p>
-              <p className="text-sm">{facts(item)}</p>
+              <p className="text-sm">{facts(item, t)}</p>
               {item.assumption && <p className="text-xs italic text-muted">{item.assumption}</p>}
             </div>
           ))}
           <div className="mt-2 flex justify-end">
             <button type="button" onClick={() => onEdit(open.entry)} className={`${quietButton} min-h-11 text-sm text-accent-ink`}>
-              Edit
+              {t.common.edit}
             </button>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { dayAndMonth, kcal10, monthTitle, thousands } from "../format.ts";
+import { useT } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
 import { useDaySummaries } from "../queries.ts";
 import { addDays, calorieStatus } from "../shared.ts";
@@ -20,13 +21,7 @@ export function shiftMonth(month: string, delta: number): string {
   return new Date(Date.UTC(year, m - 1 + delta, 1)).toISOString().slice(0, 7);
 }
 
-// Losing or maintaining, the wrong way is over; gaining, it is under (spec §11.1). The space before % never breaks.
-const WORDS: Record<"over" | "under", Record<CalorieStatus, string>> = {
-  over: { within: "Within target", near: "Up to 10\u00a0% over", off: "More than 10\u00a0% over" },
-  under: { within: "Target reached", near: "Up to 10\u00a0% under", off: "More than 10\u00a0% under" },
-};
 const TINT: Record<CalorieStatus, string> = { within: "bg-tint-within", near: "bg-tint-near", off: "bg-tint-off" };
-const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 // The day bar is 4.25rem tall below the safe area; the calendar and its scrim start under it, so the bar stays usable.
 const BELOW_BAR = "top-[calc(env(safe-area-inset-top)_+_4.25rem)]";
 const round = "tap raised-sm flex h-11 w-11 items-center justify-center rounded-full text-ink disabled:opacity-30";
@@ -41,11 +36,13 @@ interface CalendarProps {
 
 /** The month that drops down under the day bar (spec §11.1): pick a day; past days are tinted by how they went. */
 export function Calendar({ date, today, onPick, onClose }: CalendarProps) {
+  const t = useT();
   const [month, setMonth] = useState(date.slice(0, 7));
   const cells = monthGrid(month);
   const summaries = useDaySummaries(cells[0], cells[cells.length - 1]);
   const byDate = new Map<string, DaySummary>((summaries.data?.days ?? []).map((day) => [day.date, day]));
-  const words = WORDS[summaries.data?.goal === "gain" ? "under" : "over"];
+  // Losing or maintaining, the wrong way is over; gaining, it is under (spec §11.1).
+  const words = summaries.data?.goal === "gain" ? t.calendar.under : t.calendar.over;
   const opened = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -65,32 +62,32 @@ export function Calendar({ date, today, onPick, onClose }: CalendarProps) {
     return day < today && summary && summaries.data ? calorieStatus(summary.kcal, summary.target_kcal, summaries.data.goal) : null;
   };
   const nameOf = (day: string, status: CalorieStatus | null): string => {
-    if (day === today) return `${dayAndMonth(day)}, today`;
+    if (day === today) return t.calendar.today(dayAndMonth(day, t));
     const summary = byDate.get(day);
     if (status && summary) {
-      return `${dayAndMonth(day)}: ${thousands(summary.kcal)} of ${thousands(kcal10(summary.target_kcal))} kcal, ${words[status].toLowerCase()}`;
+      return t.calendar.summary(dayAndMonth(day, t), thousands(summary.kcal, t), thousands(kcal10(summary.target_kcal), t), words[status]);
     }
-    return dayAndMonth(day);
+    return dayAndMonth(day, t);
   };
 
   return createPortal(
     <>
       <div data-testid="calendar-scrim" aria-hidden="true" onClick={onClose} className={`fixed inset-x-0 bottom-0 ${BELOW_BAR} z-40 bg-black/30`} />
-      <div role="dialog" aria-label="Pick a day" className={`fixed inset-x-0 ${BELOW_BAR} z-50 mx-auto max-w-xl px-4`}>
+      <div role="dialog" aria-label={t.calendar.title} className={`fixed inset-x-0 ${BELOW_BAR} z-50 mx-auto max-w-xl px-4`}>
         <div className="raised rounded-3xl p-3">
           <div className="flex items-center justify-between">
-            <button type="button" aria-label="Previous month" className={round} onClick={() => setMonth(shiftMonth(month, -1))}>
+            <button type="button" aria-label={t.calendar.previousMonth} className={round} onClick={() => setMonth(shiftMonth(month, -1))}>
               <Icon name="chevron_left" size={22} />
             </button>
             <p aria-live="polite" className="text-sm font-semibold">
-              {monthTitle(month)}
+              {monthTitle(month, t)}
             </p>
-            <button type="button" aria-label="Next month" className={round} disabled={month >= today.slice(0, 7)} onClick={() => setMonth(shiftMonth(month, 1))}>
+            <button type="button" aria-label={t.calendar.nextMonth} className={round} disabled={month >= today.slice(0, 7)} onClick={() => setMonth(shiftMonth(month, 1))}>
               <Icon name="chevron_right" size={22} />
             </button>
           </div>
           <div aria-hidden="true" className="mt-2 grid grid-cols-7 text-center text-xs text-muted">
-            {WEEKDAYS.map((name) => (
+            {t.calendar.weekdays.map((name) => (
               <span key={name}>{name}</span>
             ))}
           </div>

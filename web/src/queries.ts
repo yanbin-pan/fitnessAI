@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
-import { api } from "./api.ts";
+import { ApiError, api } from "./api.ts";
 import { isLive } from "./coach/live.ts";
-import type { DaySummaries, DayView } from "./shared.ts";
+import type { DaySummaries, DayView, ProfileView } from "./shared.ts";
 
 export const dayKey = (date: string) => ["day", date] as const;
 
@@ -31,4 +31,19 @@ export function useDaySummaries(from: string, to: string) {
     queryKey: ["days", from, to],
     queryFn: () => api<DaySummaries>(`/api/days?from=${from}&to=${to}`),
   });
+}
+
+/** The stored profile, or null before one has been saved (404 no_profile). */
+export async function loadProfile(): Promise<ProfileView | null> {
+  try {
+    return await api<ProfileView>("/api/profile");
+  } catch (error) {
+    if (error instanceof ApiError && error.code === "no_profile") return null;
+    throw error;
+  }
+}
+
+/** The profile, shared by the settings screen and the app's language. */
+export function useProfile() {
+  return useQuery({ queryKey: ["profile"], queryFn: loadProfile });
 }

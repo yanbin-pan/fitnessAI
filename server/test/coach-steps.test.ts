@@ -33,6 +33,27 @@ describe("stepText", () => {
   });
 });
 
+describe("stepText in the chosen language", () => {
+  const log = (names: string[], language: Parameters<typeof stepText>[2]) =>
+    stepText({ kind: "tool", name: "log_items", input: logItemsInput({ foods: names.map((name) => ({ ...TOOL_EGGS, name })) }) }, 0, language);
+
+  it("says every step in the profile's language", () => {
+    expect(stepText({ kind: "start" }, 0, "it")).toBe("Sto pensando…");
+    expect(stepText({ kind: "start" }, 2, "es")).toBe("Mirando tus fotos…");
+    expect(stepText({ kind: "reply" }, 0, "fr")).toBe("Rédaction de la réponse…");
+    expect(stepText({ kind: "tool", name: "update_entry", input: null }, 0, "lt")).toBe("Atnaujinu jūsų žurnalą…");
+  });
+
+  it("joins a list the way the language does", () => {
+    expect(log(["Uova strapazzate", "Pane tostato", "Caffè", "Succo", "Mela"], "it")).toBe("Registro uova strapazzate, pane tostato, caffè e altri 2…");
+    expect(log(["鸡蛋", "吐司", "咖啡"], "zh")).toBe("正在记录鸡蛋、吐司和咖啡…");
+  });
+
+  it("keeps a German noun's capital", () => {
+    expect(log(["Rührei", "Toast"], "de")).toBe("Trage Rührei und Toast ein…");
+  });
+});
+
 describe("midSentence", () => {
   it("lowercases a name's first letter unless its first word is an acronym or has another capital", () => {
     expect(midSentence("Fried eggs")).toBe("fried eggs");

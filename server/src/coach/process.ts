@@ -88,7 +88,7 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
   const storedTurn: AiMessage = {
     role: "user",
     content: [
-      { type: "text", text: buildTurnContext(view, now, profile.timezone) },
+      { type: "text", text: buildTurnContext(view, now, profile.timezone, profile.language) },
       ...message.photo_ids.map(photoRef),
       { type: "text", text: message.text || PHOTOS_ONLY_TEXT },
     ] as unknown as AiMessage["content"],
@@ -113,7 +113,7 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
   const report = onStep
     ? (step: LoopStep) => {
         try {
-          onStep(stepText(step, photos));
+          onStep(stepText(step, photos, profile.language));
         } catch {
           // Telling the phone how it is going must never cost the message.
         }

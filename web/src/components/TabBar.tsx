@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router";
 import { Icon } from "../icons/Icon.tsx";
+import { useT } from "../i18n/index.tsx";
 import type { IconName } from "../icons/paths.ts";
 
 function Tab({ to, icon, label, active }: { to: string; icon: IconName; label: string; active: boolean }) {
@@ -19,13 +20,14 @@ function Tab({ to, icon, label, active }: { to: string; icon: IconName; label: s
 
 export function TabBar() {
   const { pathname } = useLocation();
+  const t = useT();
   return (
     <nav
-      aria-label="Main"
+      aria-label={t.nav.main}
       className="fixed inset-x-0 bottom-0 z-20 flex h-[calc(var(--tabbar-h)_+_env(safe-area-inset-bottom))] items-start justify-center gap-16 bg-base pt-2 pb-[env(safe-area-inset-bottom)]"
     >
-      <Tab to="/day/today" icon="sunny" label="Today" active={pathname.startsWith("/day")} />
-      <Tab to="/settings" icon="settings" label="Settings" active={pathname === "/settings"} />
+      <Tab to="/day/today" icon="sunny" label={t.nav.today} active={pathname.startsWith("/day")} />
+      <Tab to="/settings" icon="settings" label={t.nav.settings} active={pathname === "/settings"} />
     </nav>
   );
 }

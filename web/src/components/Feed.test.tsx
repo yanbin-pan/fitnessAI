@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { dayLabel } from "../format.ts";
+import { en } from "../i18n/index.tsx";
 import type { ChatMessage } from "../shared.ts";
 import { dayView, entry, exerciseItem, foodItem, message } from "../test/fixtures.ts";
 import { Feed, buildFeed } from "./Feed.tsx";
@@ -61,7 +62,7 @@ describe("Feed", () => {
     const reply = message({ id: "m2", date: "2026-10-01", role: "assistant", status: null, reply_to: "m1", cards: [{ type: "entry", id: "back" }] });
     const view = dayView({ date: "2026-10-01", today: "2026-10-03", linked_entries: [backDated], messages: [message({ id: "m1", date: "2026-10-01" }), reply] });
     render(<Feed view={view} logOnly={false} onRetry={vi.fn()} />);
-    expect(screen.getByText(`Logged to ${dayLabel("2026-09-30", "2026-10-03")}`)).toBeInTheDocument();
+    expect(screen.getByText(`Logged to ${dayLabel("2026-09-30", "2026-10-03", en)}`)).toBeInTheDocument();
     expect(screen.queryByText("Logged to Yesterday")).not.toBeInTheDocument();
   });
 

@@ -1,11 +1,12 @@
 import { useSyncExternalStore } from "react";
+import type { Messages } from "../i18n/en.ts";
 
 /** The least time a step stays on screen, so one that ends at once is still readable (spec §11.1). */
 export const MIN_STEP_MS = 1500;
 
 /** The words under a message the moment it is sent, before the server says anything (spec §11.1). */
-export function firstStep(photos: number): string {
-  return photos === 0 ? "Thinking…" : photos === 1 ? "Looking at your photo…" : "Looking at your photos…";
+export function firstStep(photos: number, t: Messages): string {
+  return photos === 0 ? t.coach.thinking : photos === 1 ? t.coach.photo : t.coach.photos;
 }
 
 interface Showing {

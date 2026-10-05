@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useStep } from "../coach/live.ts";
 import { dayLabel, failureText } from "../format.ts";
+import { useT } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
 import type { ChatMessage, DayView, Entry } from "../shared.ts";
 import { EntryCard } from "./EntryCard.tsx";
@@ -33,17 +34,19 @@ interface FeedProps {
 }
 
 function PhotoThumb({ id, index, single }: { id: string; index: number; single: boolean }) {
+  const t = useT();
   const [failed, setFailed] = useState(false);
   const size = single ? "h-32 w-44" : "h-20 w-20";
   if (failed) {
-    return <span className={`pressed flex ${size} items-center justify-center rounded-xl p-2 text-center text-xs text-muted`}>Photo unavailable</span>;
+    return <span className={`pressed flex ${size} items-center justify-center rounded-xl p-2 text-center text-xs text-muted`}>{t.feed.photoUnavailable}</span>;
   }
-  return <img src={`/api/photos/${id}`} alt={`Photo ${index + 1}`} loading="lazy" onError={() => setFailed(true)} className={`${size} rounded-xl object-cover`} />;
+  return <img src={`/api/photos/${id}`} alt={t.common.photo(index + 1)} loading="lazy" onError={() => setFailed(true)} className={`${size} rounded-xl object-cover`} />;
 }
 
 /** The coach's row while it works on a message (spec §11.1): dots, and what it is doing. Screen readers hear each step. */
 function CoachWorking({ id }: { id: string }) {
-  const step = useStep(id) ?? "Thinking…";
+  const t = useT();
+  const step = useStep(id) ?? t.coach.thinking;
   return (
     <div role="status" className="mr-6 mt-3 flex items-center gap-2">
       <span className="raised-sm flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-accent-ink">
@@ -62,6 +65,7 @@ function CoachWorking({ id }: { id: string }) {
 function Bubble({
   message, entries, date, today, onRetry, onEdit, onUndo, retrying,
 }: { message: ChatMessage; entries: Map<string, Entry>; date: string; today: string } & Pick<FeedProps, "onRetry" | "onEdit" | "onUndo" | "retrying">) {
+  const t = useT();
   if (message.role === "user") {
     // An older server may not send photo_ids yet.
     const photoIds = message.photo_ids ?? [];
@@ -80,7 +84,7 @@ function Bubble({
           </div>
           {message.status === "failed" && (
             <span className="mt-1 text-xs text-danger">
-              {failureText(message.error_code)}{" "}
+              {failureText(message.error_code, t)}{" "}
               {/* Padding makes the tap area 44 px tall (a fingertip); the matching negative margins keep the line where it was. */}
               <button
                 type="button"
@@ -88,7 +92,7 @@ function Bubble({
                 className="-mx-2 -my-3.5 px-2 py-3.5 font-semibold underline disabled:opacity-40"
                 onClick={() => onRetry(message.id)}
               >
-                Retry
+                {t.common.retry}
               </button>
             </span>
           )}
@@ -118,7 +122,7 @@ function Bubble({
         if (!entry) {
           return (
             <p key={card.id} className="text-xs text-muted">
-              Entry removed
+              {t.feed.removed}
             </p>
           );
         }
@@ -126,14 +130,14 @@ function Bubble({
         // Back-dated by the coach ("yesterday I had..."): it belongs to another day, so say which.
         return (
           <div key={card.id} className="flex flex-col gap-1">
-            <span className="text-xs text-muted">Logged to {dayLabel(entry.date, today)}</span>
+            <span className="text-xs text-muted">{t.feed.loggedTo(dayLabel(entry.date, today, t))}</span>
             <EntryCard entry={entry} onEdit={onEdit} />
           </div>
         );
       })}
       {onUndo && undoable.length > 0 && (
         <button type="button" onClick={() => onUndo(undoable)} className={`${quietButton} min-h-11 self-start text-sm text-muted`}>
-          Undo
+          {t.feed.undo}
         </button>
       )}
     </div>
@@ -141,6 +145,7 @@ function Bubble({
 }
 
 export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying }: FeedProps) {
+  const t = useT();
   const items = buildFeed(view, logOnly);
   // A card can point at an entry dated another day (back-dated), which travels in linked_entries.
   // (An older server does not send the field yet.)
@@ -148,13 +153,13 @@ export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying }: FeedP
   // Conversations last 48 hours (spec §6.6): say so on an earlier day that has none left.
   const note =
     !logOnly && view.date < view.today && view.messages.length === 0 ? (
-      <p className="px-4 pb-4 text-center text-xs text-muted">Conversations are kept for 48 hours.</p>
+      <p className="px-4 pb-4 text-center text-xs text-muted">{t.feed.kept}</p>
     ) : null;
   if (items.length === 0) {
     return (
       <>
         <p className="px-4 py-10 text-center text-sm text-muted">
-          {view.date === view.today ? "Nothing logged yet. Tell the coach what you ate or did, or send a photo." : "Nothing logged this day."}
+          {view.date === view.today ? t.feed.emptyToday : t.feed.emptyDay}
         </p>
         {note}
       </>

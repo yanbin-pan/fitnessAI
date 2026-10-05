@@ -41,6 +41,11 @@ describe("buildSystemPrompt", () => {
     expect(COACH_INSTRUCTIONS).toContain("about 2.5 for time spent standing and shooting");
   });
 
+  it("replies in the chosen language, or in the one the person writes in", () => {
+    expect(COACH_INSTRUCTIONS).toContain("Reply in the language named by reply_language in the context block");
+    expect(COACH_INSTRUCTIONS).toContain("reply in the language they wrote in instead");
+  });
+
   it("asks for a gym session's intensity to be said in the assumption (spec §6.1)", () => {
     expect(COACH_INSTRUCTIONS).toContain("(say the intensity in the assumption)");
   });
@@ -52,17 +57,23 @@ describe("buildTurnContext", () => {
     ensureDay(db.db, profile, "2026-10-03", NOW_ISO);
     const entry = sampleEntry({ logged_at: "2026-10-03T07:10:00.000Z", foods: [sampleFood({ kcal: 156.4 })] });
     db.db.transaction((tx) => insertEntry(tx, entry, NOW_ISO));
-    const text = buildTurnContext(buildDayView(db.db, profile, "2026-10-03", "2026-10-03", NOW_ISO, []), NOW, "Europe/London");
+    const text = buildTurnContext(buildDayView(db.db, profile, "2026-10-03", "2026-10-03", NOW_ISO, []), NOW, "Europe/London", "en");
 
     const [heading, json] = text.split("\n");
     expect(heading).toBe("Context for this message (JSON):");
     const context = JSON.parse(json);
-    expect(context).toMatchObject({ now_local: "2026-10-03 13:00", weekday: "Saturday", message_date: "2026-10-03", exercise_kcal: 0 });
+    expect(context).toMatchObject({ reply_language: "English", now_local: "2026-10-03 13:00", weekday: "Saturday", message_date: "2026-10-03", exercise_kcal: 0 });
     expect(context.targets.kcal).toBe(1863.1);
     expect(context.eaten_so_far.kcal).toBe(156.4);
     expect(context.entries[0]).toMatchObject({ id: entry.id, time: "08:10", source: "manual" });
     expect(context.entries[0].foods[0]).toMatchObject({ name: "Eggs", quantity: "2 large", kcal: 156.4, groups: [] });
     expect(context.entries[0].foods[0]).not.toHaveProperty("id");
+  });
+
+  it("names the language to reply in, so a change during the day reaches the next message", () => {
+    const view = buildDayView(db.db, makeProfile({ language: "it" }), "2026-10-03", "2026-10-03", NOW_ISO, []);
+    expect(JSON.parse(buildTurnContext(view, NOW, "Europe/London", "it").split("\n")[1]).reply_language).toBe("Italian");
+    expect(JSON.parse(buildTurnContext(view, NOW, "Europe/London", "zh").split("\n")[1]).reply_language).toBe("Simplified Chinese");
   });
 
   it("keeps item values to two decimals and leaves out what Claude must not send back", () => {
@@ -71,7 +82,7 @@ describe("buildTurnContext", () => {
       exercises: [sampleExercise({ met: 3.85, kcal: 123.456 })],
     });
     db.db.transaction((tx) => insertEntry(tx, entry, NOW_ISO));
-    const text = buildTurnContext(buildDayView(db.db, makeProfile(), "2026-10-03", "2026-10-03", NOW_ISO, []), NOW, "Europe/London");
+    const text = buildTurnContext(buildDayView(db.db, makeProfile(), "2026-10-03", "2026-10-03", NOW_ISO, []), NOW, "Europe/London", "en");
     const context = JSON.parse(text.split("\n")[1]);
     expect(context.entries[0].foods[0]).toMatchObject({ salt_g: 0.04, fibre_g: 0.25 });
     const exercise = context.entries[0].exercises[0];

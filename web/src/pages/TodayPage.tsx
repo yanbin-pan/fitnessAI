@@ -13,17 +13,20 @@ import { Feed } from "../components/Feed.tsx";
 import { SetupPrompt } from "../components/SetupPrompt.tsx";
 import { Summary } from "../components/Summary.tsx";
 import { Toggle, quietButton } from "../components/ui.tsx";
+import { useT } from "../i18n/index.tsx";
+import type { Messages } from "../i18n/index.tsx";
 import { storeDay, useDay } from "../queries.ts";
 import { MAX_BACKDATE_DAYS, daysBetween } from "../shared.ts";
 import type { DeleteResult, Entry } from "../shared.ts";
 
-function actionError(error: unknown): string {
-  if (error instanceof ApiError && error.kind === "offline") return "You're offline, so that didn't go through.";
-  return "That didn't work. Try again.";
+function actionError(error: unknown, t: Messages): string {
+  if (error instanceof ApiError && error.kind === "offline") return t.day.actionOffline;
+  return t.day.actionFailed;
 }
 
 export function TodayPage() {
   const { date = "today" } = useParams();
+  const t = useT();
   const day = useDay(date);
   const client = useQueryClient();
   const [logOnly, setLogOnly] = useState(false);
@@ -36,7 +39,7 @@ export function TodayPage() {
     mutationFn: async (id: string) => {
       const shown = day.data;
       const photos = shown?.messages.find((m) => m.id === id)?.photo_ids.length ?? 0;
-      startLive(id, firstStep(photos));
+      startLive(id, firstStep(photos, t));
       if (shown) markPending(client, shown, id);
       let stored = false;
       try {
@@ -98,7 +101,7 @@ export function TodayPage() {
 
   if (day.error instanceof ApiError && day.error.code === "no_profile") return <SetupPrompt />;
   if (!day.data) {
-    return <main className="mx-auto max-w-xl p-6 text-muted">{day.isError ? "Couldn't load this day." : "Loading…"}</main>;
+    return <main className="mx-auto max-w-xl p-6 text-muted">{day.isError ? t.day.loadFailed : t.common.loading}</main>;
   }
   const view = day.data;
   return (
@@ -114,12 +117,12 @@ export function TodayPage() {
         <Summary view={view} />
         <ActivitiesCard view={view} onEdit={(entry) => setEditing({ date: view.date, entry })} />
         <div className="mt-3 flex justify-end">
-          <Toggle label="Log only" checked={logOnly} onChange={setLogOnly} />
+          <Toggle label={t.day.logOnly} checked={logOnly} onChange={setLogOnly} />
         </div>
       </div>
       {(retry.isError || undo.isError) && (
         <p role="alert" className="px-4 pt-3 text-sm text-danger">
-          {actionError(undo.error ?? retry.error)}
+          {actionError(undo.error ?? retry.error, t)}
         </p>
       )}
       <Feed
@@ -140,7 +143,7 @@ export function TodayPage() {
       {view.date <= view.today && daysBetween(view.date, view.today) <= MAX_BACKDATE_DAYS && (
         <div className="px-4">
           <button type="button" onClick={() => setEditing({ date: view.date, entry: null })} className={`${quietButton} text-sm text-accent-ink`}>
-            + Add manually
+            {t.day.addManually}
           </button>
         </div>
       )}

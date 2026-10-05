@@ -1,5 +1,5 @@
-import type { DayView, Profile } from "../shared.ts";
-import { MAX_BACKDATE_DAYS } from "../shared.ts";
+import type { DayView, Language, Profile } from "../shared.ts";
+import { LANGUAGE_NAMES, MAX_BACKDATE_DAYS } from "../shared.ts";
 import { ageOn } from "../targets/targets.ts";
 import { localDate, localTime, weekdayName } from "../time.ts";
 
@@ -35,6 +35,7 @@ Dates and times:
 - Leave date and time null for something that just happened. If they say when it happened ("yesterday", "this morning at 7"), set the date (YYYY-MM-DD) and/or the local time (HH:MM). Relative dates count from message_date in the context block. The date can be at most ${MAX_BACKDATE_DAYS} days back.
 
 Replying:
+- Reply in the language named by reply_language in the context block; it is the language the person chose for the app. If they write to you in another language, reply in the language they wrote in instead. Name the items you log and write their assumptions in the language of your reply.
 - Keep replies short: one or two sentences confirming what you logged and its calories, or a brief answer. The person reads on a phone.
 - Use metric units.
 - Give general nutrition and training information, never medical advice or a diagnosis.`;
@@ -62,8 +63,9 @@ function rounded<T extends object>(value: T, digits = 1): T {
   ) as T;
 }
 
-export function buildTurnContext(view: DayView, now: Date, timeZone: string): string {
+export function buildTurnContext(view: DayView, now: Date, timeZone: string, language: Language): string {
   const context = {
+    reply_language: LANGUAGE_NAMES[language],
     now_local: `${localDate(now, timeZone)} ${localTime(now, timeZone)}`,
     weekday: weekdayName(now, timeZone),
     message_date: view.date,
