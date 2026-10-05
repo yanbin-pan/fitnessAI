@@ -856,13 +856,16 @@ export interface DaySummaries {
 }
 ```
 
-In `server/src/days/days.ts`, add `addDays` to the `../shared.ts` imports (it re-exports `shared`) and `DaySummary` to the type imports, then append:
+In `server/src/days/days.ts`, add `addDays` and `daysBetween` to the `../shared.ts` imports (it re-exports `shared`) and `DaySummary` to the type imports, then append:
 
 ```ts
 /** The calendar's days (spec §12): each day in [from, to] with food logged, its eaten kcal and its adjusted target. */
 export function daySummaries(sql: Sql, profile: Profile, from: string, to: string, nowIso: string): DaySummary[] {
   const out: DaySummary[] = [];
-  for (let date = from; date <= to; date = addDays(date, 1)) {
+  // Counted, not compared: stepping past 9999-12-31 gives "+010000-01", which is no date and sorts below it.
+  const count = daysBetween(from, to) + 1;
+  for (let i = 0; i < count; i++) {
+    const date = addDays(from, i);
     const list = listEntries(sql, date);
     if (!list.some((entry) => entry.foods.length > 0)) continue;
     const snapshot = getDay(sql, date) ?? snapshotValues(profile, date, nowIso);
@@ -3125,5 +3128,14 @@ What shipped; the checks run; the decisions made along the way and why; and what
 
 ## Appendix: changes made during execution
 
-(Filled in as tasks complete: what the reviews changed relative to the task text above.)
+What the reviews and rulings changed relative to the task text above (the full rulings, each with what it costs if wrong, are in the executor's ledger; R-numbers below refer to them).
+
+- **Task 1:** 44 icons, not 45 — `more_horiz` dropped (R1). The non-breaking spaces in strings are written as `\u00a0` escapes (R2). Two test-only updates for the new vocabulary: `schemas.test` uses "squash" as the rejected activity now that surfing is valid, and the EntryEditor test finds "Other" absent after picking Gym (R7). README's old five-sports sentence moved to Task 10 (R8).
+- **Task 2:** the `pressed` prop on SportBadge arrived here instead of Task 6 (R9). The More grid folds on a tap through a pointer-armed flag instead of `event.detail > 0`, because WebKit forwards a label tap as a click with detail 0 (R11). The keyboard test's tab order includes the new More stop (R12).
+- **Task 3:** dispatched while Task 2's review ran (R13); milestone 2's upgrade test now expects the re-filed "Run" as `running` (R14).
+- **Task 4:** two extra day-summary tests (R15); the day loop counts days instead of comparing date strings, so `to=9999-12-31` answers 200 (R17; the snippet above is updated); the calendar rule is re-exported from `web/src/shared.ts` (R16).
+- **Task 5:** three extra calendar tests (R18).
+- **Task 7:** the prompt says "say the intensity in the assumption" for gym sessions (R10). `streamWork` catches a failure after the stream began, which would otherwise crash the process with ERR_HTTP_HEADERS_SENT (R19); five extra stream tests (R20).
+- **Task 9:** the test LocationProbe is a `<span>`, because `<output>` has the role "status" (R21); the Retry test checks that Retry disappears while it runs (R22); 14 extra tests from a mutation run (R23). Fix round 1: a Retry that loses its stream after `stored` hands over to the poll quietly, like Send (R24); `addPending` reports whether it inserted, Retry marks the message live before pending, and a test covers the offline Retry guard (R25).
+- **Final review fix wave:** a 45-second watchdog in `streamCoach` (three missed keep-alives) hands a stalled stream to the poll; `sportOf` falls back to Other for an unknown activity key (R26); the README explains rolling back past 2.1 (file the new activities back under `other` first); the icon config comment and README wrapping. The iPhone instructions for the deploy cover the old cached copy (R27).
 
