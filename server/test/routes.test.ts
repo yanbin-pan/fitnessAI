@@ -108,6 +108,13 @@ describe("GET /api/days?from=&to=", () => {
     expect(sixWeeks.statusCode).toBe(200); // exactly 42 days
   });
 
+  it("answers a range that ends on the last date there is", async () => {
+    ctx = await withProfile();
+    const res = await ctx.app.inject({ method: "GET", url: "/api/days?from=9999-12-30&to=9999-12-31", headers: ctx.headers });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ goal: "lose", days: [] });
+  });
+
   it("needs a profile, and the owner's token", async () => {
     ctx = await testApp();
     const noProfile = await ctx.app.inject({ method: "GET", url: "/api/days?from=2026-10-01&to=2026-10-03", headers: ctx.headers });

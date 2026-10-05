@@ -192,4 +192,13 @@ describe("day summaries", () => {
     expect(unfrozen.target_kcal).toBe(3000); // nothing stored for it, so what it would freeze today
     expect(getDay(db.db, "2026-10-02")).toBeNull(); // and reading does not store it
   });
+
+  it("reach the last date there is, and stop there instead of stepping past it", () => {
+    db = openTestDb();
+    const profile = makeProfile();
+    // The day after 9999-12-31 is not a date the helpers can write, so the loop must never take that step.
+    expect(daySummaries(db.db, profile, "9999-12-30", "9999-12-31", NOW_ISO)).toEqual([]);
+    insertEntry(db.db, sampleEntry({ date: "9999-12-31", foods: [sampleFood({ kcal: 100 })] }), NOW_ISO);
+    expect(daySummaries(db.db, profile, "9999-12-30", "9999-12-31", NOW_ISO).map((d) => d.date)).toEqual(["9999-12-31"]);
+  });
 });
