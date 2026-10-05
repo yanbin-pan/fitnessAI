@@ -11,6 +11,10 @@
   --nm-on-accent: #ffffff;
   --nm-accent-text: #067052;
   --nm-danger: #a8321f;
+  /* Calendar tints (spec §11.4), already mixed into the base: within target, a little off, well off. */
+  --nm-tint-within: #b7d1c8;
+  --nm-tint-near: #dcd1ba;
+  --nm-tint-off: #dac2c0;
   /* The tab bar's height above the home-indicator inset; the composer sits on top of it. */
   --tabbar-h: 4rem;
   color-scheme: light;
@@ -27,6 +31,9 @@
     --nm-on-accent: #0f2a1f;
     --nm-accent-text: #34d399;
     --nm-danger: #f2876f;
+    --nm-tint-within: #3d544c;
+    --nm-tint-near: #575042;
+    --nm-tint-off: #584645;
     color-scheme: dark;
   }
 }
@@ -41,6 +48,9 @@
   --color-on-accent: var(--nm-on-accent);
   --color-accent-ink: var(--nm-accent-text);
   --color-danger: var(--nm-danger);
+  --color-tint-within: var(--nm-tint-within);
+  --color-tint-near: var(--nm-tint-near);
+  --color-tint-off: var(--nm-tint-off);
   --color-protein: #5b8def;
   --color-carbs: #f2a93b;
   --color-fat: #e8735a;
