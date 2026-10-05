@@ -85,7 +85,7 @@ describe("a refused Access token", () => {
     }
   });
 
-  it("says an intruder is not the owner without logging any email address", async () => {
+  it("says an intruder is not on the list without logging any email address", async () => {
     const ctx = await loggingApp();
     try {
       const token = await ctx.auth.token({ email: "intruder@example.com" });
@@ -93,7 +93,7 @@ describe("a refused Access token", () => {
       expect(res.statusCode).toBe(401);
       const refused = ctx.lines.filter((line) => line.includes("access token refused"));
       expect(refused).toHaveLength(1);
-      expect(refused[0]).toContain('"detail":"not the owner"');
+      expect(refused[0]).toContain('"detail":"not on the list"');
       const all = ctx.lines.join("\n");
       expect(all).not.toContain("intruder@example.com");
       expect(all).not.toContain("owner@example.com");

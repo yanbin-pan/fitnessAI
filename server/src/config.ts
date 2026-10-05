@@ -5,6 +5,8 @@ export interface AccessConfig {
   teamDomain: string;
   audience: string;
   ownerEmail: string;
+  /** Everyone else who may sign in (ALLOWED_EMAILS), lowercased, the owner left out; empty means the owner alone (2.2 §3). */
+  allowedEmails: readonly string[];
   /** A JSON key set that replaces Cloudflare's — for tests and local development; always null in production. */
   testJwks: string | null;
 }
@@ -18,6 +20,8 @@ export interface Config {
   /** Null only in development with DEV_AUTH_EMAIL. */
   access: AccessConfig | null;
   devAuthEmail: string | null;
+  /** The owner: OWNER_EMAIL, or DEV_AUTH_EMAIL when development skips Access (2.2 §3). */
+  ownerEmail: string;
   anthropic: { apiKey: string | null; model: string; effort: Effort };
   coachBudgetMs: number;
   snapshotKeep: number;
@@ -50,6 +54,19 @@ function positiveInt(env: Env, name: string, fallback: number, max = Infinity): 
   return value;
 }
 
+/** A comma-separated list of addresses, lowercased and trimmed, each once. A bad entry is named by its position:
+ * the error goes to the pod's log, which never holds an email (2.2 §8). */
+function emailList(env: Env, name: string): string[] {
+  const emails: string[] = [];
+  for (const [index, part] of (env[name] ?? "").split(",").entries()) {
+    const email = part.trim().toLowerCase();
+    if (!email) continue;
+    if (!/^[^\s@]+@[^\s@]+$/.test(email)) throw new ConfigError(`${name} entry ${index + 1} is not an email address`);
+    if (!emails.includes(email)) emails.push(email);
+  }
+  return emails;
+}
+
 /** A year. A longer retention window is refused: past this, the cutoff date can overflow what a Date holds. */
 const MAX_RETENTION_HOURS = 24 * 365;
 
@@ -68,7 +85,8 @@ export function loadConfig(env: Env): Config {
   const ownerEmail = trimmed(env, "OWNER_EMAIL")?.toLowerCase() ?? null;
   let access: AccessConfig | null = null;
   if (teamDomain && audience && ownerEmail) {
-    access = { teamDomain, audience, ownerEmail, testJwks: nodeEnv === "production" ? null : trimmed(env, "ACCESS_TEST_JWKS") };
+    const allowedEmails = emailList(env, "ALLOWED_EMAILS").filter((email) => email !== ownerEmail);
+    access = { teamDomain, audience, ownerEmail, allowedEmails, testJwks: nodeEnv === "production" ? null : trimmed(env, "ACCESS_TEST_JWKS") };
   } else if (!devAuthEmail) {
     throw new ConfigError(
       "ACCESS_TEAM_DOMAIN, ACCESS_AUD and OWNER_EMAIL must all be set. Refusing to start: without them no request can be authenticated.",
@@ -80,6 +98,10 @@ export function loadConfig(env: Env): Config {
     throw new ConfigError(`ANTHROPIC_EFFORT must be one of ${EFFORTS.join(", ")}, got "${effort}"`);
   }
 
+  // The development bypass signs its one person in as the owner; otherwise the owner is OWNER_EMAIL.
+  const owner = devAuthEmail ?? access?.ownerEmail ?? null;
+  if (owner === null) throw new ConfigError("OWNER_EMAIL must be set"); // unreachable: refused above already
+
   return {
     nodeEnv,
     port: positiveInt(env, "PORT", 8080),
@@ -88,6 +110,7 @@ export function loadConfig(env: Env): Config {
     webDist: trimmed(env, "WEB_DIST"),
     access,
     devAuthEmail,
+    ownerEmail: owner,
     anthropic: {
       apiKey: trimmed(env, "ANTHROPIC_API_KEY"),
       model: trimmed(env, "ANTHROPIC_MODEL") ?? "claude-opus-5-5",

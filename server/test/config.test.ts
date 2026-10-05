@@ -15,7 +15,8 @@ describe("loadConfig", () => {
       nodeEnv: "production", port: 8080, metricsPort: 9464, dataDir: "./.data", webDist: null,
       devAuthEmail: null, coachBudgetMs: 90_000, snapshotKeep: 7,
     });
-    expect(c.access).toEqual({ teamDomain: "team.cloudflareaccess.com", audience: "aud", ownerEmail: "owner@example.com", testJwks: null });
+    expect(c.access).toEqual({ teamDomain: "team.cloudflareaccess.com", audience: "aud", ownerEmail: "owner@example.com", allowedEmails: [], testJwks: null });
+    expect(c.ownerEmail).toBe("owner@example.com");
     expect(c.anthropic).toEqual({ apiKey: null, model: "claude-opus-5-5", effort: "medium" });
   });
 
@@ -29,6 +30,23 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ ...production, OWNER_EMAIL: " " })).toThrow(ConfigError);
   });
 
+  it("lets in the addresses on ALLOWED_EMAILS: trimmed, lowercased, each once, the owner left out", () => {
+    const c = loadConfig({ ...production, ALLOWED_EMAILS: " Friend@Example.com, mum@example.com,,friend@example.com , OWNER@example.com " });
+    expect(c.access?.allowedEmails).toEqual(["friend@example.com", "mum@example.com"]);
+    expect(loadConfig({ ...production, ALLOWED_EMAILS: "  " }).access?.allowedEmails).toEqual([]);
+  });
+
+  it("refuses an ALLOWED_EMAILS entry that isn't an address, by its position and without repeating it", () => {
+    expect(() => loadConfig({ ...production, ALLOWED_EMAILS: "friend@example.com mum@example.com" })).toThrow(
+      /^ALLOWED_EMAILS entry 1 is not an email address$/,
+    );
+    expect(() => loadConfig({ ...production, ALLOWED_EMAILS: "friend@example.com;mum@example.com" })).toThrow(
+      /^ALLOWED_EMAILS entry 1 is not an email address$/,
+    );
+    expect(() => loadConfig({ ...production, ALLOWED_EMAILS: "friend@example.com, mum" })).toThrow(/^ALLOWED_EMAILS entry 2 is not an email address$/);
+    expect(() => loadConfig({ ...production, ALLOWED_EMAILS: "friend@example.com, mum" })).toThrow(ConfigError);
+  });
+
   it("only honours DEV_AUTH_EMAIL in development", () => {
     expect(() => loadConfig({ ...production, DEV_AUTH_EMAIL: "dev@localhost" })).toThrow(ConfigError);
     expect(() => loadConfig({ ...production, NODE_ENV: "test", DEV_AUTH_EMAIL: "dev@localhost" })).toThrow(ConfigError);
@@ -37,6 +55,11 @@ describe("loadConfig", () => {
     const dev = loadConfig({ NODE_ENV: "development", DEV_AUTH_EMAIL: "Dev@Localhost" });
     expect(dev.devAuthEmail).toBe("dev@localhost");
     expect(dev.access).toBeNull();
+  });
+
+  it("makes the development sign-in the owner", () => {
+    expect(loadConfig({ NODE_ENV: "development", DEV_AUTH_EMAIL: "Dev@Localhost" }).ownerEmail).toBe("dev@localhost");
+    expect(loadConfig({ ...production, NODE_ENV: "development", DEV_AUTH_EMAIL: "dev@localhost" }).ownerEmail).toBe("dev@localhost");
   });
 
   it("ignores ACCESS_TEST_JWKS in production", () => {

@@ -46,13 +46,14 @@ export interface TokenClaims {
 }
 
 /** A local Access stand-in: a key pair, the matching config, and a token minter. */
-export async function makeAccess(ownerEmail = "owner@example.com") {
+export async function makeAccess(ownerEmail = "owner@example.com", allowedEmails: string[] = []) {
   const { publicKey, privateKey } = await generateKeyPair("RS256");
   const jwk = { ...(await exportJWK(publicKey)), kid: "test-key", alg: "RS256" };
   const access: AccessConfig = {
     teamDomain: "test.cloudflareaccess.com",
     audience: "test-aud",
     ownerEmail,
+    allowedEmails,
     testJwks: JSON.stringify({ keys: [jwk] }),
   };
   async function token(claims: TokenClaims = {}): Promise<string> {

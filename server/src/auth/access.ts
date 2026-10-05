@@ -7,6 +7,8 @@ import type { AccessConfig } from "../config.ts";
 
 export interface Identity {
   email: string;
+  /** The owner (OWNER_EMAIL); everyone else on ALLOWED_EMAILS is a guest (2.2 §3). */
+  owner: boolean;
 }
 
 export interface Verifier {
@@ -36,9 +38,10 @@ export function createVerifier(access: AccessConfig, keys: JWTVerifyGetKey = key
       const { payload } = await jwtVerify(token, keys, { issuer, audience: access.audience, requiredClaims: ["exp"] });
       const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
       if (!email) throw new AuthError("the token carries no email claim");
-      // Even if the Access policy is ever loosened, only the owner gets in.
-      if (email !== access.ownerEmail) throw new AuthError("not the owner");
-      return { email };
+      // Even if the Access policy is ever loosened, only the people on the app's own list get in (2.2 F3).
+      const owner = email === access.ownerEmail;
+      if (!owner && !access.allowedEmails.includes(email)) throw new AuthError("not on the list");
+      return { email, owner };
     },
   };
 }
@@ -47,7 +50,8 @@ export function createVerifier(access: AccessConfig, keys: JWTVerifyGetKey = key
 export function devVerifier(email: string): Verifier {
   return {
     async verify() {
-      return { email };
+      // The development bypass has one person, and they are the owner.
+      return { email, owner: true };
     },
   };
 }
