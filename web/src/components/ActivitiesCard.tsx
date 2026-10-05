@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
 import { thousands, timeOf } from "../format.ts";
 import type { Activity, DayView, Entry, ExerciseItem } from "../shared.ts";
-import { SPORTS, SportBadge } from "./SportBadge.tsx";
+import { SportBadge, sportOf } from "./SportBadge.tsx";
 import { quietButton } from "./ui.tsx";
 
 export interface ActivityGroup {
@@ -78,7 +78,7 @@ export function ActivitiesCard({ view, onEdit }: { view: DayView; onEdit: (entry
         })}
       </ul>
       {open && (
-        <div id={panelId} role="region" aria-label={`${SPORTS[open.activity].label} details`} className="pressed mt-3 rounded-2xl p-3">
+        <div id={panelId} role="region" aria-label={`${sportOf(open.activity).label} details`} className="pressed mt-3 rounded-2xl p-3">
           <p className="text-right text-xs text-muted">{timeOf(open.entry.logged_at)}</p>
           {open.items.map((item) => (
             <div key={item.id} className="mt-1">

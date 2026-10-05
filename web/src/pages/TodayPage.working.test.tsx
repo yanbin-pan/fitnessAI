@@ -2,6 +2,7 @@ import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MIN_STEP_MS, isLive, resetLive } from "../coach/live.ts";
+import { STREAM_IDLE_MS } from "../coach/stream.ts";
 import type { ChatMessage, DayView, MessageInput } from "../shared.ts";
 import { dayView, message } from "../test/fixtures.ts";
 import { jsonResponse, mockFetch, renderWithProviders } from "../test/render.tsx";
@@ -153,6 +154,27 @@ describe("TodayPage, while the coach works (spec §11.1)", () => {
     act(() => stream.end());
     await waitFor(() => expect(sent.loads).toBe(2)); // the day is fetched again once the stream has dropped
     expect(screen.getByRole("status")).toHaveTextContent("Logging eggs…");
+  });
+
+  it("hands a message over to the poll when its stream goes quiet after it was stored, so Send isn't stuck", async () => {
+    const stream = controlledStream();
+    const sent = server(stream, (_load, id) => dayView({ messages: id ? [message({ id, text: "2 eggs", status: "pending" })] : [] }));
+    renderToday();
+    const box = await screen.findByLabelText("Message your coach");
+    await user.type(box, "2 eggs");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    act(() => stream.send("stored", { day: dayView({ messages: [message({ id: sent.id, text: "2 eggs", status: "pending" })] }) }));
+    await waitFor(() => expect(box).not.toHaveAttribute("readonly"));
+    await user.type(box, "and toast");
+    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+    expect(isLive(sent.id)).toBe(true);
+
+    // Not another byte, not even a keep-alive: the connection is dead although it never said so.
+    await act(() => vi.advanceTimersByTimeAsync(STREAM_IDLE_MS));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
+    expect(isLive(sent.id)).toBe(false);
+    await waitFor(() => expect(sent.loads).toBe(2)); // the day is fetched again, and the poll takes the message from there
+    expect(box).toHaveValue("and toast"); // and what was typed meanwhile is still there to send
   });
 
   it("lets the poll find the reply when a send failed before it was stored but the server had it all the same", async () => {

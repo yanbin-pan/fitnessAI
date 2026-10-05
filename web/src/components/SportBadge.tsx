@@ -50,6 +50,11 @@ export const SPORTS: Record<Activity, Sport> = {
   other: { label: "Other", short: "Other", icon: "interests", light: "#6F7785", dark: "#B7BECA" },
 };
 
+/** An activity's sport, or Other's for a key this copy of the app doesn't know yet (a newer server can add activities). */
+export function sportOf(activity: string): Sport {
+  return (SPORTS as Record<string, Sport | undefined>)[activity] ?? SPORTS.other;
+}
+
 /** The owner's main sports, offered first wherever an activity is picked (spec §5.1). */
 export const FEATURED: readonly Activity[] = ["tennis", "gym", "wakeboarding", "kitesurfing"];
 
@@ -72,7 +77,7 @@ export const FAMILIES: readonly { name: string; activities: readonly Activity[] 
 export function SportBadge({
   activity, size = 36, labelled = true, pressed = false,
 }: { activity: Activity; size?: number; labelled?: boolean; pressed?: boolean }) {
-  const sport = SPORTS[activity];
+  const sport = sportOf(activity);
   // Both themes' colours ride along as variables; the dark: variant picks the dark one.
   const style = { "--sport-light": sport.light, "--sport-dark": sport.dark, width: size, height: size } as CSSProperties;
   return (

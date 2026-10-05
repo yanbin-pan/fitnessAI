@@ -7,7 +7,7 @@ import { EXERCISE_CATEGORIES, MAX_BACKDATE_DAYS } from "../shared.ts";
 import type {
   Activity, DeleteResult, Entry, EntryResult, ExerciseCategory, ExerciseItem, ExerciseItemInput, FoodItem, FoodItemInput,
 } from "../shared.ts";
-import { FAMILIES, FEATURED, SPORTS, SportBadge } from "./SportBadge.tsx";
+import { FAMILIES, FEATURED, SportBadge, sportOf } from "./SportBadge.tsx";
 import { primaryButton, quietButton } from "./ui.tsx";
 
 export function toFoodInput(f: FoodItem): FoodItemInput {
@@ -103,6 +103,7 @@ function ActivityPicker({ exercise, value, onChange }: { exercise: number; value
   };
   const choice = (activity: Activity) => {
     const chosen = activity === value;
+    const sport = sportOf(activity);
     return (
       <label
         key={activity}
@@ -115,11 +116,11 @@ function ActivityPicker({ exercise, value, onChange }: { exercise: number; value
           checked={chosen}
           onChange={() => onChange(activity)}
           onClick={folds}
-          aria-label={SPORTS[activity].label}
+          aria-label={sport.label}
           className="sr-only"
         />
         <SportBadge activity={activity} size={32} labelled={false} pressed={chosen} />
-        {SPORTS[activity].short}
+        {sport.short}
       </label>
     );
   };

@@ -2,7 +2,8 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ICON_PATHS } from "../icons/paths.ts";
 import { ACTIVITIES } from "../shared.ts";
-import { FAMILIES, FEATURED, SPORTS, SportBadge } from "./SportBadge.tsx";
+import type { Activity } from "../shared.ts";
+import { FAMILIES, FEATURED, SPORTS, SportBadge, sportOf } from "./SportBadge.tsx";
 
 const channel = (hex: string, i: number) => {
   const v = parseInt(hex.slice(i, i + 2), 16) / 255;
@@ -21,6 +22,16 @@ describe("SportBadge", () => {
     // The activity picker puts the sport's name on the button around the badge, so the badge itself stays quiet.
     rerender(<SportBadge activity="wakeboarding" labelled={false} />);
     expect(screen.queryByRole("img")).toBeNull();
+  });
+
+  it("falls back to Other for an activity this copy of the app doesn't know yet, instead of blanking the page", () => {
+    // A newer server can add activities; the copy of the app on the home screen may be a release behind.
+    const parkour = "parkour" as unknown as Activity;
+    render(<SportBadge activity={parkour} />);
+    const badge = screen.getByRole("img", { name: SPORTS.other.label });
+    expect(badge.querySelector("path")).toHaveAttribute("d", ICON_PATHS[SPORTS.other.icon]);
+    expect(sportOf("parkour")).toBe(SPORTS.other);
+    expect(sportOf("tennis")).toBe(SPORTS.tennis);
   });
 
   it("draws the pictogram in its soft colour for each theme on a matte disc, with no coloured fill", () => {
