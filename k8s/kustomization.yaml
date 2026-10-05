@@ -15,4 +15,4 @@ resources:
 # so a deploy is reproducible and a rollback is a plain `git revert`.
 images:
   - name: ghcr.io/yanbin-pan/fitnessai
-    newTag: f502c5ee7dc1fcafe36342560be3d9beb350475c
+    newTag: 990cc88634dfe1fc403c2da5fb4a795ea36ab7e0
