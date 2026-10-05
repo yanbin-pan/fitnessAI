@@ -244,7 +244,8 @@ Milestone 1 ignores the new columns and the photos table, but it keeps its datab
 
 Open `https://zabaione.minipi.net` in Safari, sign in, then Share → Add to Home
 Screen. Voice input is the keyboard's microphone; the camera button beside the
-text box takes or picks up to four photos. If the app shows "Signed out", tap
+text box takes or picks up to four photos, and a screenshot pasted into the text
+box (touch and hold it, then Paste) is attached the same way. If the app shows "Signed out", tap
 the banner to sign in again; the Access session lasts 30 days.
 
 An icon added from the first address, `fitness.minipi.net`, keeps opening its saved

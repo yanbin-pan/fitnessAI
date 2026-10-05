@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import type { ChangeEvent, FormEvent } from "react";
+import type { ChangeEvent, ClipboardEvent, FormEvent } from "react";
 import { ApiError, api } from "../api.ts";
 import { dropLive, finishLive, firstStep, pushStep, startLive } from "../coach/live.ts";
 import { addPending, removePending } from "../coach/pending.ts";
@@ -32,6 +32,17 @@ function sendError(error: unknown, t: Messages): string {
   if (error instanceof ApiError && error.code === "photo_taken") return t.composer.photoTaken;
   if (error instanceof ApiError && error.code === "photo_not_found") return t.composer.photoNotFound;
   return t.composer.failed;
+}
+
+/** The images on a pasted clipboard: a screenshot copied on the phone, a photo copied from another app. */
+export function imagesIn(data: DataTransfer | null): File[] {
+  if (!data) return [];
+  // Some browsers list a pasted image under both items and files: take it from one place only.
+  const fromItems = Array.from(data.items ?? [])
+    .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+    .map((item) => item.getAsFile())
+    .filter((file): file is File => file !== null);
+  return fromItems.length > 0 ? fromItems : Array.from(data.files ?? []).filter((file) => file.type.startsWith("image/"));
 }
 
 /** Talks to the coach about today: text — voice works through the keyboard's microphone — and up to four photos. */
@@ -158,13 +169,28 @@ export function Composer() {
     await upload(key, blob);
   }
 
-  function onFiles(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = ""; // so choosing the same photo again still counts as a change
+  /** Attaches photos up to the message's limit, whether picked with the camera button or pasted. */
+  function attach(files: File[]) {
     const room = MAX_PHOTOS_PER_MESSAGE - attachments.length;
     setNotice(files.length > room ? t.composer.tooMany(MAX_PHOTOS_PER_MESSAGE) : null);
     setSendFailure(null);
     for (const file of files.slice(0, Math.max(0, room))) void add(file);
+  }
+
+  function onFiles(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = ""; // so choosing the same photo again still counts as a change
+    attach(files);
+  }
+
+  // A screenshot pasted into the text box becomes a photo, as if picked with the camera button.
+  function onPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    const images = imagesIn(event.clipboardData);
+    if (images.length === 0 || phase === "storing") return; // plain text pastes as usual
+    // Words copied along with the image (part of a web page) still paste into the box; an image on its own
+    // must not, or some browsers write its file name there.
+    if (!event.clipboardData.types.includes("text/plain")) event.preventDefault();
+    attach(images);
   }
 
   const trimmed = text.trim();
@@ -279,6 +305,7 @@ export function Composer() {
             // Locked until the server has the message, so it can come back here intact.
             readOnly={phase === "storing"}
             onChange={(event) => setText(event.target.value)}
+            onPaste={onPaste}
             placeholder={attachments.length > 0 ? t.composer.placeholderPhotos : t.composer.placeholder}
             className="pressed field-sizing-content max-h-36 min-h-11 flex-1 resize-none rounded-2xl px-3 py-2.5 text-base text-ink placeholder:text-muted"
           />
