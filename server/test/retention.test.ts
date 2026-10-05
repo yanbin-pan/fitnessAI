@@ -8,12 +8,13 @@ import { openDatabase } from "../src/db/open.ts";
 import { startRetention } from "../src/jobs.ts";
 import { getEntry, insertEntry } from "../src/log/entries.ts";
 import { insertReply, insertUserMessage, setMessageStatus } from "../src/messages/messages.ts";
+import { shortKey } from "../src/people/people.ts";
 import { claimPhotos, savePhoto } from "../src/photos/photos.ts";
 import { purgeExpired } from "../src/retention/retention.ts";
 import type { Sql } from "../src/db/types.ts";
 import type { MessageStatus } from "../src/shared.ts";
 import { fakeJpeg } from "./images.ts";
-import { NOW, openTestDb, sampleEntry, sampleFood, tempDir } from "./helpers.ts";
+import { NOW, openTestDb, sampleEntry, sampleFood, tempDir, testPeople, unlistable } from "./helpers.ts";
 
 const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3_600_000).toISOString();
 
@@ -179,21 +180,27 @@ describe("purgeExpired", () => {
 });
 
 describe("startRetention", () => {
-  it("purges once straight away, then every hour", () => {
-    const db = openTestDb();
-    message(db.db, "old", "2026-10-01", hoursAgo(50));
+  it("purges everyone once straight away, then every hour, logging counts by person", async () => {
+    const { people, stores } = testPeople("owner@example.com", "friend@example.com");
+    for (const store of stores) message(store.db, "old", "2026-10-01", hoursAgo(50));
     const logged: unknown[] = [];
-    const log = { info: (obj: unknown) => logged.push(obj), error: () => {} } as unknown as FastifyBaseLogger;
-    const job = startRetention({ sql: db.db, photoDir: tempDir(), hours: 48, log, now: () => NOW });
-    expect(db.db.select().from(messages).all()).toEqual([]);
-    expect(logged).toEqual([{ messages: 1, photos: 0, threads: 0, orphanFiles: 0 }]);
+    const log = { info: (obj: unknown) => logged.push(obj), error: (obj: unknown) => logged.push(obj) } as unknown as FastifyBaseLogger;
+    const job = startRetention({ people, hours: 48, log, now: () => NOW });
+    for (const store of stores) expect(store.db.select().from(messages).all()).toEqual([]);
+    const keys = stores.map((s) => s.key).sort();
+    expect(logged).toEqual(keys.map((key) => ({ person: shortKey(key), messages: 1, photos: 0, threads: 0, orphanFiles: 0 })));
+    // The hourly pass finds nothing left to delete, and says nothing: no line an hour for every person.
+    const afterStartup = [...logged];
+    await job.trigger();
+    expect(logged).toEqual(afterStartup);
     expect(job.getPattern()).toBe("7 * * * *");
     job.stop();
-    db.close();
+    people.close();
   });
 
-  it("logs a purge that fails instead of throwing, and the job can still be stopped", () => {
-    const db = openTestDb();
+  it("logs one person's failed purge, goes on to the next, and the job can still be stopped", () => {
+    const { people, stores } = testPeople("owner@example.com", "friend@example.com");
+    for (const store of stores) message(store.db, "old", "2026-10-01", hoursAgo(50));
     const infos: unknown[][] = [];
     const errors: unknown[][] = [];
     const log = {
@@ -201,13 +208,61 @@ describe("startRetention", () => {
       error: (...args: unknown[]) => errors.push(args),
     } as unknown as FastifyBaseLogger;
     // The sweep cannot list a photo folder that is not there.
-    const photoDir = path.join(tempDir(), "missing");
-    const job = startRetention({ sql: db.db, photoDir, hours: 48, log, now: () => NOW });
-    expect(errors).toEqual([[{ err: expect.objectContaining({ code: "ENOENT" }) }, "retention purge failed"]]);
-    expect(infos).toEqual([]);
+    fs.rmSync(stores[0].photoDir, { recursive: true, force: true });
+    const job = startRetention({ people, hours: 48, log, now: () => NOW });
+    expect(errors).toEqual([[{ err: expect.objectContaining({ code: "ENOENT" }), person: shortKey(stores[0].key) }, "retention purge failed"]]);
+    expect(stores[1].db.select().from(messages).all()).toEqual([]);
+    expect(infos).toEqual([[{ person: shortKey(stores[1].key), messages: 1, photos: 0, threads: 0, orphanFiles: 0 }, "expired conversations deleted"]]);
     expect(job.isStopped()).toBe(false);
     job.stop();
     expect(job.isStopped()).toBe(true);
-    db.close();
+    people.close();
+  });
+
+  it("logs a failure to list the folders and goes on: the startup run does not throw, and neither does an hourly one", async () => {
+    const { people } = testPeople("owner@example.com");
+    const errors: unknown[][] = [];
+    const log = { info: () => {}, error: (...args: unknown[]) => errors.push(args) } as unknown as FastifyBaseLogger;
+    // startRetention runs once before it returns, so a throw here would stop the app from starting.
+    const job = startRetention({ people: unlistable(people), hours: 48, log, now: () => NOW });
+    try {
+      await expect(job.trigger()).resolves.toBeUndefined();
+      // The listing itself failed, not anyone's folder: no person to name.
+      const failure = [{ err: expect.objectContaining({ code: "EIO" }) }, "retention purge failed"];
+      expect(errors).toStrictEqual([failure, failure]);
+    } finally {
+      job.stop();
+      people.close();
+    }
+  });
+
+  it("logs whatever else escapes an hourly run through croner's own catch, so the run can never reject", async () => {
+    const { people } = testPeople("owner@example.com");
+    const errors: unknown[][] = [];
+    let refuse = false;
+    const log = {
+      info: () => {},
+      error: (...args: unknown[]) => {
+        // As a broken log pipe might: the one throw the job's own guard cannot catch.
+        if (refuse) {
+          refuse = false;
+          throw new Error("the log pipe is closed");
+        }
+        errors.push(args);
+      },
+    } as unknown as FastifyBaseLogger;
+    const job = startRetention({ people: unlistable(people), hours: 48, log, now: () => NOW });
+    expect(errors).toHaveLength(1); // the startup run's listing failure
+    refuse = true;
+    try {
+      await expect(job.trigger()).resolves.toBeUndefined();
+      expect(errors).toStrictEqual([
+        [{ err: expect.objectContaining({ code: "EIO" }) }, "retention purge failed"],
+        [{ err: expect.objectContaining({ message: "the log pipe is closed" }) }, "retention purge failed"],
+      ]);
+    } finally {
+      job.stop();
+      people.close();
+    }
   });
 });

@@ -102,6 +102,8 @@ export interface DayView {
   /** Entries that this day's coach replies created or changed but that are dated another day (back-dated); shown with their reply, never counted in this day's totals. */
   linked_entries: Entry[];
   messages: ChatMessage[];
+  /** The editor's featured activities for this person: their four most-logged over the 60 days ending on this day, filled from a starter set (spec §11.1). */
+  featured: Activity[];
 }
 
 export interface ProfileView {

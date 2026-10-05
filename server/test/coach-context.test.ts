@@ -52,7 +52,7 @@ describe("buildTurnContext", () => {
     ensureDay(db.db, profile, "2026-10-03", NOW_ISO);
     const entry = sampleEntry({ logged_at: "2026-10-03T07:10:00.000Z", foods: [sampleFood({ kcal: 156.4 })] });
     db.db.transaction((tx) => insertEntry(tx, entry, NOW_ISO));
-    const text = buildTurnContext(buildDayView(db.db, profile, "2026-10-03", "2026-10-03", NOW_ISO), NOW, "Europe/London");
+    const text = buildTurnContext(buildDayView(db.db, profile, "2026-10-03", "2026-10-03", NOW_ISO, []), NOW, "Europe/London");
 
     const [heading, json] = text.split("\n");
     expect(heading).toBe("Context for this message (JSON):");
@@ -71,7 +71,7 @@ describe("buildTurnContext", () => {
       exercises: [sampleExercise({ met: 3.85, kcal: 123.456 })],
     });
     db.db.transaction((tx) => insertEntry(tx, entry, NOW_ISO));
-    const text = buildTurnContext(buildDayView(db.db, makeProfile(), "2026-10-03", "2026-10-03", NOW_ISO), NOW, "Europe/London");
+    const text = buildTurnContext(buildDayView(db.db, makeProfile(), "2026-10-03", "2026-10-03", NOW_ISO, []), NOW, "Europe/London");
     const context = JSON.parse(text.split("\n")[1]);
     expect(context.entries[0].foods[0]).toMatchObject({ salt_g: 0.04, fibre_g: 0.25 });
     const exercise = context.entries[0].exercises[0];

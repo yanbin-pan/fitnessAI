@@ -38,6 +38,6 @@ export function dayView(overrides: Partial<DayView> = {}): DayView {
     date: "2026-10-03", today: "2026-10-03",
     targets: { base: targets, adjusted: targets, add_back_kcal: 0, workout_kcal: 0 },
     totals: { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fibre_g: 0, saturated_fat_g: 0, sugars_g: 0, salt_g: 0, fluid_ml: 0, alcohol_units: 0 },
-    entries: [], linked_entries: [], messages: [], ...overrides,
+    entries: [], linked_entries: [], messages: [], featured: ["tennis", "gym", "wakeboarding", "kitesurfing"], ...overrides,
   };
 }

@@ -5,6 +5,7 @@ import { useNavigate } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SignedOutBanner } from "../components/SignedOutBanner.tsx";
 import { SessionProvider } from "../session.tsx";
+import type { DayView } from "../shared.ts";
 import { dayView, entry, exerciseItem, foodItem, message } from "../test/fixtures.ts";
 import { jsonResponse, mockFetch, renderWithProviders } from "../test/render.tsx";
 import { TodayPage } from "./TodayPage.tsx";
@@ -121,6 +122,29 @@ describe("TodayPage", () => {
     await userEvent.click(within(card).getByRole("button", { name: "Bike ride, 400 kcal" }));
     await userEvent.click(within(card).getByRole("button", { name: "Edit" }));
     expect(screen.getByRole("dialog", { name: "Edit entry" })).toBeInTheDocument();
+  });
+
+  it("offers the day's featured activities in the editor", async () => {
+    mockFetch(() => jsonResponse(dayView({ featured: ["climbing", "running", "walking", "cycling"] })));
+    renderDay();
+    await userEvent.click(await screen.findByRole("button", { name: "+ Add manually" }));
+    await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
+    const picker = screen.getByRole("group", { name: "Activity for exercise 1" });
+    expect(within(picker).getAllByRole("radio").map((radio) => radio.getAttribute("aria-label"))).toEqual(["Climbing", "Running", "Walking", "Cycling", "Other"]);
+  });
+
+  it("still opens the editor when an older server leaves featured out", async () => {
+    // A 2.2 copy of the app against a 2.1 server (a rollback): the day view has no featured row at all.
+    const { featured: _featured, ...older } = dayView();
+    mockFetch(() => jsonResponse(older as unknown as DayView));
+    renderDay();
+    await userEvent.click(await screen.findByRole("button", { name: "+ Add manually" }));
+    await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
+    const picker = screen.getByRole("group", { name: "Activity for exercise 1" });
+    expect(within(picker).getAllByRole("radio").map((radio) => radio.getAttribute("aria-label"))).toEqual(["Other"]);
+    await userEvent.click(within(picker).getByRole("button", { name: "More" }));
+    expect(within(picker).getAllByRole("radio")).toHaveLength(33);
+    expect(within(picker).queryByText("Your sports")).toBeNull();
   });
 
   it("raises the signed-out banner when Retry finds the Access session expired", async () => {

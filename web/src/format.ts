@@ -22,6 +22,7 @@ const FAILURES: Record<string, string> = {
   timeout: "The coach took too long.",
   ai_error: "The coach couldn't be reached.",
   ai_rate_limited: "The coach is busy. Try again in a minute.",
+  ai_cap: "Today's coach limit is used up. You can still add things by hand.",
   refused: "The coach declined this message.",
   max_tokens: "The reply was cut off.",
   tool_loop_limit: "The coach got stuck on this one.",

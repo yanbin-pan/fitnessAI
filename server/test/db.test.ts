@@ -3,9 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { moveOwnerIn } from "../src/db/location.ts";
 import { openDatabase } from "../src/db/open.ts";
 import { pruneSnapshots } from "../src/db/snapshot.ts";
 import { getEntry, insertEntry } from "../src/log/entries.ts";
+import { createPeople, personKey } from "../src/people/people.ts";
 import { NOW, openTestDb, sampleEntry, sampleFood, tempDir } from "./helpers.ts";
 
 const MIGRATIONS = fileURLToPath(new URL("../drizzle", import.meta.url));
@@ -149,6 +151,40 @@ describe("openDatabase", () => {
     } finally {
       now.close();
     }
+  });
+
+  it("upgrades a milestone 2.1 database with an empty ai_usage table, after a snapshot (milestone 2.2)", () => {
+    const dir = tempDir();
+    const file = path.join(dir, "fitness.db");
+    const snapshots = path.join(dir, "snapshots");
+    const m21 = openDatabase({ file, snapshotDir: null, migrationsFolder: migrationsUpTo(3) });
+    insertEntry(m21.db, sampleEntry({ id: "kept" }), NOW.toISOString());
+    m21.close();
+    const upgraded = openDatabase({ file, snapshotDir: snapshots });
+    expect(upgraded.sqlite.prepare("select count(*) from ai_usage").pluck().get()).toBe(0);
+    expect(upgraded.sqlite.prepare("select id from entries").pluck().all()).toEqual(["kept"]);
+    upgraded.close();
+    const taken = fs.readdirSync(snapshots).filter((f) => f.startsWith("startup-"));
+    expect(taken).toHaveLength(1);
+    const copy = new Database(path.join(snapshots, taken[0]), { readonly: true });
+    expect(copy.prepare("select id from entries").pluck().all()).toEqual(["kept"]);
+    expect(copy.prepare("select count(*) from __drizzle_migrations").pluck().get()).toBe(3); // taken before 0003 ran
+    copy.close();
+  });
+
+  it("snapshots the owner's moved database into their own folder before 0003 runs (milestone 2.2)", () => {
+    const dataDir = tempDir();
+    fs.mkdirSync(path.join(dataDir, "db"));
+    const m21 = openDatabase({ file: path.join(dataDir, "db", "fitness.db"), snapshotDir: null, migrationsFolder: migrationsUpTo(3) });
+    insertEntry(m21.db, sampleEntry({ id: "kept" }), NOW.toISOString());
+    m21.close();
+    const key = personKey("owner@example.com");
+    expect(moveOwnerIn(dataDir, key)).toBe("moved");
+    const people = createPeople({ dataDir });
+    expect(people.store(key).sqlite.prepare("select id from entries").pluck().all()).toEqual(["kept"]);
+    people.close();
+    const taken = fs.readdirSync(path.join(dataDir, "users", key, "snapshots")).filter((f) => f.startsWith("startup-"));
+    expect(taken).toHaveLength(1);
   });
 
   it("snapshots a milestone 1 database before upgrading it, and the snapshot holds no conversation", () => {

@@ -4,9 +4,10 @@ import type { Sql } from "../db/types.ts";
 import { getEntry, listEntries } from "../log/entries.ts";
 import { listMessages } from "../messages/messages.ts";
 import { addDays, daysBetween } from "../shared.ts";
-import type { DaySummary, DayView, Entry, MacroTargets, Profile, Totals } from "../shared.ts";
+import type { Activity, DaySummary, DayView, Entry, MacroTargets, Profile, Totals } from "../shared.ts";
 import { adjustTargets, baselineTargets } from "../targets/targets.ts";
 import type { WorkoutSummary } from "../targets/targets.ts";
+import { featuredActivities } from "./featured.ts";
 
 export type DaySnapshot = typeof days.$inferSelect;
 
@@ -94,7 +95,7 @@ export function summarizeWorkouts(list: Entry[]): WorkoutSummary {
 }
 
 /** Everything the Today screen shows for one date. Reads only. */
-export function buildDayView(sql: Sql, profile: Profile, date: string, today: string, nowIso: string): DayView {
+export function buildDayView(sql: Sql, profile: Profile, date: string, today: string, nowIso: string, starter: readonly Activity[]): DayView {
   const snapshot = getDay(sql, date) ?? snapshotValues(profile, date, nowIso);
   const list = listEntries(sql, date);
   const messages = listMessages(sql, date);
@@ -112,6 +113,7 @@ export function buildDayView(sql: Sql, profile: Profile, date: string, today: st
     entries: list,
     linked_entries: linked,
     messages,
+    featured: featuredActivities(sql, date, starter),
   };
 }
 

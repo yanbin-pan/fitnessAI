@@ -65,7 +65,7 @@ describe("buildDayView", () => {
       insertEntry(tx, sampleEntry({ foods: [sampleFood({ kcal: 500, protein_g: 30, saturated_fat_g: 5, fluid_ml: 250 })] }), NOW_ISO);
       insertEntry(tx, sampleEntry({ foods: [], exercises: [sampleExercise({ kcal: 400 })] }), NOW_ISO);
     });
-    const view = buildDayView(db.db, profile, "2026-10-03", "2026-10-03", NOW_ISO);
+    const view = buildDayView(db.db, profile, "2026-10-03", "2026-10-03", NOW_ISO, []);
     expect(view.totals).toMatchObject({ kcal: 500, protein_g: 30, saturated_fat_g: 5, fluid_ml: 250 });
     expect(view.targets.workout_kcal).toBe(400);
     expect(view.targets.add_back_kcal).toBe(200);
@@ -77,7 +77,7 @@ describe("buildDayView", () => {
 
   it("gives an untouched past day targets from the current profile without storing it", () => {
     db = openTestDb();
-    const view = buildDayView(db.db, makeProfile(), "2026-09-01", "2026-10-03", NOW_ISO);
+    const view = buildDayView(db.db, makeProfile(), "2026-09-01", "2026-10-03", NOW_ISO, []);
     expect(view.targets.base.kcal).toBeCloseTo(1863.125, 6);
     expect(getDay(db.db, "2026-09-01")).toBeNull();
   });
@@ -92,7 +92,7 @@ describe("buildDayView", () => {
       insertEntry(tx, sampleEntry({ foods: [], exercises: [sampleExercise({ kcal: 300 }), sampleExercise({ kcal: 100 })] }), NOW_ISO);
       insertEntry(tx, sampleEntry({ foods: [], exercises: [sampleExercise({ kcal: 200 })] }), NOW_ISO);
     });
-    const view = buildDayView(db.db, makeProfile(), "2026-10-03", "2026-10-03", NOW_ISO);
+    const view = buildDayView(db.db, makeProfile(), "2026-10-03", "2026-10-03", NOW_ISO, []);
     expect(view.totals).toEqual({
       kcal: 600, protein_g: 40, carbs_g: 50, fat_g: 22, fibre_g: 8,
       saturated_fat_g: 6, sugars_g: 12, salt_g: 1.5, fluid_ml: 350, alcohol_units: 1,
@@ -104,7 +104,7 @@ describe("buildDayView", () => {
     db = openTestDb();
     ensureDay(db.db, makeProfile(), "2026-10-03", NOW_ISO); // 80 kg, add-back 50 %
     db.db.transaction((tx) => insertEntry(tx, sampleEntry({ foods: [], exercises: [sampleExercise({ category: "strength", kcal: 400 })] }), NOW_ISO));
-    const view = buildDayView(db.db, makeProfile({ weight_kg: 100, add_back_pct: 100 }), "2026-10-03", "2026-10-03", NOW_ISO);
+    const view = buildDayView(db.db, makeProfile({ weight_kg: 100, add_back_pct: 100 }), "2026-10-03", "2026-10-03", NOW_ISO, []);
     expect(view.targets.add_back_kcal).toBe(200);
     // Strength-day protein: min(0.2 g/kg × the frozen 80 kg, add-back ÷ 4) = 16 g.
     expect(view.targets.adjusted.protein_g - view.targets.base.protein_g).toBeCloseTo(16, 9);
@@ -129,14 +129,14 @@ describe("linked entries (a reply that recorded something for another day)", () 
       }), NOW_ISO);
       converse(tx, "lifting");
     });
-    const today = buildDayView(db.db, profile, "2026-10-03", "2026-10-03", NOW_ISO);
+    const today = buildDayView(db.db, profile, "2026-10-03", "2026-10-03", NOW_ISO, []);
     expect(today.linked_entries.map((e) => e.id)).toEqual(["lifting"]); // it travels with today's reply...
     expect(today.entries).toEqual([]);
     expect(today.targets.workout_kcal).toBe(0); // ...but is not today's workout
     expect(today.targets.add_back_kcal).toBe(0);
     expect(today.targets.adjusted).toEqual(today.targets.base); // no add-back, no strength-day protein
     // The day it is dated for does count it.
-    expect(buildDayView(db.db, profile, "2026-10-02", "2026-10-03", NOW_ISO).targets.workout_kcal).toBe(400);
+    expect(buildDayView(db.db, profile, "2026-10-02", "2026-10-03", NOW_ISO, []).targets.workout_kcal).toBe(400);
   });
 
   it("stay empty when every card of a reply is an entry of its own day", () => {
@@ -145,7 +145,7 @@ describe("linked entries (a reply that recorded something for another day)", () 
       insertEntry(tx, sampleEntry({ id: "eggs", source: "coach", message_id: "m1" }), NOW_ISO);
       converse(tx, "eggs");
     });
-    const view = buildDayView(db.db, makeProfile(), "2026-10-03", "2026-10-03", NOW_ISO);
+    const view = buildDayView(db.db, makeProfile(), "2026-10-03", "2026-10-03", NOW_ISO, []);
     expect(view.entries.map((e) => e.id)).toEqual(["eggs"]);
     expect(view.linked_entries).toEqual([]);
   });
@@ -166,7 +166,7 @@ describe("day summaries", () => {
     expect(got[0].kcal).toBe(500);
     expect(got[1].kcal).toBe(900);
     for (const day of got) {
-      expect(day.target_kcal).toBeCloseTo(buildDayView(db.db, profile, day.date, "2026-10-03", NOW_ISO).targets.adjusted.kcal, 6);
+      expect(day.target_kcal).toBeCloseTo(buildDayView(db.db, profile, day.date, "2026-10-03", NOW_ISO, []).targets.adjusted.kcal, 6);
     }
     expect(got[1].target_kcal).toBeGreaterThan(got[0].target_kcal); // the workout's add-back
   });

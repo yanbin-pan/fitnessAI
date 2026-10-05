@@ -6,10 +6,17 @@ describe("createVerifier", () => {
   it("accepts the owner's token whatever the email's case", async () => {
     const auth = await makeAccess("owner@example.com");
     const identity = await auth.verifier.verify(await auth.token({ email: "Owner@Example.COM" }));
-    expect(identity).toEqual({ email: "owner@example.com" });
+    expect(identity).toEqual({ email: "owner@example.com", owner: true });
   });
 
-  it("rejects anyone who is not the owner, even with a valid token", async () => {
+  it("lets in a guest on the list, whatever the email's case, as a guest", async () => {
+    const auth = await makeAccess("owner@example.com", ["friend@example.com"]);
+    const identity = await auth.verifier.verify(await auth.token({ email: " Friend@Example.COM " }));
+    expect(identity).toEqual({ email: "friend@example.com", owner: false });
+    await expect(auth.verifier.verify(await auth.token({ email: "mum@example.com" }))).rejects.toThrow("not on the list");
+  });
+
+  it("rejects anyone not on the list, even with a valid token", async () => {
     const auth = await makeAccess();
     await expect(auth.verifier.verify(await auth.token({ email: "intruder@example.com" }))).rejects.toThrow(AuthError);
     await expect(auth.verifier.verify(await auth.token({ email: null }))).rejects.toThrow(AuthError);
@@ -56,8 +63,8 @@ describe("keySetFor", () => {
     const fetchMock = vi.fn(async () => new Response(auth.access.testJwks));
     vi.stubGlobal("fetch", fetchMock);
     const verifier = createVerifier({ ...auth.access, testJwks: null });
-    await expect(verifier.verify(await auth.token())).resolves.toEqual({ email: "owner@example.com" });
-    await expect(verifier.verify(await auth.token())).resolves.toEqual({ email: "owner@example.com" });
+    await expect(verifier.verify(await auth.token())).resolves.toEqual({ email: "owner@example.com", owner: true });
+    await expect(verifier.verify(await auth.token())).resolves.toEqual({ email: "owner@example.com", owner: true });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith("https://test.cloudflareaccess.com/cdn-cgi/access/certs", expect.anything());
   });
@@ -65,6 +72,6 @@ describe("keySetFor", () => {
 
 describe("devVerifier", () => {
   it("treats every request as the configured development user", async () => {
-    await expect(devVerifier("dev@localhost").verify("")).resolves.toEqual({ email: "dev@localhost" });
+    await expect(devVerifier("dev@localhost").verify("")).resolves.toEqual({ email: "dev@localhost", owner: true });
   });
 });

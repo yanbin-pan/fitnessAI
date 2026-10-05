@@ -115,7 +115,7 @@ describe("GET /api/days?from=&to=", () => {
     expect(res.json()).toEqual({ goal: "lose", days: [] });
   });
 
-  it("needs a profile, and the owner's token", async () => {
+  it("needs a profile, and a signed-in token", async () => {
     ctx = await testApp();
     const noProfile = await ctx.app.inject({ method: "GET", url: "/api/days?from=2026-10-01&to=2026-10-03", headers: ctx.headers });
     expect(noProfile.statusCode).toBe(409);

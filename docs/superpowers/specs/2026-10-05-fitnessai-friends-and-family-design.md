@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Date** | 2026-10-05 |
-| **Status** | Approved by the owner, section by section. Builds after milestone 2.1 is deployed. |
+| **Status** | Approved by the owner, section by section. Built in milestone 2.2 and folded into the main design as revision 5. |
 | **Amends** | [`2026-10-03-fitnessai-design.md`](2026-10-03-fitnessai-design.md) (revision 4). The plan folds these changes into it as revision 5. |
 | **Reference** | tea-cabinet's multi-tenancy design (`docs/superpowers/specs/2026-08-11-multi-tenancy-design.md` in that repository): one folder per person, keyed by a hash of the verified email. |
 
@@ -63,8 +63,11 @@ conversation-free snapshots that the cluster backs up.
 - Photos are served only from the requester's own folder: someone else's photo id is a `404`.
 - **The owner's data moves once.** On the first start of milestone 2.2, if `/data/db/fitness.db`
   exists and the owner's folder doesn't, the app moves `db/` (database and journal together),
-  `photos/` and `snapshots/` into `users/<owner key>/`, after a snapshot. It never overwrites,
-  and a second start finds nothing to move — the same pattern as milestone 2's move into `db/`.
+  `photos/` and `snapshots/` into `users/<owner key>/` through a staging folder and one final
+  rename; the first open then takes the startup snapshot before the new migration. It never
+  overwrites an owner's folder that holds anything (an empty one, left by a rollback, counts as
+  absent), and a second start finds nothing to move — the same pattern as milestone 2's move
+  into `db/`.
 - Disk: each person adds a small database and at most 48 hours of photos to the shared volume.
   NFS enforces no quota; for a handful of people this is accepted and watched by the existing
   filesystem alert.
@@ -96,7 +99,7 @@ conversation-free snapshots that the cluster backs up.
 ## 7. The featured row
 
 - The day view gains `featured`: the person's four activities with the most exercise items
-  over the 60 days ending on the viewed day, ties broken by the most recent. Fewer than four
+  over the 60 days ending on the viewed day, ties broken by the most recent, never `other`. Fewer than four
   are filled from a starter set, skipping repeats — the owner's is tennis, gym, wakeboarding,
   kitesurfing; everyone else's is running, walking, cycling, gym.
 - The editor's picker shows `featured` (plus the exercise's own activity when it isn't one of
@@ -134,13 +137,15 @@ conversation-free snapshots that the cluster backs up.
 - **Allowlist:** a correctly signed token for an email not on the list gets `401` with no body;
   the owner and every listed guest get in; listing compares case-insensitively.
 - **The move:** a milestone 2.1 data folder moves into the owner's folder with identical counts
-  and a snapshot first; a second start moves nothing; an existing owner folder is never
-  overwritten.
+  and a snapshot before the new migration; a second start moves nothing; an owner's folder that
+  holds anything is never overwritten (an empty one counts as absent); a move a crash cut short is
+  finished.
 - **Jobs:** retention and snapshots run for each person, and one person's failure doesn't stop
   the others.
 - **Cap:** a guest is refused at 60 calls and the owner at 200 (`ai_cap`, no AI call made);
   failed runs count; the count resets at the person's local midnight; the bubble's words.
-- **Featured row:** the most-logged four, ties by recency, the starter fill for owner and guest.
+- **Featured row:** the most-logged four, ties by recency, never `other`, the starter fill for owner
+  and guest; the More grid lists each activity once.
 - **Live check before merging:** two local test users side by side in the browser, with the
   owner's key on a throwaway data folder.
 

@@ -7,7 +7,7 @@ import { EXERCISE_CATEGORIES, MAX_BACKDATE_DAYS } from "../shared.ts";
 import type {
   Activity, DeleteResult, Entry, EntryResult, ExerciseCategory, ExerciseItem, ExerciseItemInput, FoodItem, FoodItemInput,
 } from "../shared.ts";
-import { FAMILIES, FEATURED, SportBadge, sportOf } from "./SportBadge.tsx";
+import { SportBadge, familiesFor, sportOf } from "./SportBadge.tsx";
 import { primaryButton, quietButton } from "./ui.tsx";
 
 export function toFoodInput(f: FoodItem): FoodItemInput {
@@ -85,15 +85,17 @@ function FoodRow({ food, onChange, onRemove }: { food: FoodItemInput; onChange: 
 }
 
 /**
- * An exercise's activity (spec §11.1): the owner's four and the exercise's own as a row of badges, and More,
+ * An exercise's activity (spec §11.1): the person's featured four and the exercise's own as a row of badges, and More,
  * which swaps the row for every activity by family. Either way it is one radio group: one keyboard stop.
  */
-function ActivityPicker({ exercise, value, onChange }: { exercise: number; value: Activity; onChange: (value: Activity) => void }) {
+function ActivityPicker({
+  exercise, value, featured, onChange,
+}: { exercise: number; value: Activity; featured: readonly Activity[]; onChange: (value: Activity) => void }) {
   const name = useId();
   const [all, setAll] = useState(false);
   // Armed when a pointer goes down in the picker, disarmed when a key does, spent by the radio's click.
   const tapped = useRef(false);
-  const shown = FEATURED.includes(value) ? FEATURED : [...FEATURED, value];
+  const shown = featured.includes(value) ? featured : [...featured, value];
   // A tap picks and folds the grid away. The arrow keys also "click" a radio: those only move the choice, so
   // someone browsing the grid by keyboard keeps it open. The click cannot tell them apart: a tap reaches the
   // radio through its label, and WebKit sends that forwarded click with detail 0, as it does a key's.
@@ -140,7 +142,7 @@ function ActivityPicker({ exercise, value, onChange }: { exercise: number; value
       </legend>
       {all ? (
         <div className="mt-1 flex flex-col gap-2">
-          {FAMILIES.map((family) => (
+          {familiesFor(featured).map((family) => (
             <div key={family.name}>
               <p className="px-1 text-xs text-muted">{family.name}</p>
               <div className="mt-1 grid grid-cols-5 gap-1">{family.activities.map(choice)}</div>
@@ -158,8 +160,8 @@ function ActivityPicker({ exercise, value, onChange }: { exercise: number; value
 }
 
 function ExerciseRow({
-  item, number, onChange, onRemove,
-}: { item: ExerciseItemInput; number: number; onChange: (item: ExerciseItemInput) => void; onRemove: () => void }) {
+  item, number, featured, onChange, onRemove,
+}: { item: ExerciseItemInput; number: number; featured: readonly Activity[]; onChange: (item: ExerciseItemInput) => void; onRemove: () => void }) {
   const set = (patch: Partial<ExerciseItemInput>) => onChange({ ...item, ...patch });
   return (
     <div className={rowClass}>
@@ -179,7 +181,7 @@ function ExerciseRow({
           </select>
         </label>
       </div>
-      <ActivityPicker exercise={number} value={item.activity} onChange={(activity) => set({ activity })} />
+      <ActivityPicker exercise={number} value={item.activity} featured={featured} onChange={(activity) => set({ activity })} />
       <div className="mt-2 grid grid-cols-2 gap-2">
         <NumberField label="Minutes" value={item.duration_min} onChange={(v) => set({ duration_min: v, ...(item.met !== null ? { kcal: null } : {}) })} />
         <NumberField label="kcal burned" value={item.kcal} onChange={(v) => set({ kcal: v })} />
@@ -207,7 +209,7 @@ function failureText(error: unknown, deleting: boolean): string {
   return deleting ? "Couldn't delete this entry. Try again." : "Couldn't save this entry. Try again.";
 }
 
-export function EntryEditor({ date, entry, onClose }: { date: string; entry: Entry | null; onClose: () => void }) {
+export function EntryEditor({ date, entry, featured, onClose }: { date: string; entry: Entry | null; featured: readonly Activity[]; onClose: () => void }) {
   const client = useQueryClient();
   const [foods, setFoods] = useState<FoodItemInput[]>(() => (entry ? entry.foods.map(toFoodInput) : [blankFood()]));
   const [exercises, setExercises] = useState<ExerciseItemInput[]>(() => (entry ? entry.exercises.map(toExerciseInput) : []));
@@ -262,6 +264,7 @@ export function EntryEditor({ date, entry, onClose }: { date: string; entry: Ent
             key={`x${i}`}
             item={item}
             number={i + 1}
+            featured={featured}
             onChange={(next) => setExercises(replaceAt(exercises, i, next))}
             onRemove={() => setExercises(exercises.filter((_, j) => j !== i))}
           />

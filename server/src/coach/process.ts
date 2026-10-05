@@ -15,6 +15,7 @@ import type { ToolContext } from "./staging.ts";
 import { stepText } from "./steps.ts";
 import { appendTurns, getOrCreateThread, loadTurns } from "./thread.ts";
 import { COACH_TOOLS } from "./tools.ts";
+import { callsOn, recordRun } from "./usage.ts";
 
 export const MAX_MODEL_CALLS = 5;
 
@@ -25,12 +26,14 @@ export interface CoachDeps {
   budgetMs: number;
   /** Where the message's photos are stored (spec §6.5). */
   photoDir: string;
+  /** Model calls this person may start per local day (2.2 §6): AI_DAILY_CALL_CAP for the owner, GUEST_DAILY_CALL_CAP for a guest. */
+  dailyCallCap: number;
   newId?: () => string;
   /** Hears each step of the work (spec §6.3). Best effort: it can never stop the coach. */
   onStep?: (text: string) => void;
 }
 
-export type ProcessOutcomeCode = "done" | CoachFailure | "ai_unavailable" | "no_profile";
+export type ProcessOutcomeCode = "done" | CoachFailure | "ai_unavailable" | "no_profile" | "ai_cap";
 
 export interface ProcessOutcome {
   outcome: ProcessOutcomeCode;
@@ -50,9 +53,10 @@ async function withBudget<T>(ms: number, run: (signal: AbortSignal) => Promise<T
   }
 }
 
-function fail(sql: Sql, id: string, outcome: ProcessOutcomeCode, calls = 0, usage: AiUsage | null = null, detail?: string): ProcessOutcome {
+/** A failure before Claude was called: nothing to count against the cap. */
+function fail(sql: Sql, id: string, outcome: ProcessOutcomeCode): ProcessOutcome {
   setMessageStatus(sql, id, "failed", outcome);
-  return { outcome, calls, usage, detail };
+  return { outcome, calls: 0, usage: null };
 }
 
 /**
@@ -72,10 +76,13 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
   const now = deps.now();
   const nowIso = now.toISOString();
   const today = todayIn(profile.timezone, now);
+  // Checked before the first call: a run that starts under the cap may end a few calls over it (2.2 §6).
+  if (callsOn(deps.db, today) >= deps.dailyCallCap) return fail(deps.db, messageId, "ai_cap");
   const system = getOrCreateThread(deps.db, message.date, () => buildSystemPrompt(profile, message.date), nowIso);
   const load = (id: string) => photoData(deps.db, deps.photoDir, id);
   const history = hydrateTurns(loadTurns(deps.db, message.date), load);
-  const view = buildDayView(deps.db, profile, message.date, today, nowIso);
+  // The coach's context never shows the featured row.
+  const view = buildDayView(deps.db, profile, message.date, today, nowIso, []);
   // What is stored keeps a reference per photo. What Claude receives is rebuilt from it by
   // the same function every later replay uses, so the two can never differ.
   const storedTurn: AiMessage = {
@@ -126,7 +133,15 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
       onStep: report,
     }),
   );
-  if (!result.ok) return fail(deps.db, messageId, result.failure, result.calls, result.usage, result.detail);
+  // Every run that reached Claude counts against the cap, a failed one too, so retrying can't run up the bill.
+  const run = { messageId, date: today, model: result.model, calls: result.calls, usage: result.usage };
+  if (!result.ok) {
+    deps.db.transaction((tx) => {
+      recordRun(tx, { ...run, nowIso: deps.now().toISOString() });
+      setMessageStatus(tx, messageId, "failed", result.failure);
+    });
+    return { outcome: result.failure, calls: result.calls, usage: result.usage, detail: result.detail };
+  }
 
   const doneIso = deps.now().toISOString();
   deps.db.transaction((tx) => {
@@ -140,6 +155,7 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
       cards: changed.map((id) => ({ type: "entry" as const, id })),
       nowIso: doneIso,
     });
+    recordRun(tx, { ...run, nowIso: doneIso });
     setMessageStatus(tx, messageId, "done", null);
   });
   return { outcome: "done", calls: result.calls, usage: result.usage };

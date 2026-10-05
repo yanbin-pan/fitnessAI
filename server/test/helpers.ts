@@ -12,6 +12,8 @@ import { buildApp } from "../src/app.ts";
 import type { ExerciseItemData, FoodItemData, NewEntry } from "../src/log/entries.ts";
 import type { AiClient } from "../src/ai/client.ts";
 import type { Metrics } from "../src/metrics.ts";
+import { createPeople, personKey } from "../src/people/people.ts";
+import type { People, Store } from "../src/people/people.ts";
 
 /** A complete profile: male, 35 on 2026-10-03, 180 cm, 80 kg, light activity, losing 0.5 kg a week. */
 export function makeProfile(overrides: Partial<ProfileInput> = {}): Profile {
@@ -36,6 +38,23 @@ export function openTestDb() {
   return openDatabase({ file: path.join(tempDir(), "fitness.db"), snapshotDir: null });
 }
 
+/** A registry over a fresh data folder, with these people's databases already open. Call `people.close()` when done. */
+export function testPeople(...emails: string[]): { dataDir: string; people: People; stores: Store[] } {
+  const dataDir = tempDir();
+  const people = createPeople({ dataDir });
+  return { dataDir, people, stores: emails.map((email) => people.store(personKey(email))) };
+}
+
+/** `people` with a folder listing that fails, as an unreachable volume's would: what a job has to survive without crashing the process. */
+export function unlistable(people: People): People {
+  return {
+    ...people,
+    keys: () => {
+      throw Object.assign(new Error("EIO: i/o error, scandir"), { code: "EIO" });
+    },
+  };
+}
+
 export interface TokenClaims {
   /** `null` leaves the claim out entirely. */
   email?: string | null;
@@ -46,13 +65,14 @@ export interface TokenClaims {
 }
 
 /** A local Access stand-in: a key pair, the matching config, and a token minter. */
-export async function makeAccess(ownerEmail = "owner@example.com") {
+export async function makeAccess(ownerEmail = "owner@example.com", allowedEmails: string[] = []) {
   const { publicKey, privateKey } = await generateKeyPair("RS256");
   const jwk = { ...(await exportJWK(publicKey)), kid: "test-key", alg: "RS256" };
   const access: AccessConfig = {
     teamDomain: "test.cloudflareaccess.com",
     audience: "test-aud",
     ownerEmail,
+    allowedEmails,
     testJwks: JSON.stringify({ keys: [jwk] }),
   };
   async function token(claims: TokenClaims = {}): Promise<string> {
@@ -71,34 +91,44 @@ export async function makeAccess(ownerEmail = "owner@example.com") {
 /** The clock every test app uses: 13:00 BST on Saturday 3 October 2026. */
 export const NOW = new Date("2026-10-03T12:00:00.000Z");
 
-export async function testApp(opts: { now?: Date; webDist?: string | null; ai?: AiClient | null; coachBudgetMs?: number; metrics?: Metrics; streamKeepAliveMs?: number; logLines?: string[] } = {}) {
-  const auth = await makeAccess();
-  const database = openTestDb();
-  const photoDir = tempDir();
+/** The daily call caps the app ships with (2.2 §6): 200 for the owner, 60 for a guest. */
+export const TEST_CAPS = { owner: 200, guest: 60 };
+
+export async function testApp(opts: { now?: Date; webDist?: string | null; ai?: AiClient | null; coachBudgetMs?: number; callCaps?: { owner: number; guest: number }; metrics?: Metrics; streamKeepAliveMs?: number; logLines?: string[]; guests?: string[] } = {}) {
+  const auth = await makeAccess("owner@example.com", opts.guests ?? []);
+  const { dataDir, people, stores } = testPeople(auth.access.ownerEmail);
+  const owner = stores[0];
   const app = buildApp({
-    db: database.db,
+    people,
     verifier: auth.verifier,
     now: () => opts.now ?? NOW,
     webDist: opts.webDist ?? null,
-    photoDir,
     ai: opts.ai ?? null,
     coachBudgetMs: opts.coachBudgetMs ?? 90_000,
+    callCaps: opts.callCaps ?? TEST_CAPS,
     metrics: opts.metrics,
     streamKeepAliveMs: opts.streamKeepAliveMs,
     logger: opts.logLines !== undefined,
     logStream: opts.logLines ? { write: (line: string) => void opts.logLines?.push(line) } : undefined,
   });
   await app.ready();
-  const owner = await auth.token();
+  const ownerToken = await auth.token();
   return {
     app,
-    db: database.db,
-    photoDir,
+    /** The owner's database and photo folder: what every one-person test reads and seeds. */
+    db: owner.db,
+    photoDir: owner.photoDir,
+    dataDir,
+    people,
     auth,
-    headers: { "cf-access-jwt-assertion": owner },
+    headers: { "cf-access-jwt-assertion": ownerToken },
+    /** Headers signed in as `email`, whether or not they're on the list. */
+    headersFor: async (email: string) => ({ "cf-access-jwt-assertion": await auth.token({ email }) }),
+    /** That person's database and photo folder, opened if need be. */
+    storeOf: (email: string): Store => people.store(personKey(email.trim().toLowerCase())),
     close: async () => {
       await app.close();
-      database.close();
+      people.close();
     },
   };
 }

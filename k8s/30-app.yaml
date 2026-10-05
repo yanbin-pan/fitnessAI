@@ -60,6 +60,16 @@ spec:
                 secretKeyRef:
                   name: fitnessai-secrets
                   key: OWNER_EMAIL
+            - name: ALLOWED_EMAILS
+              valueFrom:
+                secretKeyRef:
+                  name: fitnessai-secrets
+                  key: ALLOWED_EMAILS
+                  optional: true
+            - name: AI_DAILY_CALL_CAP
+              value: "200"
+            - name: GUEST_DAILY_CALL_CAP
+              value: "60"
             - name: ANTHROPIC_API_KEY
               valueFrom:
                 secretKeyRef:

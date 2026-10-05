@@ -186,3 +186,24 @@ export const photos = sqliteTable(
   },
   (t) => [index("photos_message_idx").on(t.message_id), index("photos_created_idx").on(t.created_at)],
 );
+
+/**
+ * One row per coach run that reached Claude, success or failure: what the daily cap counts (spec §6.4). `date` is the
+ * person's local date when the run started; `model` the model that last answered. Kept when its message is deleted.
+ */
+export const aiUsage = sqliteTable(
+  "ai_usage",
+  {
+    id: text().primaryKey(),
+    date: text().notNull(),
+    message_id: text().notNull(),
+    model: text(),
+    calls: integer().notNull(),
+    input_tokens: integer().notNull(),
+    output_tokens: integer().notNull(),
+    cache_read_tokens: integer().notNull(),
+    cache_write_tokens: integer().notNull(),
+    created_at: text().notNull(),
+  },
+  (t) => [index("ai_usage_date_idx").on(t.date)],
+);

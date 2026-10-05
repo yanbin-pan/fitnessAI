@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { buildDayView, ensureDay } from "../days/days.ts";
-import type { AppDeps } from "../deps.ts";
+import { starterFor } from "../days/featured.ts";
+import { forRequest } from "../deps.ts";
+import type { AppDeps, RequestDeps } from "../deps.ts";
 import { exerciseData, foodData } from "../log/convert.ts";
 import { deleteEntry, getEntry, insertEntry, replaceEntryItems } from "../log/entries.ts";
 import { getProfile } from "../profile/profile.ts";
@@ -9,14 +11,15 @@ import type { DeleteResult, EntryResult, Profile } from "../shared.ts";
 import { todayIn, zonedTimeToInstant } from "../time.ts";
 import { parseBody } from "./http.ts";
 
-function entryResult(deps: AppDeps, profile: Profile, id: string, now: Date): EntryResult {
+function entryResult(deps: RequestDeps, profile: Profile, id: string, now: Date): EntryResult {
   const entry = getEntry(deps.db, id);
   if (!entry) throw new Error(`entry ${id} disappeared`);
-  return { entry, day: buildDayView(deps.db, profile, entry.date, todayIn(profile.timezone, now), now.toISOString()) };
+  return { entry, day: buildDayView(deps.db, profile, entry.date, todayIn(profile.timezone, now), now.toISOString(), starterFor(deps.person.owner)) };
 }
 
-export function registerEntryRoutes(app: FastifyInstance, deps: AppDeps): void {
+export function registerEntryRoutes(app: FastifyInstance, appDeps: AppDeps): void {
   app.post("/api/entries", async (req, reply) => {
+    const deps = forRequest(appDeps, req);
     const input = parseBody(ManualEntryInput, req.body, reply);
     if (!input) return reply;
     const profile = getProfile(deps.db);
@@ -52,6 +55,7 @@ export function registerEntryRoutes(app: FastifyInstance, deps: AppDeps): void {
   });
 
   app.patch<{ Params: { id: string } }>("/api/entries/:id", async (req, reply) => {
+    const deps = forRequest(appDeps, req);
     const patch = parseBody(EntryPatch, req.body, reply);
     if (!patch) return reply;
     const profile = getProfile(deps.db);
@@ -68,6 +72,7 @@ export function registerEntryRoutes(app: FastifyInstance, deps: AppDeps): void {
   });
 
   app.delete<{ Params: { id: string } }>("/api/entries/:id", async (req, reply) => {
+    const deps = forRequest(appDeps, req);
     const profile = getProfile(deps.db);
     if (!profile) return reply.code(409).send({ error: "no_profile" });
     const existing = getEntry(deps.db, req.params.id);
@@ -75,7 +80,7 @@ export function registerEntryRoutes(app: FastifyInstance, deps: AppDeps): void {
     deleteEntry(deps.db, existing.id);
     const now = deps.now();
     const result: DeleteResult = {
-      day: buildDayView(deps.db, profile, existing.date, todayIn(profile.timezone, now), now.toISOString()),
+      day: buildDayView(deps.db, profile, existing.date, todayIn(profile.timezone, now), now.toISOString(), starterFor(deps.person.owner)),
     };
     return result;
   });

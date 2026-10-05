@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { forRequest } from "../deps.ts";
 import type { AppDeps } from "../deps.ts";
 import { MAX_PHOTO_BYTES, PHOTO_ID, getPhoto, readPhoto, savePhoto } from "../photos/photos.ts";
 import { answerError } from "./http.ts";
@@ -9,9 +10,9 @@ function isBodyTooLarge(err: unknown): boolean {
   return e?.statusCode === 413 || e?.code === "FST_ERR_CTP_BODY_TOO_LARGE";
 }
 
-export function registerPhotoRoutes(app: FastifyInstance, deps: AppDeps): void {
+export function registerPhotoRoutes(app: FastifyInstance, appDeps: AppDeps): void {
   // A context of their own: image bodies are parsed for these routes only, and a body over the
-  // limit is answered as a photo too large. The app's onRequest hook (the owner's sign-in) is
+  // limit is answered as a photo too large. The app's onRequest hook (the sign-in) is
   // registered before this context exists, so it still runs first.
   void app.register(async (photos) => {
     // The body is the image itself. Its declared type only gets it parsed; the bytes decide (spec §6.5).
@@ -26,6 +27,7 @@ export function registerPhotoRoutes(app: FastifyInstance, deps: AppDeps): void {
     });
 
     photos.post("/api/photos", async (req, reply) => {
+      const deps = forRequest(appDeps, req);
       // Only an image body arrives as a Buffer; JSON or text was parsed into something else.
       if (!Buffer.isBuffer(req.body)) return reply.code(400).send({ error: "not_an_image" });
       const result = savePhoto(deps.db, deps.photoDir, req.body, deps.now().toISOString());
@@ -35,6 +37,7 @@ export function registerPhotoRoutes(app: FastifyInstance, deps: AppDeps): void {
     });
 
     photos.get<{ Params: { id: string } }>("/api/photos/:id", async (req, reply) => {
+      const deps = forRequest(appDeps, req);
       const photo = PHOTO_ID.test(req.params.id) ? getPhoto(deps.db, req.params.id) : null;
       const bytes = photo ? readPhoto(deps.photoDir, photo) : null;
       if (!photo || !bytes) return reply.code(404).send({ error: "not_found" });

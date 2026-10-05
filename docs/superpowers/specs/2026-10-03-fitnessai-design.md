@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Date** | 2026-10-03, revised 2026-10-04 |
-| **Status** | Approved. Milestones 1 and 2 are live. |
-| **Revision** | 4 — milestone 2.1: messages appear at once with the coach's live steps, an activities card, a calendar coloured by calories, 33 activities with matte badges, and a zabaione-ball home-screen icon (revision 3 brought photos, 48-hour conversations, sport activities and the neumorphic design into milestone 2) |
+| **Date** | 2026-10-03, revised 2026-10-05 |
+| **Status** | Approved. Milestones 1, 2, 2.1 and 2.2 are live. |
+| **Revision** | 5 — milestone 2.2: friends and family, each with a database of their own, an allowlist, a daily coach cap per person and their own featured activities (revision 4 brought instant replies with live steps, the activities card, the calendar, 33 activities and the zabaione-ball icon) |
 | **Repository** | <https://github.com/yanbin-pan/fitnessAI> (public) |
 | **Deploys to** | <https://github.com/yanbin-pan/home-cluster> — k3s on four Raspberry Pi 4s |
 | **Reference app** | <https://github.com/yanbin-pan/tea-cabinet> — same deployment shape |
@@ -13,8 +13,11 @@
 
 ## 1. Summary
 
-fitnessAI is a single-user, mobile-first web app (PWA) that is both a **nutrition and
+fitnessAI is a personal, mobile-first web app (PWA) that is both a **nutrition and
 training logbook** and a **holistic AI coach**.
+
+The owner can invite a few friends and family (milestone 2.2): each gets the whole app,
+the coach included, and their own data, which nobody else sees.
 
 One composer accepts text — including the phone keyboard's dictation, which is how voice
 works — and photos. A Claude-powered coach **logs what you state as fact** (meals,
@@ -66,7 +69,8 @@ Access, deployed by Flux from this repository.
 
 ### Non-goals (v1)
 
-- Multiple users, sharing, social features.
+- Open sign-up, sharing between people, social features (invited friends and family each
+  keep their own data — milestone 2.2).
 - Native iOS or Android apps (a native HealthKit companion is a possible later upgrade).
 - In-app audio recording or transcription — keyboard dictation covers voice.
 - Medical advice, diagnosis or medication guidance.
@@ -81,7 +85,7 @@ Access, deployed by Flux from this repository.
 
 | # | Decision | Why |
 |---|---|---|
-| D1 | PWA, mobile-first, single user | Logging happens on the phone; no app store; one owner. |
+| D1 | PWA, mobile-first; the owner plus a few invited people, each with their own data (D23) | Logging happens on the phone; no app store; one owner, who invites. |
 | D2 | TypeScript in one container: React PWA + Fastify + SQLite (Drizzle on better-sqlite3) | SQLite on NFS forces a single replica, so a separate frontend container buys nothing. Same language as tea-cabinet, so its CI, Access verification and Claude patterns carry over. |
 | D3 | Claude API, model set by environment (default `claude-opus-5-5`) | Best estimates; runs fine from a Pi. Switching to `claude-sonnet-5-5` roughly halves cost. |
 | D4 | Voice through phone keyboard dictation | The Claude API accepts text, images and PDFs but not audio; on-cluster Whisper would be slow on Pi 4s. |
@@ -103,6 +107,10 @@ Access, deployed by Flux from this repository.
 | D20 | Every exercise has one of 33 activities — the owner's four sports first, then the mainstream ones, then `other` — shown as a matte badge with a soft-coloured pictogram (§5.1, §11.4) | Recognisable at a glance in the feed and the activities card; milestone 2's saturated discs looked out of place in the soft design. |
 | D21 | The coach's progress streams back on the send itself (`Accept: text/event-stream`), with plain JSON for everything refused or already finished | One request, steps arrive the moment they happen, older copies of the app keep working, and the stored pending message plus the existing poll cover a dropped stream. |
 | D22 | The calendar colours past days by calories against their adjusted target, in the direction of the current body goal | A month's adherence at a glance without a Trends screen; the day snapshot keeps targets but not the goal, so the current goal decides the direction. |
+| D23 | One database per person: a folder per person named by the sha256 of their email, holding their own SQLite database, photos and snapshots (§14.4) | Separation by construction: every query works unchanged on "this person's database", and no forgotten filter can show one person another's data. A user column on every table would touch every query and two primary keys, and one missed condition would leak someone's health notes. |
+| D24 | Two allowlists, Cloudflare Access's `fitness_emails` and the app's `ALLOWED_EMAILS`; people are added and removed by editing them (no admin screen) | Defence in depth, as with the owner alone, and no new attack surface for a handful of testers. |
+| D25 | Everyone gets the coach, with a daily cap on model calls per person: `AI_DAILY_CALL_CAP` (200) for the owner, `GUEST_DAILY_CALL_CAP` (60) for each guest | Every call is billed to the owner's key; the cap bounds what one guest can cost. |
+| D26 | The editor's featured activities are each person's four most-logged over the last 60 days, never `other`, filled from a starter set | The owner's four sports mean nothing to a friend who only runs. |
 
 ---
 
@@ -112,7 +120,7 @@ Access, deployed by Flux from this repository.
 Phone (installed PWA)                         iPhone: Health Auto Export
   │ HTTPS fitness.minipi.net                    │ HTTPS POST + service-token headers
   ▼                                             ▼
-Cloudflare edge ─ TLS · Access: owner email (30-day session) · service token for /api/ingest
+Cloudflare edge ─ TLS · Access: the owner's and the invited emails (30-day session) · service token for /api/ingest
   ▼ Cloudflare Tunnel (outbound only)
 Traefik ─ rate limits keyed on Cf-Connecting-Ip
   ▼
@@ -120,12 +128,13 @@ fitnessai pod (1 replica, strategy: Recreate)
   Fastify on Node 24
   ├── /           built PWA (service worker, manifest, icons)
   ├── /api/*      JSON API — verifies Cf-Access-Jwt-Assertion on every request
-  ├── jobs        03:00 database snapshot · hourly purge of conversations and photos
+  ├── jobs        03:00 snapshots · hourly purge of conversations and photos, for every person
   ├── :9464       Prometheus metrics (no Ingress route)
   ├── /data       `ssd` PVC (NFS on rpi-01; restic copies it nightly to R2)
-  │    ├── db/fitness.db   live database — CACHEDIR.TAG, so never backed up
-  │    ├── photos/         CACHEDIR.TAG, so never backed up
-  │    └── snapshots/      nightly copies without conversations — what restic keeps
+  │    └── users/<key>/    one folder per person (§14.4)
+  │         ├── db/fitness.db   live database — CACHEDIR.TAG, so never backed up
+  │         ├── photos/         CACHEDIR.TAG, so never backed up
+  │         └── snapshots/      nightly copies without conversations — what restic keeps
   └── → Claude API (Anthropic TypeScript SDK; key from a SOPS-encrypted Secret)
 ```
 
@@ -135,8 +144,9 @@ Each module has one job and can be tested on its own.
 
 | Module | Responsibility | Depends on |
 |---|---|---|
-| `auth` | Verifies the Access JWT: owner email for app routes, service token for ingest | `jose` |
+| `auth` | Verifies the Access JWT: the owner or an allowed email for app routes, service token for ingest | `jose` |
 | `db` | Drizzle schema, migrations at startup, connection settings (§14.4) | better-sqlite3 |
+| `people` | One database and photo folder per person, opened on first use and kept open (§14.4) | `db` |
 | `targets` | Pure functions: BMR, baseline, overrides, exercise adjustment | nothing |
 | `days` | Day rows and snapshots, daily totals, burn | `db`, `targets` |
 | `goals` | Goals, habits and check-ins; habit progress and streaks | `db`, `days` |
@@ -148,7 +158,7 @@ Each module has one job and can be tested on its own.
 | `ingest` | Health Auto Export parsing and upserts | `log`, `measurements`, `db` |
 | `photos` | Validate, store, serve and delete photo files | filesystem |
 | `retention` | Deletes conversations and photos older than the retention window (§6.6) | `db`, `photos` |
-| `jobs` | In-process scheduler for the snapshot and retention jobs | `db`, `retention` |
+| `jobs` | In-process scheduler for the snapshot and retention jobs, run for every person | `db`, `retention`, `people` |
 
 ### 4.2 Repository layout
 
@@ -165,9 +175,10 @@ docs/superpowers/    specs and plans
 
 ## 5. Data model
 
-SQLite. Timestamps are UTC ISO-8601 strings. `date` columns are local calendar dates
-(`YYYY-MM-DD`) in the profile's timezone. Rows created from the phone use client-generated
-UUIDs so that repeated submissions are idempotent.
+SQLite, one database per person (§14.4): every table below is that person's, and
+`profile`'s one row is theirs. Timestamps are UTC ISO-8601 strings. `date` columns are
+local calendar dates (`YYYY-MM-DD`) in the profile's timezone. Rows created from the
+phone use client-generated UUIDs so that repeated submissions are idempotent.
 
 **`profile`** — exactly one row (`id` = 1).
 
@@ -249,7 +260,7 @@ unit), `unit` and `label` (custom metrics only), `source`
 (JSON array of food items, same shape as `food_items` including food groups),
 `use_count`, `last_used_at`, `created_at`.
 
-**`goals`** — holistic goals, written in the owner's words.
+**`goals`** — holistic goals, written in the person's own words.
 
 | Column | Notes |
 |---|---|
@@ -287,7 +298,7 @@ and ticking again removes it.
 **`drafts`** — `id`, `message_id`, `date`, `kind` (`entry` / `goal_plan` / `habits`),
 `payload` (JSON), `committed_ref` (the created entry or goal; nullable), `created_at`.
 
-**`messages`** — the conversation as the owner sees it. Deleted 48 hours after it was
+**`messages`** — the conversation as the person sees it. Deleted 48 hours after it was
 created (§6.6).
 
 | Column | Notes |
@@ -315,11 +326,15 @@ message (§6.6).
 
 **`photos`** — `id` (random 128-bit hex), `message_id` (null until a message claims the
 photo), `media_type` (`image/jpeg` / `image/png`), `bytes`, `width`, `height`, `created_at`.
-The file is `/data/photos/<id>.jpg` or `.png`; the row and the file are deleted together.
+The file is `photos/<id>.jpg` or `.png` in the person's folder (`/data/users/<key>/photos/`);
+the row and the file are deleted together.
 
-**`ai_usage`** — `id`, `date`, `message_id`, `model`, `input_tokens`, `output_tokens`,
-`cache_read_tokens`, `cache_write_tokens`, `cost_usd_estimate`, `created_at`. Kept when its
-message is deleted, so cost history survives.
+**`ai_usage`** — one row per coach run that reached Claude, success or failure: `id`,
+`date` (the person's local date when the run started: the day its calls count against),
+`message_id`, `model` (the model that last answered; null when none did), `calls` (model
+calls made), `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`,
+`created_at`; `cost_usd_estimate` arrives with the cost display (milestone 3). Kept when
+its message is deleted, so the cap and cost history survive (milestone 2.2).
 
 **`sync_log`** — `id`, `received_at`, `workouts_upserted`, `metrics_upserted`,
 `items_skipped`, `error`.
@@ -373,9 +388,10 @@ least 3:1 against the base colour (lowest: tennis, 3.2:1 light; 6.1:1 dark).
 | `golf` | Golf · Golf | `sports_golf` | `#4F7F55` | `#9CC6A1` |
 | `other` | Other · Other | `interests` | `#6F7785` | `#B7BECA` |
 
-The first four are the owner's main sports; the editor shows them first (§11.1). In the
-coach's tool schema the activity carries these hints, so the same thing is always filed the
-same way: `gym` is any weight or machine training and classes such as HIIT or circuits;
+The first four are the owner's main sports, and the owner's starter set; the editor shows
+each person's own featured four first (§11.1). In the coach's tool schema the activity
+carries these hints, so the same thing is always filed the same way: `gym` is any weight
+or machine training and classes such as HIIT or circuits;
 `photography` is a photo walk or shoot; `yoga` includes pilates and stretching; `kayaking`
 includes canoeing and stand-up paddleboarding; `boxing` includes kickboxing and boxing
 fitness; `martial_arts` covers karate, judo, jiu-jitsu, taekwondo and MMA; `other` is
@@ -455,7 +471,7 @@ goes to the coach, which acts through tools:
 | `update_entry` | Replaces an entry's items — corrections such as "it was 2 eggs, not 3". |
 | `log_measurements` | Records body measurements. |
 | `log_checkin` | Ticks an existing check-in habit for a date ("sunscreen on", "did my skincare routine"). If no habit matches, the coach can offer one through `propose_habits`. |
-| `propose_goal` | Creates a draft card with a new goal and 3–5 habits, each with a toggle. Nothing is saved until the owner taps **Add**. |
+| `propose_goal` | Creates a draft card with a new goal and 3–5 habits, each with a toggle. Nothing is saved until the person taps **Add**. |
 | `propose_habits` | Creates a draft card that adds, adjusts or retires habits — for an existing goal, or standalone (e.g. "4 workouts a week"). |
 | `save_food` | Saves foods, or an existing entry, as a saved food with aliases. |
 | `get_day` | Returns one day in full. |
@@ -494,7 +510,7 @@ Rules in the coach's instructions:
   diagnosis or medication advice. When a goal touches a clinical matter (LDL, a persistent
   skin condition), the coach says once, when the goal is created, that diet and habits
   support it but clinical decisions belong with the GP or a dermatologist.
-- **The coach never deletes.** Deleting is the owner's Undo.
+- **The coach never deletes.** Deleting is the person's Undo.
 
 Every write appears in the feed as a card with **Undo**. Every item shows its `assumption`
 (for example "medium latte, whole milk, ~350 ml") so a wrong guess is visible and one tap
@@ -546,7 +562,10 @@ coach only through what was logged — their conversations are gone after 48 hou
    this same message); the message claims its photos in the same transaction.
 2. If the text alone (no photos), trimmed and lowercased, exactly matches a saved food's
    name or alias, log it, add a `note` message, and stop — no AI call.
-3. If today's AI call cap is reached, mark the message `failed` with `ai_cap`.
+3. If the person's model calls today — their local day, summed from `ai_usage` — have
+   reached their cap (§6.4), mark the message `failed` with `ai_cap`, with no AI call. A
+   run that starts under the cap may finish up to `MAX_MODEL_CALLS − 1` calls over it. The
+   bubble says "Today's coach limit is used up. You can still add things by hand."
 4. Build the request — the frozen prefix (created if this is the date's first message),
    the prior turns, and the new turn: the message's photos as image blocks in the order
    attached, then its text (or a short note that it is photos only) — and run the tool
@@ -562,8 +581,8 @@ coach only through what was logged — their conversations are gone after 48 hou
    check-ins, and the updated day summary.
 
 Any failure — timeout, API error, refusal, an invalid tool call — marks the message
-`failed` with an error code. Its text and photos are kept, and the UI offers **Retry**
-(`POST /api/messages/:id/retry`).
+`failed` with an error code, and a run that reached Claude records its `ai_usage` row too.
+Its text and photos are kept, and the UI offers **Retry** (`POST /api/messages/:id/retry`).
 
 **Live steps (milestone 2.1).** A request that sends `Accept: text/event-stream` — the app
 always does, for a new message and for Retry — gets the same work as a stream instead of
@@ -607,8 +626,11 @@ one response at the end:
 - Estimated cost: about $0.02–0.05 per message on Opus 5.5, roughly $10–20 a month at 15
   messages a day; about half that on Sonnet 5.5. Goals and habits add a few hundred tokens
   of mostly cached context. Tracked in `ai_usage` and exported as metrics.
-- `AI_DAILY_CALL_CAP` (default 200) limits Claude API calls — each model call in a tool
-  loop counts — per local day, guarding against a runaway retry loop.
+- `AI_DAILY_CALL_CAP` (default 200) limits the owner's Claude API calls — each model call
+  in a tool loop counts — per local day, guarding against a runaway retry loop;
+  `GUEST_DAILY_CALL_CAP` (default 60) is each guest's (milestone 2.2). At the cap, manual
+  logging, the activities card and the calendar keep working; it resets at the person's
+  local midnight.
 
 ### 6.5 Photos
 
@@ -625,8 +647,9 @@ one response at the end:
   PNG — recognised from the file's first bytes, not its declared type — up to 2 MB and
   2000 px on each side (the API refuses larger images once a request holds many, and every
   turn replays the day's photos): a larger body answers 413 `image_too_large`, larger
-  dimensions 400 `image_too_large`. It stores the photo as `/data/photos/<id>.jpg` or
-  `.png`, and returns the id, size and dimensions.
+  dimensions 400 `image_too_large`. It stores the photo as `photos/<id>.jpg` or `.png` in
+  the person's folder (`/data/users/<key>/photos/`), and returns the id, size and
+  dimensions.
 - **Serving:** only through the authenticated API at `/api/photos/:id`, with
   `Cache-Control: private, max-age=172800, immutable` and `X-Content-Type-Options: nosniff`.
 - **To the coach:** the photos go first, as image blocks, then the text (§6.3). The stored
@@ -642,7 +665,8 @@ one response at the end:
   than `RETENTION_HOURS` (default 48, at most 8760): messages of every role, with their
   photos (rows and files); photos never claimed by a message; and, after an hour, files in
   `photos/` that have no row. A coach reply goes with its question, even when it is a few
-  seconds younger. A message the coach is still working on is left until it finishes.
+  seconds younger. A message the coach is still working on is left until it finishes. The
+  job runs for every person's database in turn (milestone 2.2).
 - A day's coach thread and turns are deleted once none of that day's messages remain, so a
   failed message keeps its thread for Retry until it expires itself, and the coach's raw
   history of a day lasts until the day's last message expires: at most about 72 hours for
@@ -716,7 +740,7 @@ snapshot as `weight_kg_used`.
 
 - Added on the Goals tab or by telling the coach ("I want to lower my LDL"). Either way,
   the coach replies with a `goal_plan` draft — the goal plus 3–5 proposed habits, each
-  toggleable — and nothing is saved until the owner taps **Add**. A goal added from the
+  toggleable — and nothing is saved until the person taps **Add**. A goal added from the
   Goals tab is sent to the coach as a message.
 - For example, "lower LDL" might come back with: saturated fat ≤ 20 g a day; legumes at
   least 4 portions a week; oily fish at least 2 portions a week; nuts and seeds at least 5
@@ -801,6 +825,8 @@ reliability.
 - **Body metrics:** upserted into `measurements` by `metric|timestamp`.
 - Writes a `sync_log` row and responds with counts.
 
+The ingest writes to the owner's database (milestone 2.2).
+
 ### 10.3 Merging with logged workouts
 
 One mechanism: `entries.merged_into_entry_id`.
@@ -866,9 +892,13 @@ Tabs: **Today · Trends · Goals · Body · Settings**.
   - The composer pinned at the bottom: a camera button, the text box and Send, with any
     attached photos as thumbnails above (upload progress, retry, ✕); plus **"+ Add
     manually"** (name, kcal, macros) for when the AI is unavailable. The editor picks an
-    exercise's activity from the owner's four, the entry's current activity if it is
-    another, and **More**, which opens every activity in a grid by family (§5.1); picking
-    one folds the grid away. It is one radio group: one keyboard stop, arrow keys move.
+    exercise's activity from the person's featured four — their most-logged over the 60
+    days ending on the viewed day, never `other`, ties going to the most recent, filled
+    from a starter set (the owner's tennis, gym, wakeboarding and kitesurfing; everyone
+    else's running, walking, cycling and gym) — the entry's current activity if it is
+    another, and **More**, which opens every activity in a grid by family, led by the
+    four as "Your sports" (§5.1); picking one folds the grid away. It is one radio group:
+    one keyboard stop, arrow keys move.
   - **Sending is instant (milestone 2.1).** Send puts the message — text and photo
     thumbnails — into the feed at once as pending and clears the composer. Under it, the
     coach's row shows animated dots and one status line: "Looking at your photo…" or
@@ -995,7 +1025,7 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/health` | Liveness; registered before authentication; returns `{ok:true}` only |
-| `GET` | `/api/days/:date` | Day view (`:date` may be `today`): base and adjusted targets, totals, habit progress, entries, `linked_entries` (entries this day's coach replies logged or changed on another day, such as back-dated ones: shown with their reply, never counted in this day's totals), messages, drafts, measurements, check-ins, burn |
+| `GET` | `/api/days/:date` | Day view (`:date` may be `today`): base and adjusted targets, totals, habit progress, entries, `linked_entries` (entries this day's coach replies logged or changed on another day, such as back-dated ones: shown with their reply, never counted in this day's totals), messages, the person's `featured` activities (§11.1), drafts, measurements, check-ins, burn |
 | `GET` | `/api/days?from=&to=` | Day summaries for the calendar: `{ goal, days: [{ date, kcal, target_kcal }] }` — the current body goal, and each day in the range with food logged — eaten kcal and the adjusted target (§7.2). Both dates are required, `from` ≤ `to`, at most 42 days (a six-week grid); otherwise 400 `bad_range`. Future days simply have nothing logged |
 | `POST` | `/api/photos` | Upload one photo: the raw `image/jpeg` or `image/png` body, up to 2 MB and 2000 px on each side → `{id, media_type, bytes, width, height}`; 413 or 400 `image_too_large`, 400 `not_an_image` |
 | `POST` | `/api/messages` | Send a message (JSON: `id`, `sent_at`, `text`, `photo_ids` — up to 4; `text` may be empty when there are photos). With `Accept: text/event-stream`, streams `stored`, `step` and `result` events (§6.3) |
@@ -1021,16 +1051,19 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
 ## 13. Security
 
 - **At the edge:**
-  - An Access application for `fitness.minipi.net`: the owner's email, one-time PIN,
-    30-day session.
+  - An Access application for `fitness.minipi.net`: the owner's email and the invited
+    ones (`fitness_emails`), one-time PIN, 30-day session.
   - A separate, path-scoped Access application for `fitness.minipi.net/api/ingest` that
     allows only the Health Auto Export service token.
 - **In the app** (fails closed with a bodiless 401):
   - Every `/api/*` request except `/api/health` must carry a valid
     `Cf-Access-Jwt-Assertion`: signature checked against the team's keys, plus issuer and
     expiry.
-  - App routes require audience `ACCESS_AUD` and `email == OWNER_EMAIL`, so even a
-    loosened Access policy admits only the owner.
+  - App routes require audience `ACCESS_AUD` and an email that is `OWNER_EMAIL` or on
+    `ALLOWED_EMAILS`, so even a loosened Access policy admits only the people on the app's
+    own list; anyone else gets the same bodiless 401 as an unsigned request. Each person's
+    data is in their own database (§14.4), and a request only ever reaches the signed-in
+    person's.
   - `/api/ingest/*` requires audience `ACCESS_INGEST_AUD` and
     `common_name == ACCESS_INGEST_CLIENT_ID`.
   - The app refuses to start if any of these settings is missing. A test-only key-set
@@ -1042,19 +1075,19 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
   - CI fails if a key-shaped string appears in `web/` or if any `*.sops.yaml` file is
     unencrypted.
 - **Exposure:**
-  - Metrics are on a separate port with no Ingress route.
+  - Metrics are on a separate port with no Ingress route, and carry no per-person labels.
   - Photos are reachable only through the authenticated API, with unguessable 128-bit IDs;
     their type is checked from the file's first bytes and they're served with `nosniff`.
-  - Logs record request metadata only — never message text, photos, goals or health
-    values.
+  - Logs record request metadata only — never message text, photos, goals, health values
+    or an email; a job names a person by the first 8 characters of their key.
 - **Retention:** conversations and photos exist only in the live app: messages and photos
   for 48 hours, and the coach's raw history of a day until that day's last message expires
   (§6.6). Deleted rows are overwritten (`secure_delete`), snapshots leave conversations out,
   and restic skips the live database and the photos (§14.4). Photos lose their EXIF
   metadata, location included, on the phone before upload.
 - **Prompt injection** (for example, text inside a photo): the coach's tools only touch the
-  owner's own log, every write is visible with Undo, and goal or habit changes always need
-  the owner's tap. Accepted.
+  signed-in person's own log, every write is visible with Undo, and goal or habit changes
+  always need the person's tap. Accepted.
 - **Public repository:** no real health data is committed. The Health Auto Export test
   payload is anonymised, and test photos are generated, never real.
 
@@ -1089,11 +1122,12 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
   `prometheus.io/scrape: "true"` and `prometheus.io/port: "9464"`.
 - Service; Ingress for `fitness.minipi.net`; Traefik rate-limit middlewares (general for
   `/api`, stricter for `/api/messages` and `/api/ingest`).
-- Secret `fitnessai-secrets` (SOPS-encrypted): `ANTHROPIC_API_KEY` and `OWNER_EMAIL`.
+- Secret `fitnessai-secrets` (SOPS-encrypted): `ANTHROPIC_API_KEY`, `OWNER_EMAIL` and
+  `ALLOWED_EMAILS`.
 - Environment: `PORT`, `METRICS_PORT`, `DATA_DIR`, `NODE_ENV`, `ACCESS_TEAM_DOMAIN`,
   `ACCESS_AUD`, `ACCESS_INGEST_AUD`, `ACCESS_INGEST_CLIENT_ID`, `OWNER_EMAIL`,
-  `ANTHROPIC_MODEL`, `ANTHROPIC_EFFORT`, `AI_DAILY_CALL_CAP`, `RETENTION_HOURS`,
-  `SNAPSHOT_KEEP`.
+  `ALLOWED_EMAILS`, `ANTHROPIC_MODEL`, `ANTHROPIC_EFFORT`, `AI_DAILY_CALL_CAP`,
+  `GUEST_DAILY_CALL_CAP`, `RETENTION_HOURS`, `SNAPSHOT_KEEP`.
 
 ### 14.3 Changes in home-cluster (two pull requests)
 
@@ -1115,25 +1149,35 @@ No DNS or tunnel changes in either.
 - **`locking_mode=EXCLUSIVE`**, held for the life of the process, as a guard against a
   second pod opening the file. At startup the app retries for up to 2 minutes while an old
   lock's NFS lease expires.
-- **Location:** `/data/db/fitness.db`. Milestone 1 kept it at `/data/fitness.db`; the
-  first start of milestone 2 moves it (and a `-journal` file, if any) into `db/` with a
-  rename on the same volume, before opening it.
+- **Location:** one folder per person, `/data/users/<key>/`, where `<key>` is the sha256
+  of the verified email in lowercase hex: `db/fitness.db` (with `db/CACHEDIR.TAG`),
+  `photos/` (with `CACHEDIR.TAG`) and `snapshots/`. No email or other user-supplied text
+  ever becomes part of a path. Every person's database opens at startup, so the lock wait
+  above happens there, and a new person's on their first request; each stays open for the
+  life of the process. Milestone 1 kept the one database at `/data/fitness.db` and
+  milestone 2 at `/data/db/fitness.db`; the first start of milestone 2.2 moves `db/`,
+  `photos/` and `snapshots/` into the owner's folder through a staging folder and one
+  final rename, before opening anything and never over an owner's folder that holds
+  anything (an empty one, left by a rollback, counts as absent), and the owner's first
+  open then takes the startup snapshot before the new migration.
 - **`secure_delete=ON` and `journal_size_limit=0`**, so deleted conversations are
   overwritten in the file rather than left in free pages, and don't linger in the rollback
   journal that exclusive locking keeps between transactions.
-- **Snapshots:** at 03:00 in the profile timezone, `fitness-YYYY-MM-DD.db` in
-  `/data/snapshots`, keeping 7; and `startup-<time>.db`, keeping 3, before a startup applies
-  pending migrations. Each is made with `VACUUM INTO` beside the live database (in `db/`,
-  which backups skip), has its conversations (`messages`, `coach_threads`, `coach_turns`,
-  `photos`) deleted there and is vacuumed again, and only then is renamed into
-  `snapshots/` — so no snapshot, and no half-made copy, ever holds a conversation.
+- **Snapshots:** at 03:00 in the owner's timezone, for each person in turn,
+  `fitness-YYYY-MM-DD.db` (that person's local date) in their `snapshots/`, keeping 7; and
+  `startup-<time>.db`, keeping 3, before a startup applies pending migrations. Each is made
+  with `VACUUM INTO` beside the live database (in `db/`, which backups skip), has its
+  conversations (`messages`, `coach_threads`, `coach_turns`, `photos`) deleted there and is
+  vacuumed again, and only then is renamed into `snapshots/` — so no snapshot, and no
+  half-made copy, ever holds a conversation.
 - **Backups:** the cluster's restic run (03:30, `--exclude-caches`) copies the whole volume
-  except folders holding a `CACHEDIR.TAG`. The app writes one into `/data/db` and
-  `/data/photos`, so restic keeps only the snapshots — consistent copies with no
-  conversations — and never a live database caught mid-write, or a photo.
+  except folders holding a `CACHEDIR.TAG`. The app writes one into every person's `db/` and
+  `photos/`, so restic keeps only the snapshots — consistent copies with no conversations —
+  and never a live database caught mid-write, or a photo.
 - **Restore** (documented in the README): suspend the Flux Kustomization, scale to 0, copy
-  a snapshot to `db/fitness.db` (removing any `fitness.db-journal`, owned by uid 1000),
-  scale back to 1, resume. Conversations aren't restored — snapshots don't have them.
+  a person's snapshot to their `db/fitness.db` (removing any `fitness.db-journal`, owned by
+  uid 1000), scale back to 1, resume. Conversations aren't restored — snapshots don't
+  have them.
 
 ### 14.5 Monitoring
 
@@ -1208,6 +1252,24 @@ No DNS or tunnel changes in either.
     open, switch, close, Edit); the calendar (month navigation, disabled future days,
     tints and their accessible names, picking a day navigates and closes); the picker's
     More grid with one keyboard stop.
+- **Milestone 2.2:**
+  - separation: two people each set up a profile, log food and exercise, message the
+    coach (fake AI) and upload photos; neither sees the other's days, entries, messages,
+    calendar summaries or photos — including by requesting the other's photo id — and
+    each person's database holds only their own rows;
+  - the allowlist: a correctly signed token for an email not on the list gets `401` with
+    no body; the owner and every listed guest get in; listing compares case-insensitively;
+  - the move: a milestone 2.1 data folder moves into the owner's folder with identical
+    counts, and a snapshot is taken before the new migration; a second start moves
+    nothing; an owner's folder that holds anything is never overwritten, and an empty one
+    (left by a rollback) counts as absent; a move a crash cut short is finished;
+  - the jobs: retention and snapshots run for each person, and one person's failure
+    doesn't stop the others;
+  - the cap: a guest is refused at 60 calls and the owner at 200 (`ai_cap`, no AI call
+    made); failed runs count; the count resets at the person's local midnight; the
+    bubble's words;
+  - the featured row: the most-logged four, never `other`, ties by recency, the 60-day
+    window, the starter fill for owner and guest; the More grid lists each activity once.
 - **CI image boot test** (§14.1).
 - **Live checks before merging milestone 2:** with the owner's key, a generated meal photo
   and nutrition label, one message per sport, and the strict-tool grammar check.
@@ -1217,6 +1279,12 @@ No DNS or tunnel changes in either.
   session filed under their activities; the calendar and the activities card at phone
   size in light and dark; the generated icons — 180 px for the iPhone, the 512 px
   maskable one inside its safe zone, and the favicon.
+- **Live checks before merging milestone 2.2:** two local test users side by side in the
+  browser, with the owner's key on a throwaway data folder that started in milestone 2.1's
+  layout: the owner's data arrives in their folder; each person sets up a profile, logs by
+  hand and through the coach and uploads a photo; neither sees the other's; a guest at a
+  lowered cap sees the limit bubble; a stranger's token gets the bare 401; no email
+  appears in the server's log.
 - **On the owner's iPhone:** milestone 1 — install to the home screen, the Access re-login
   test (§16), keyboard dictation. Milestone 2 — a meal photo from the camera and one from
   the library, a label photo, one log per sport, light and dark, the status bar.
@@ -1238,7 +1306,7 @@ No DNS or tunnel changes in either.
 | The cluster's Prometheus may not scrape pod annotations | Checked in milestone 1: it does (the plain chart's `kubernetes-pods` job). |
 | Neumorphism's usual low contrast makes the app hard to read | AA contrast for all text in both themes, colour only where it carries meaning, labels and numbers beside every bar and icon (§11.4). |
 | Photo uploads over a weak mobile connection | Resized on the phone to a few hundred kilobytes; each upload shows progress and can be retried; the message waits for its photos. |
-| Restic keeps chats or photos for months | `CACHEDIR.TAG` in `/data/db` and `/data/photos`, and conversation-free snapshots (§14.4). |
+| Restic keeps chats or photos for months | `CACHEDIR.TAG` in every person's `db/` and `photos/`, and conversation-free snapshots (§14.4). |
 
 ---
 
@@ -1265,11 +1333,17 @@ Each milestone ends deployed and usable.
    calories (with `GET /api/days?from=&to=`); 33 activities with matte badges, the
    editor's More grid, and the migration that re-files clear `other` exercises; the
    zabaione-ball home-screen icon (§11.4).
+
+   **2.2. Friends and family:** one database per person (the owner's data moved into
+   their own folder), the allowlist, the jobs for every person, `ai_usage` and a daily
+   coach cap per person, each person's featured activities, and the README's invite notes
+   (D23–D26).
 3. **Full coach, goals and habits:** advice and drafts; context assembly (frozen prefix and
-   per-turn block); `log_measurements`; the `get_*` tools; the AI cap and usage tracking;
-   goals, habits and check-ins (`propose_goal`, `propose_habits`, `log_checkin`); goal
-   notes; the Goals tab; habit chips on Today; the evaluation set. The burn habit uses
-   workout calories until watch data arrives in milestone 4.
+   per-turn block); `log_measurements`; the `get_*` tools; the status endpoint (calls today
+   against the cap, month-to-date cost); goals, habits and check-ins (`propose_goal`,
+   `propose_habits`, `log_checkin`); goal notes; the Goals tab; habit chips on Today; the
+   evaluation set. The burn habit uses workout calories until watch data arrives in
+   milestone 4.
 4. **Watch, trends and body:** the ingest endpoint and the second home-cluster pull
    request; workout mapping, merge and split; daily active energy; Trends, including habit
    adherence and streaks; the Body page; display units.
@@ -1291,3 +1365,6 @@ Each milestone ends deployed and usable.
 - Voice transcription on the cluster.
 - A weight goal; lean-mass-based BMR (Katch-McArdle) from scans; targets that adapt to the
   weight trend.
+- For friends and family (milestone 2.2): sharing between people; an admin page;
+  per-person Apple Health tokens; per-person models or budgets beyond the daily cap; disk
+  quotas.
