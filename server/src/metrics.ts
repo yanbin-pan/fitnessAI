@@ -77,14 +77,15 @@ export function recordCoach(metrics: Metrics | undefined, result: ProcessOutcome
 /**
  * Starts each person's counters at zero when the app starts. Prometheus reads growth between two scrapes, so a series
  * that is born at 1 (a person's first request or message after a restart) shows no growth in increase() or rate().
- * Of the message outcomes only "done" is seeded; any other is born with its first occurrence.
+ * Of the message outcomes "done" and "ai_cap" are seeded, the two the dashboard reads per person; any other is born
+ * with its first occurrence.
  */
 export function seedPeople(metrics: Metrics, people: { key: string; owner: boolean }[]): void {
   for (const person of people) {
     const labels = personLabels(person);
     metrics.requestsByPerson.inc(labels, 0);
     metrics.coachModelCalls.inc(labels, 0);
-    metrics.coachMessages.inc({ outcome: "done", ...labels }, 0);
+    for (const outcome of ["done", "ai_cap"]) metrics.coachMessages.inc({ outcome, ...labels }, 0);
     for (const kind of TOKEN_KINDS) metrics.coachTokens.inc({ kind, ...labels }, 0);
   }
 }

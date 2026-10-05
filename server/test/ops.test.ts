@@ -191,8 +191,10 @@ describe("metrics", () => {
     const zeros = (name: string, before = "") => [OWNER, GUEST].map((who) => `${name}{${before}person="${who.person}",role="${who.role}"} 0`).sort();
     expect(seriesOf(text, "fitnessai_requests_by_person_total")).toEqual(zeros("fitnessai_requests_by_person_total"));
     expect(seriesOf(text, "fitnessai_coach_model_calls_total")).toEqual(zeros("fitnessai_coach_model_calls_total"));
-    // Only "done" is seeded: any other outcome is born with its first occurrence.
-    expect(seriesOf(text, "fitnessai_coach_messages_total")).toEqual(zeros("fitnessai_coach_messages_total", 'outcome="done",'));
+    // "done" and "ai_cap" are seeded (the dashboard reads both per person); any other outcome is born with its first occurrence.
+    expect(seriesOf(text, "fitnessai_coach_messages_total")).toEqual(
+      ["done", "ai_cap"].flatMap((outcome) => zeros("fitnessai_coach_messages_total", `outcome="${outcome}",`)).sort(),
+    );
     const kinds = ["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"];
     expect(seriesOf(text, "fitnessai_coach_tokens_total")).toEqual(kinds.flatMap((kind) => zeros("fitnessai_coach_tokens_total", `kind="${kind}",`)).sort());
     // Seeded from keys, and still only short ids come out.
@@ -211,6 +213,8 @@ describe("metrics", () => {
       'fitnessai_requests_by_person_total{person="f387373a",role="guest"} 1',
     ]);
     expect(seriesOf(text, "fitnessai_coach_messages_total")).toEqual([
+      'fitnessai_coach_messages_total{outcome="ai_cap",person="c8cd3c64",role="owner"} 0',
+      'fitnessai_coach_messages_total{outcome="ai_cap",person="f387373a",role="guest"} 0',
       'fitnessai_coach_messages_total{outcome="done",person="c8cd3c64",role="owner"} 2',
       'fitnessai_coach_messages_total{outcome="done",person="f387373a",role="guest"} 1',
     ]);
