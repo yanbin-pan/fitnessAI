@@ -100,11 +100,55 @@ describe("openDatabase", () => {
       { id: "x2", activity: "kitesurfing" },
       { id: "x3", activity: "wakeboarding" },
       { id: "x4", activity: "gym" },
-      { id: "x5", activity: "other" },
+      { id: "x5", activity: "running" }, // 0001 leaves "Run" as other; 0002 re-files it
     ]);
     expect(m2.sqlite.prepare("SELECT photo_ids FROM messages").pluck().get()).toBe("[]");
     expect(m2.sqlite.prepare("SELECT count(*) FROM photos").pluck().get()).toBe(0);
     m2.close();
+  });
+
+  it("re-files exercises still filed as other when their name clearly says what they were (milestone 2.1)", () => {
+    const dir = tempDir();
+    const file = path.join(dir, "fitness.db");
+    const m2 = openDatabase({ file, snapshotDir: null, migrationsFolder: migrationsUpTo(2) });
+    m2.sqlite.exec(
+      "INSERT INTO entries (id, date, logged_at, source, message_id, edited, created_at, updated_at) VALUES ('e1', '2026-10-03', '2026-10-03T10:00:00.000Z', 'manual', NULL, 0, 'x', 'x');",
+    );
+    const insert = m2.sqlite.prepare(
+      "INSERT INTO exercise_items (id, entry_id, position, name, category, activity, kcal, kcal_measured, assumption) VALUES (?, 'e1', ?, ?, ?, ?, 100, 0, '')",
+    );
+    const rows: [string, string, string, string, string][] = [
+      ["x1", "Run", "cardio", "other", "running"],
+      ["x2", "Trunk rotations", "mobility", "other", "other"],
+      ["x3", "Inchworm walkouts", "mobility", "other", "other"],
+      ["x4", "Kick-boxing class", "cardio", "other", "boxing"],
+      ["x5", "Street photography walk", "cardio", "other", "photography"],
+      ["x6", "Skipping rope", "cardio", "other", "other"],
+      ["x7", "Spine stretch", "mobility", "other", "other"],
+      ["x8", "Mountain bike ride", "cardio", "other", "cycling"],
+      ["x9", "Jiu-jitsu", "sport", "other", "martial_arts"],
+      ["x10", "Morning swim", "cardio", "other", "swimming"],
+      ["x11", "Tennis singles", "sport", "tennis", "tennis"],
+      ["x12", "Rowing machine", "cardio", "other", "rowing"],
+      ["x13", "Bent-over rows", "strength", "gym", "gym"],
+      ["x14", "Squash", "sport", "other", "other"],
+      ["x15", "Pilates", "mobility", "other", "yoga"],
+      ["x16", "Run club warm-up walk", "cardio", "other", "running"],
+      ["x17", "Kickboxing", "cardio", "other", "boxing"],
+      ["x18", "HIIT class", "cardio", "other", "gym"],
+    ];
+    rows.forEach(([id, name, category, activity], i) => insert.run(id, i, name, category, activity));
+    m2.close();
+
+    const now = openDatabase({ file, snapshotDir: null });
+    try {
+      const got = Object.fromEntries(
+        (now.sqlite.prepare("SELECT id, activity FROM exercise_items").all() as { id: string; activity: string }[]).map((r) => [r.id, r.activity]),
+      );
+      expect(got).toEqual(Object.fromEntries(rows.map(([id, , , , expected]) => [id, expected])));
+    } finally {
+      now.close();
+    }
   });
 
   it("snapshots a milestone 1 database before upgrading it, and the snapshot holds no conversation", () => {

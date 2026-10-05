@@ -15,6 +15,13 @@
       "when": 1791119887078,
       "tag": "0001_flawless_revanche",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791187426744,
+      "tag": "0002_refile_activities",
+      "breakpoints": true
     }
   ]
 }
