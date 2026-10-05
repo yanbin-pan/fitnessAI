@@ -13,7 +13,7 @@ describe("loadConfig", () => {
     const c = loadConfig(production);
     expect(c).toMatchObject({
       nodeEnv: "production", port: 8080, metricsPort: 9464, dataDir: "./.data", webDist: null,
-      devAuthEmail: null, coachBudgetMs: 90_000, snapshotKeep: 7,
+      devAuthEmail: null, coachBudgetMs: 90_000, snapshotKeep: 7, aiDailyCallCap: 200, guestDailyCallCap: 60,
     });
     expect(c.access).toEqual({ teamDomain: "team.cloudflareaccess.com", audience: "aud", ownerEmail: "owner@example.com", allowedEmails: [], testJwks: null });
     expect(c.ownerEmail).toBe("owner@example.com");
@@ -88,6 +88,12 @@ describe("loadConfig", () => {
     // Beyond a year, a huge value would push the cutoff date past what a Date can hold.
     expect(() => loadConfig({ ...production, RETENTION_HOURS: "8761" })).toThrow(/RETENTION_HOURS/);
     expect(() => loadConfig({ ...production, RETENTION_HOURS: "99999999999999" })).toThrow(ConfigError);
+  });
+
+  it("reads the owner's and each guest's daily call caps", () => {
+    const c = loadConfig({ ...production, AI_DAILY_CALL_CAP: "150", GUEST_DAILY_CALL_CAP: "25" });
+    expect([c.aiDailyCallCap, c.guestDailyCallCap]).toEqual([150, 25]);
+    expect(() => loadConfig({ ...production, GUEST_DAILY_CALL_CAP: "0" })).toThrow(ConfigError);
   });
 
   it("rejects an unknown effort level and a bad port", () => {

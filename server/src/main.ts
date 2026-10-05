@@ -33,6 +33,7 @@ const app = buildApp({
   now: () => new Date(),
   webDist: config.webDist,
   coachBudgetMs: config.coachBudgetMs,
+  callCaps: { owner: config.aiDailyCallCap, guest: config.guestDailyCallCap },
   metrics,
   logger: true,
 });

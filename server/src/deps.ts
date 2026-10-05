@@ -17,6 +17,8 @@ export interface AppDeps {
   ai: AiClient | null;
   /** Total time one coach message may take; under Cloudflare's 100 s proxy timeout. */
   coachBudgetMs: number;
+  /** Model calls a day: the owner's cap and each guest's (2.2 §6). */
+  callCaps: { owner: number; guest: number };
   logger?: boolean;
   /** Tests only: where log lines go when logger is on. */
   logStream?: { write(line: string): void };

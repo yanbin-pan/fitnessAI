@@ -81,7 +81,10 @@ export async function makeAccess(ownerEmail = "owner@example.com", allowedEmails
 /** The clock every test app uses: 13:00 BST on Saturday 3 October 2026. */
 export const NOW = new Date("2026-10-03T12:00:00.000Z");
 
-export async function testApp(opts: { now?: Date; webDist?: string | null; ai?: AiClient | null; coachBudgetMs?: number; metrics?: Metrics; streamKeepAliveMs?: number; logLines?: string[]; guests?: string[] } = {}) {
+/** The daily call caps the app ships with (2.2 §6): 200 for the owner, 60 for a guest. */
+export const TEST_CAPS = { owner: 200, guest: 60 };
+
+export async function testApp(opts: { now?: Date; webDist?: string | null; ai?: AiClient | null; coachBudgetMs?: number; callCaps?: { owner: number; guest: number }; metrics?: Metrics; streamKeepAliveMs?: number; logLines?: string[]; guests?: string[] } = {}) {
   const auth = await makeAccess("owner@example.com", opts.guests ?? []);
   const { dataDir, people, stores } = testPeople(auth.access.ownerEmail);
   const owner = stores[0];
@@ -92,6 +95,7 @@ export async function testApp(opts: { now?: Date; webDist?: string | null; ai?: 
     webDist: opts.webDist ?? null,
     ai: opts.ai ?? null,
     coachBudgetMs: opts.coachBudgetMs ?? 90_000,
+    callCaps: opts.callCaps ?? TEST_CAPS,
     metrics: opts.metrics,
     streamKeepAliveMs: opts.streamKeepAliveMs,
     logger: opts.logLines !== undefined,

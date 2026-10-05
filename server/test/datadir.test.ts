@@ -216,7 +216,7 @@ describe("snapshots", () => {
 
   it("have a decision for every table: emptied as conversation, or kept as logbook", () => {
     // A table added later fails here until someone decides which it is.
-    const KEPT = ["profile", "days", "entries", "food_items", "food_item_groups", "exercise_items", "exercise_muscles"];
+    const KEPT = ["profile", "days", "entries", "food_items", "food_item_groups", "exercise_items", "exercise_muscles", "ai_usage"];
     const db = openTestDb();
     const tables = (db.sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").pluck().all() as string[]).filter(
       (name) => !name.startsWith("sqlite_") && name !== "__drizzle_migrations",

@@ -479,7 +479,7 @@ describe("processMessage", () => {
   it("passes Claude's error text on for the log", async () => {
     const { app, ai } = await appWith([new AiError("api_error", "400 invalid_request_error: fallbacks")]);
     insertUserMessage(app.db, { id: "m1", date: "2026-10-03", text: "2 eggs", photoIds: [], sentAt: NOW.toISOString(), nowIso: NOW.toISOString() });
-    const outcome = await processMessage({ db: app.db, ai, now: () => NOW, budgetMs: 1000, photoDir: tempDir() }, "m1");
+    const outcome = await processMessage({ db: app.db, ai, now: () => NOW, budgetMs: 1000, photoDir: tempDir(), dailyCallCap: 200 }, "m1");
     expect(outcome).toMatchObject({ outcome: "ai_error", detail: "400 invalid_request_error: fallbacks" });
   });
 
@@ -491,7 +491,7 @@ describe("processMessage", () => {
       heard.push(text);
       throw new Error("the phone has gone");
     };
-    const outcome = await processMessage({ db: app.db, ai, now: () => NOW, budgetMs: 1000, photoDir: tempDir(), onStep }, "m1");
+    const outcome = await processMessage({ db: app.db, ai, now: () => NOW, budgetMs: 1000, photoDir: tempDir(), dailyCallCap: 200, onStep }, "m1");
     expect(outcome.outcome).toBe("done");
     expect(heard).toEqual(["Thinking…", "Logging scrambled eggs…", "Writing a reply…"]);
     expect(getMessage(app.db, "m1")).toMatchObject({ status: "done" });

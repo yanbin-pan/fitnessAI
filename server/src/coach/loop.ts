@@ -23,8 +23,8 @@ export interface LoopInput {
 }
 
 export type LoopResult =
-  | { ok: true; turns: AiMessage[]; replyText: string; calls: number; usage: AiUsage }
-  | { ok: false; failure: CoachFailure; calls: number; usage: AiUsage; detail?: string };
+  | { ok: true; turns: AiMessage[]; replyText: string; calls: number; usage: AiUsage; model: string | null }
+  | { ok: false; failure: CoachFailure; calls: number; usage: AiUsage; model: string | null; detail?: string };
 
 function failureFor(err: AiError): CoachFailure {
   if (err.code === "timeout") return "timeout";
@@ -37,6 +37,7 @@ export async function runCoachLoop(input: LoopInput): Promise<LoopResult> {
   const usage: AiUsage = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
   const texts: string[] = [];
   let calls = 0;
+  let model: string | null = null;
 
   while (calls < input.maxCalls) {
     calls += 1;
@@ -48,15 +49,16 @@ export async function runCoachLoop(input: LoopInput): Promise<LoopResult> {
         input.signal,
       );
     } catch (err) {
-      if (err instanceof AiError) return { ok: false, failure: failureFor(err), calls, usage, detail: err.message };
+      if (err instanceof AiError) return { ok: false, failure: failureFor(err), calls, usage, model, detail: err.message };
       throw err;
     }
     for (const key of Object.keys(usage) as (keyof AiUsage)[]) usage[key] += response.usage[key];
+    model = response.model;
 
     // A refusal can cut a tool call off mid-input: never run that turn's tools.
-    if (response.stop_reason === "refusal") return { ok: false, failure: "refused", calls, usage };
+    if (response.stop_reason === "refusal") return { ok: false, failure: "refused", calls, usage, model };
     if (response.stop_reason === "max_tokens" || response.stop_reason === "model_context_window_exceeded") {
-      return { ok: false, failure: "max_tokens", calls, usage };
+      return { ok: false, failure: "max_tokens", calls, usage, model };
     }
 
     const toolUses = response.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
@@ -64,13 +66,13 @@ export async function runCoachLoop(input: LoopInput): Promise<LoopResult> {
     // A turn with neither text nor a tool call gives the owner nothing to read, and an empty
     // assistant turn replayed later would make every remaining message of the day fail.
     if (toolUses.length === 0 && replyTexts.length === 0) {
-      return { ok: false, failure: "ai_error", calls, usage, detail: "the reply had no text and no tool call" };
+      return { ok: false, failure: "ai_error", calls, usage, model, detail: "the reply had no text and no tool call" };
     }
 
     // Echo the content back exactly as it came: thinking blocks must be replayed unchanged.
     turns.push({ role: "assistant", content: response.content });
     texts.push(...replyTexts);
-    if (toolUses.length === 0) return { ok: true, turns, replyText: texts.join("\n\n"), calls, usage };
+    if (toolUses.length === 0) return { ok: true, turns, replyText: texts.join("\n\n"), calls, usage, model };
 
     const results: Anthropic.Beta.BetaToolResultBlockParam[] = toolUses.map((use) => {
       input.onStep?.({ kind: "tool", name: use.name, input: use.input });
@@ -79,5 +81,5 @@ export async function runCoachLoop(input: LoopInput): Promise<LoopResult> {
     });
     turns.push({ role: "user", content: results });
   }
-  return { ok: false, failure: "tool_loop_limit", calls, usage };
+  return { ok: false, failure: "tool_loop_limit", calls, usage, model };
 }

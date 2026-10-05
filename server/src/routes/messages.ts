@@ -18,7 +18,18 @@ import { openEventStream } from "./stream.ts";
 async function runSafely(deps: RequestDeps, id: string, log: FastifyBaseLogger, onStep?: (text: string) => void): Promise<ProcessOutcome | null> {
   let outcome: ProcessOutcome | null = null;
   try {
-    outcome = await processMessage({ db: deps.db, ai: deps.ai, now: deps.now, budgetMs: deps.coachBudgetMs, photoDir: deps.photoDir, onStep }, id);
+    outcome = await processMessage(
+      {
+        db: deps.db,
+        ai: deps.ai,
+        now: deps.now,
+        budgetMs: deps.coachBudgetMs,
+        photoDir: deps.photoDir,
+        dailyCallCap: deps.person.owner ? deps.callCaps.owner : deps.callCaps.guest,
+        onStep,
+      },
+      id,
+    );
   } catch (err) {
     log.error({ err }, "coach processing failed");
     setMessageStatus(deps.db, id, "failed", "internal");

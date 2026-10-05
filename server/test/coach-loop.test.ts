@@ -149,6 +149,14 @@ describe("runCoachLoop", () => {
     expect(await runCoachLoop(input(fakeAi([stopWith("model_context_window_exceeded")])))).toMatchObject({ ok: false, failure: "max_tokens" });
   });
 
+  it("reports the model that last answered, or none when no call came back", async () => {
+    // A server-side fallback can answer with another model than the one asked for (spec §6.4).
+    const answered = await runCoachLoop(input(fakeAi([{ ...textReply("Hi"), model: "claude-sonnet-5-5" }])));
+    expect(answered.model).toBe("claude-sonnet-5-5");
+    const silent = await runCoachLoop(input(fakeAi([new AiError("api_error", "overloaded")])));
+    expect(silent.model).toBeNull();
+  });
+
   it("says what it is about to do: its first look, each tool, then the reply after the tools", async () => {
     const steps: LoopStep[] = [];
     const ai = fakeAi([toolCall([{ name: "log_items", input: { a: 1 } }, { name: "update_entry", input: { b: 2 } }]), textReply("Logged.")]);

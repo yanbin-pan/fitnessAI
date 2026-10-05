@@ -27,6 +27,9 @@ export interface Config {
   snapshotKeep: number;
   /** How long conversations and photos are kept (spec §6.6). */
   retentionHours: number;
+  /** Model calls a day for the owner (AI_DAILY_CALL_CAP) and for each guest (GUEST_DAILY_CALL_CAP) (2.2 §6). */
+  aiDailyCallCap: number;
+  guestDailyCallCap: number;
 }
 
 export class ConfigError extends Error {
@@ -119,5 +122,7 @@ export function loadConfig(env: Env): Config {
     coachBudgetMs: positiveInt(env, "COACH_BUDGET_MS", 90_000),
     snapshotKeep: positiveInt(env, "SNAPSHOT_KEEP", 7),
     retentionHours: positiveInt(env, "RETENTION_HOURS", 48, MAX_RETENTION_HOURS),
+    aiDailyCallCap: positiveInt(env, "AI_DAILY_CALL_CAP", 200),
+    guestDailyCallCap: positiveInt(env, "GUEST_DAILY_CALL_CAP", 60),
   };
 }

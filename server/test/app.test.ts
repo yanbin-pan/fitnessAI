@@ -3,7 +3,7 @@ import http from "node:http";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildApp, cacheControlFor } from "../src/app.ts";
-import { makeAccess, NOW, tempDir, testApp, testPeople } from "./helpers.ts";
+import { makeAccess, NOW, TEST_CAPS, tempDir, testApp, testPeople } from "./helpers.ts";
 import type { TestApp } from "./helpers.ts";
 
 let ctx: TestApp | undefined;
@@ -49,7 +49,7 @@ describe("authentication, however the request spells the path", () => {
   async function appWithSecret() {
     const auth = await makeAccess();
     const { people } = testPeople();
-    const app = buildApp({ people, verifier: auth.verifier, now: () => NOW, webDist: null, ai: null, coachBudgetMs: 90_000 });
+    const app = buildApp({ people, verifier: auth.verifier, now: () => NOW, webDist: null, ai: null, coachBudgetMs: 90_000, callCaps: TEST_CAPS });
     const probe = {
       app,
       auth,
