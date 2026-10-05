@@ -59,3 +59,18 @@ export const MAX_BACKDATE_DAYS = 7;
 
 /** How many photos one message can carry (spec §6.5). */
 export const MAX_PHOTOS_PER_MESSAGE = 4;
+
+/** The languages the app is translated into. The coach replies in the chosen one unless the person writes in another. */
+export const LANGUAGES = ["en", "it", "zh", "lt", "fr", "de", "es"] as const;
+export type Language = (typeof LANGUAGES)[number];
+
+/** Each language as the coach is told it. */
+export const LANGUAGE_NAMES: Record<Language, string> = {
+  en: "English",
+  it: "Italian",
+  zh: "Simplified Chinese",
+  lt: "Lithuanian",
+  fr: "French",
+  de: "German",
+  es: "Spanish",
+};

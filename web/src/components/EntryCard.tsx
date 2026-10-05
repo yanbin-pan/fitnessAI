@@ -1,18 +1,20 @@
 import { timeOf } from "../format.ts";
+import { useT } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
 import type { Entry } from "../shared.ts";
 import { SportBadge } from "./SportBadge.tsx";
 
 /** One logged entry: what, when, its calories and macros, where it came from, and every assumption made. */
 export function EntryCard({ entry, onEdit }: { entry: Entry; onEdit?: (entry: Entry) => void }) {
+  const t = useT();
   const eaten = entry.foods.reduce((sum, f) => sum + f.kcal, 0);
   const burned = entry.exercises.reduce((sum, x) => sum + x.kcal, 0);
   const names = [...entry.foods.map((f) => f.name), ...entry.exercises.map((x) => x.name)].join(", ");
   const grams = (key: "protein_g" | "carbs_g" | "fat_g") => Math.round(entry.foods.reduce((sum, f) => sum + f[key], 0));
   const facts = [
-    eaten > 0 ? `${Math.round(eaten)} kcal` : null,
-    burned > 0 ? `${Math.round(burned)} kcal burned` : null,
-    entry.edited ? "edited" : null,
+    eaten > 0 ? `${Math.round(eaten)} ${t.units.kcal}` : null,
+    burned > 0 ? t.entry.burned(Math.round(burned)) : null,
+    entry.edited ? t.entry.edited : null,
   ].filter(Boolean);
   const notes = [...entry.foods, ...entry.exercises].filter((item) => item.assumption);
   // An entry of exercise only shows its sport; anything with food shows a meal.
@@ -29,18 +31,18 @@ export function EntryCard({ entry, onEdit }: { entry: Entry; onEdit?: (entry: En
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline justify-between gap-2">
           <span className="font-medium">{names}</span>
-          <span className="shrink-0 text-xs text-muted">{timeOf(entry.logged_at)}</span>
+          <span className="shrink-0 text-xs text-muted">{timeOf(entry.logged_at, t)}</span>
         </span>
         <span className="block text-sm text-muted">{facts.join(" · ")}</span>
         {eaten > 0 && (
           <span className="block text-xs text-muted">
-            P {grams("protein_g")} · C {grams("carbs_g")} · F {grams("fat_g")}
+            {t.macros.proteinShort} {grams("protein_g")} · {t.macros.carbsShort} {grams("carbs_g")} · {t.macros.fatShort} {grams("fat_g")}
           </span>
         )}
         {entry.source === "photo" && (
           <span className="mt-0.5 flex items-center gap-1 text-xs text-muted">
             <Icon name="photo_camera" size={14} />
-            from photo
+            {t.entry.fromPhoto}
           </span>
         )}
         {notes.map((item) => (

@@ -36,6 +36,17 @@ describe("profile routes", () => {
     expect(get.json().profile.override_kcal).toBe(2000);
   });
 
+  it("keep the chosen language, English until one is chosen, and refuse one the app doesn't speak", async () => {
+    ctx = await withProfile();
+    const get = async () => (await ctx!.app.inject({ method: "GET", url: "/api/profile", headers: ctx!.headers })).json().profile.language;
+    const put = (language: string) => ctx!.app.inject({ method: "PUT", url: "/api/profile", headers: ctx!.headers, payload: { ...PROFILE, language } });
+    expect(await get()).toBe("en");
+    expect((await put("lt")).json().profile.language).toBe("lt");
+    expect(await get()).toBe("lt");
+    expect((await put("pt")).statusCode).toBe(400);
+    expect(await get()).toBe("lt");
+  });
+
   it("reject an invalid profile and say what is wrong", async () => {
     ctx = await testApp();
     const res = await ctx.app.inject({ method: "PUT", url: "/api/profile", headers: ctx.headers, payload: { ...PROFILE, height_cm: 20 } });

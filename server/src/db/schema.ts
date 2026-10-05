@@ -29,6 +29,7 @@ export const profile = sqliteTable("profile", {
   units_length: text().notNull(),
   context_days: integer().notNull(),
   goal_notes: text().notNull(),
+  language: text().notNull().default("en"),
   updated_at: text().notNull(),
 });
 

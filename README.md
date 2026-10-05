@@ -11,6 +11,12 @@ kitesurfing to street photography, cycling and boxing — shown as a matte badge
 Daily targets come from your profile (Mifflin-St Jeor) and grow with part of
 your exercise calories. The conversation lasts 48 hours; what you logged stays.
 
+The app speaks English, Italian, Chinese (Simplified), Lithuanian, French, German
+and Spanish: pick one in Settings. It is saved with the profile, so every phone
+follows it, and the coach replies in it too — unless you write to the coach in
+another language, when it answers in that one. The words live in `web/src/i18n/`,
+one file per language, typed against `en.ts` so a missing string fails the typecheck.
+
 Design: [`docs/superpowers/specs/2026-10-03-fitnessai-design.md`](docs/superpowers/specs/2026-10-03-fitnessai-design.md),
 [`docs/superpowers/specs/2026-10-05-fitnessai-friends-and-family-design.md`](docs/superpowers/specs/2026-10-05-fitnessai-friends-and-family-design.md)
 · Plans: [milestone 1](docs/superpowers/plans/2026-10-03-fitnessai-milestone-1.md),

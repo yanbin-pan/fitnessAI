@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { isIsoDate } from "./dates.ts";
 import {
-  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, EXERCISE_CATEGORIES, FOOD_GROUPS, MAX_PHOTOS_PER_MESSAGE, MUSCLES, MUSCLE_ROLES, SEXES,
+  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_PHOTOS_PER_MESSAGE, MUSCLES, MUSCLE_ROLES, SEXES,
 } from "./vocab.ts";
 
 // Request bodies the API accepts. Each schema's parsed output (defaults filled in)
@@ -107,6 +107,8 @@ export const ProfileInput = z.object({
   units_length: z.enum(["cm", "in"]).default("cm"),
   context_days: z.number().int().min(1).max(14).default(5),
   goal_notes: z.enum(["on", "off"]).default("on"),
+  /** The app's language, and the one the coach replies in. */
+  language: z.enum(LANGUAGES).default("en"),
 });
 /** What a client sends: fields with defaults may be omitted. */
 export type ProfileInput = z.input<typeof ProfileInput>;

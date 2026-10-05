@@ -1,9 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { MESSAGES, en } from "../i18n/index.tsx";
 import { ICON_PATHS } from "../icons/paths.ts";
 import { ACTIVITIES } from "../shared.ts";
 import type { Activity } from "../shared.ts";
-import { FAMILIES, SPORTS, SportBadge, familiesFor, sportOf } from "./SportBadge.tsx";
+import { FAMILIES, SPORTS, SportBadge, familiesFor, sportName, sportOf } from "./SportBadge.tsx";
 
 const channel = (hex: string, i: number) => {
   const v = parseInt(hex.slice(i, i + 2), 16) / 255;
@@ -28,10 +29,11 @@ describe("SportBadge", () => {
     // A newer server can add activities; the copy of the app on the home screen may be a release behind.
     const parkour = "parkour" as unknown as Activity;
     render(<SportBadge activity={parkour} />);
-    const badge = screen.getByRole("img", { name: SPORTS.other.label });
+    const badge = screen.getByRole("img", { name: en.sports.other.label });
     expect(badge.querySelector("path")).toHaveAttribute("d", ICON_PATHS[SPORTS.other.icon]);
     expect(sportOf("parkour")).toBe(SPORTS.other);
     expect(sportOf("tennis")).toBe(SPORTS.tennis);
+    expect(sportName("parkour", MESSAGES.it)).toBe(MESSAGES.it.sports.other);
   });
 
   it("draws the pictogram in its soft colour for each theme on a matte disc, with no coloured fill", () => {
@@ -43,11 +45,13 @@ describe("SportBadge", () => {
     expect(disc.style.backgroundColor).toBe("");
   });
 
-  it("has a name, a short name, its own pictogram and both colours for every activity", () => {
+  it("has a name and a short name in every language, its own pictogram and both colours for every activity", () => {
     for (const activity of ACTIVITIES) {
       const sport = SPORTS[activity];
-      expect(sport.label, activity).not.toBe("");
-      expect(sport.short, activity).not.toBe("");
+      for (const [language, words] of Object.entries(MESSAGES)) {
+        expect(words.sports[activity].label, `${language} ${activity}`).not.toBe("");
+        expect(words.sports[activity].short, `${language} ${activity}`).not.toBe("");
+      }
       expect(ICON_PATHS[sport.icon], activity).toBeDefined();
       expect(sport.light, activity).toMatch(/^#[0-9A-F]{6}$/);
       expect(sport.dark, activity).toMatch(/^#[0-9A-F]{6}$/);
@@ -76,30 +80,30 @@ describe("SportBadge", () => {
     const listed = FAMILIES.flatMap((family) => family.activities);
     expect([...listed].sort()).toEqual([...ACTIVITIES].sort());
     expect(new Set(listed).size).toBe(ACTIVITIES.length);
-    expect(FAMILIES.map((family) => family.name)).toEqual([
+    expect(FAMILIES.map((family) => en.families[family.key])).toEqual([
       "Racket", "On foot and wheels", "Water", "Gym, combat and mind", "Team", "Snow and ice", "Everything else",
     ]);
   });
 
   it("leads the grid with the person's own four, and lists every other activity once, in its family", () => {
     const grid = familiesFor(["running", "walking", "cycling", "gym"]);
-    expect(grid[0]).toEqual({ name: "Your sports", activities: ["running", "walking", "cycling", "gym"] });
+    expect(grid[0]).toEqual({ key: "yours", activities: ["running", "walking", "cycling", "gym"] });
     const listed = grid.flatMap((family) => family.activities);
     expect([...listed].sort()).toEqual([...ACTIVITIES].sort());
-    expect(grid.find((family) => family.name === "Racket")?.activities).toEqual(["tennis", "padel", "badminton"]);
-    expect(grid.find((family) => family.name === "On foot and wheels")?.activities).toEqual(["hiking", "photography", "skateboarding"]);
+    expect(grid.find((family) => family.key === "racket")?.activities).toEqual(["tennis", "padel", "badminton"]);
+    expect(grid.find((family) => family.key === "foot")?.activities).toEqual(["hiking", "photography", "skateboarding"]);
   });
 
   it("drops a family that the person's four have emptied", () => {
     const grid = familiesFor(["skiing", "snowboarding", "skating", "golf"]);
-    expect(grid.map((family) => family.name)).not.toContain("Snow and ice");
-    expect(grid.find((family) => family.name === "Everything else")?.activities).toEqual(["other"]);
+    expect(grid.map((family) => family.key)).not.toContain("snow");
+    expect(grid.find((family) => family.key === "else")?.activities).toEqual(["other"]);
   });
 
   it("leaves out Your sports when there are none to feature, and still lists every activity once", () => {
     // An older server sends no featured row, and the editor then works from an empty one.
     const grid = familiesFor([]);
-    expect(grid.map((family) => family.name)).not.toContain("Your sports");
+    expect(grid.map((family) => family.key)).not.toContain("yours");
     expect(grid.every((family) => family.activities.length > 0)).toBe(true);
     const listed = grid.flatMap((family) => family.activities);
     expect(listed).toHaveLength(33);

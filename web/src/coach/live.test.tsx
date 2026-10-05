@@ -1,5 +1,6 @@
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MESSAGES, en } from "../i18n/index.tsx";
 import { MIN_STEP_MS, dropLive, finishLive, firstStep, isLive, pushStep, resetLive, startLive, useStep } from "./live.ts";
 
 function Step({ id }: { id: string }) {
@@ -17,7 +18,8 @@ afterEach(() => {
 
 describe("live steps", () => {
   it("starts with the photo-aware first words", () => {
-    expect([firstStep(0), firstStep(1), firstStep(2)]).toEqual(["Thinking…", "Looking at your photo…", "Looking at your photos…"]);
+    expect([firstStep(0, en), firstStep(1, en), firstStep(2, en)]).toEqual(["Thinking…", "Looking at your photo…", "Looking at your photos…"]);
+    expect(firstStep(0, MESSAGES.it)).toBe("Sto pensando…");
   });
 
   it("shows the first words at once and holds each later step for at least 1.5 s", () => {
