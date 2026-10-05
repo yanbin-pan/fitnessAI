@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { CACHEDIR_TAG, prepareDataDir } from "../src/db/location.ts";
+import { CACHEDIR_TAG, moveOwnerIn, personPaths, prepareDataDir, preparePersonDir } from "../src/db/location.ts";
 import { openDatabase } from "../src/db/open.ts";
 import { CONVERSATION_TABLES, snapshot, stripConversations } from "../src/db/snapshot.ts";
 import { insertEntry } from "../src/log/entries.ts";
@@ -77,6 +77,114 @@ describe("prepareDataDir", () => {
     }
     prepareDataDir(dir);
     expect(fs.readdirSync(path.join(dir, "db")).sort()).toEqual(["CACHEDIR.TAG", "fitness.db"]);
+  });
+});
+
+const KEY = "c8cd3c6427301eaf6665bccacd65ddb614527acc843a15463e3faba57124c351";
+
+/** Milestone 2.1's layout: one person's db/, photos/ and snapshots/ at the top of the data folder. */
+function singlePersonFolder(): string {
+  const dir = tempDir();
+  for (const name of ["db", "photos", "snapshots"]) fs.mkdirSync(path.join(dir, name));
+  fs.writeFileSync(path.join(dir, "db", "CACHEDIR.TAG"), CACHEDIR_TAG);
+  fs.writeFileSync(path.join(dir, "photos", "CACHEDIR.TAG"), CACHEDIR_TAG);
+  const old = openDatabase({ file: path.join(dir, "db", "fitness.db"), snapshotDir: null });
+  insertEntry(old.db, sampleEntry({ id: "a" }), NOW.toISOString());
+  insertEntry(old.db, sampleEntry({ id: "b" }), NOW.toISOString());
+  old.close();
+  fs.writeFileSync(path.join(dir, "photos", `${"1".repeat(32)}.jpg`), "a photo");
+  fs.writeFileSync(path.join(dir, "snapshots", "fitness-2026-10-02.db"), "a snapshot");
+  return dir;
+}
+
+describe("preparePersonDir", () => {
+  it("lays out a person's folder: db/ and photos/ tagged for restic to skip, snapshots/ not", () => {
+    const dir = tempDir();
+    const paths = preparePersonDir(dir, KEY);
+    const home = path.join(dir, "users", KEY);
+    expect(paths).toEqual({
+      dir: home,
+      dbFile: path.join(home, "db", "fitness.db"),
+      photoDir: path.join(home, "photos"),
+      snapshotDir: path.join(home, "snapshots"),
+    });
+    expect(personPaths(dir, KEY)).toEqual(paths);
+    for (const tagged of ["db", "photos"]) {
+      const tag = fs.readFileSync(path.join(home, tagged, "CACHEDIR.TAG"), "utf8");
+      expect(tag.startsWith(SIGNATURE)).toBe(true);
+      expect(tag).toBe(CACHEDIR_TAG);
+    }
+    expect(fs.existsSync(paths.snapshotDir)).toBe(true);
+    expect(fs.existsSync(path.join(paths.snapshotDir, "CACHEDIR.TAG"))).toBe(false);
+  });
+
+  it("clears a snapshot copy that a crash left beside a person's database", () => {
+    const dir = tempDir();
+    const db = path.join(dir, "users", KEY, "db");
+    fs.mkdirSync(db, { recursive: true });
+    fs.writeFileSync(path.join(db, "fitness.db"), "");
+    for (const stale of ["fitness.db.snapshot-part", "fitness.db.snapshot-part-journal"]) {
+      fs.writeFileSync(path.join(db, stale), "a copy with conversations in it");
+    }
+    preparePersonDir(dir, KEY);
+    expect(fs.readdirSync(db).sort()).toEqual(["CACHEDIR.TAG", "fitness.db"]);
+  });
+});
+
+describe("moveOwnerIn", () => {
+  it("moves milestone 2.1's folders into the owner's, every row and file intact", () => {
+    const dir = singlePersonFolder();
+    expect(moveOwnerIn(dir, KEY)).toBe("moved");
+    for (const name of ["db", "photos", "snapshots"]) expect(fs.existsSync(path.join(dir, name))).toBe(false);
+    const owner = personPaths(dir, KEY);
+    const moved = new Database(owner.dbFile, { readonly: true });
+    expect(moved.prepare("SELECT id FROM entries ORDER BY id").pluck().all()).toEqual(["a", "b"]);
+    moved.close();
+    expect(fs.readFileSync(path.join(owner.photoDir, `${"1".repeat(32)}.jpg`), "utf8")).toBe("a photo");
+    expect(fs.readFileSync(path.join(owner.snapshotDir, "fitness-2026-10-02.db"), "utf8")).toBe("a snapshot");
+    expect(fs.readFileSync(path.join(owner.dir, "db", "CACHEDIR.TAG"), "utf8")).toBe(CACHEDIR_TAG);
+    expect(fs.readFileSync(path.join(owner.photoDir, "CACHEDIR.TAG"), "utf8")).toBe(CACHEDIR_TAG);
+    expect(fs.existsSync(`${owner.dir}.moving`)).toBe(false);
+  });
+
+  it("takes a journal along with its database", () => {
+    const dir = singlePersonFolder();
+    fs.writeFileSync(path.join(dir, "db", "fitness.db-journal"), "journal");
+    moveOwnerIn(dir, KEY);
+    expect(fs.readFileSync(`${personPaths(dir, KEY).dbFile}-journal`, "utf8")).toBe("journal");
+  });
+
+  it("finds nothing to move on the next start, or in a fresh folder", () => {
+    const dir = singlePersonFolder();
+    moveOwnerIn(dir, KEY);
+    expect(moveOwnerIn(dir, KEY)).toBe("none");
+    const fresh = tempDir();
+    expect(moveOwnerIn(fresh, KEY)).toBe("none");
+    expect(fs.readdirSync(fresh)).toEqual([]);
+  });
+
+  it("never overwrites an owner's folder that already exists", () => {
+    const dir = singlePersonFolder();
+    const owner = personPaths(dir, KEY);
+    fs.mkdirSync(path.dirname(owner.dbFile), { recursive: true });
+    fs.writeFileSync(owner.dbFile, "the owner's current database");
+    expect(moveOwnerIn(dir, KEY)).toBe("both");
+    expect(fs.readFileSync(owner.dbFile, "utf8")).toBe("the owner's current database");
+    expect(fs.existsSync(path.join(dir, "db", "fitness.db"))).toBe(true);
+  });
+
+  it("finishes a move that a crash cut short", () => {
+    const dir = singlePersonFolder();
+    const staging = `${personPaths(dir, KEY).dir}.moving`;
+    fs.mkdirSync(staging, { recursive: true });
+    fs.renameSync(path.join(dir, "db"), path.join(staging, "db")); // the crash came after the first rename
+    expect(moveOwnerIn(dir, KEY)).toBe("moved");
+    const owner = personPaths(dir, KEY);
+    expect(fs.existsSync(owner.dbFile)).toBe(true);
+    expect(fs.existsSync(path.join(owner.photoDir, `${"1".repeat(32)}.jpg`))).toBe(true);
+    expect(fs.existsSync(path.join(owner.snapshotDir, "fitness-2026-10-02.db"))).toBe(true);
+    expect(fs.existsSync(staging)).toBe(false);
+    for (const name of ["db", "photos", "snapshots"]) expect(fs.existsSync(path.join(dir, name))).toBe(false);
   });
 });
 
