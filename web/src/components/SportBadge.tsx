@@ -53,17 +53,31 @@ export const SPORTS: Record<Activity, Sport> = {
 /** The owner's main sports, offered first wherever an activity is picked (spec §5.1). */
 export const FEATURED: readonly Activity[] = ["tennis", "gym", "wakeboarding", "kitesurfing"];
 
+/** Every activity by family, in the order the editor's More grid shows them (spec §11.1). */
+export const FAMILIES: readonly { name: string; activities: readonly Activity[] }[] = [
+  { name: "Your sports", activities: ["tennis", "gym", "wakeboarding", "kitesurfing"] },
+  { name: "Racket", activities: ["padel", "badminton"] },
+  { name: "On foot and wheels", activities: ["running", "walking", "hiking", "photography", "cycling", "skateboarding"] },
+  { name: "Water", activities: ["swimming", "surfing", "rowing", "kayaking", "sailing", "diving"] },
+  { name: "Combat, body and mind", activities: ["boxing", "martial_arts", "yoga", "climbing"] },
+  { name: "Team", activities: ["football", "basketball", "volleyball", "rugby", "cricket", "hockey"] },
+  { name: "Snow and ice", activities: ["skiing", "snowboarding", "skating"] },
+  { name: "Everything else", activities: ["golf", "other"] },
+];
+
 /**
  * The activity's pictogram in its soft colour on a matte disc, raised from the surface (spec §11.4).
- * Named after the sport unless `labelled` is false.
+ * Named after the sport unless `labelled` is false. Pressed in when it is the chosen one.
  */
-export function SportBadge({ activity, size = 36, labelled = true }: { activity: Activity; size?: number; labelled?: boolean }) {
+export function SportBadge({
+  activity, size = 36, labelled = true, pressed = false,
+}: { activity: Activity; size?: number; labelled?: boolean; pressed?: boolean }) {
   const sport = SPORTS[activity];
   // Both themes' colours ride along as variables; the dark: variant picks the dark one.
   const style = { "--sport-light": sport.light, "--sport-dark": sport.dark, width: size, height: size } as CSSProperties;
   return (
     <span
-      className="raised-sm inline-flex shrink-0 items-center justify-center rounded-full text-(color:--sport-light) dark:text-(color:--sport-dark)"
+      className={`${pressed ? "pressed" : "raised-sm"} inline-flex shrink-0 items-center justify-center rounded-full text-(color:--sport-light) dark:text-(color:--sport-dark)`}
       style={style}
     >
       <Icon name={sport.icon} size={Math.round(size * 0.58)} label={labelled ? sport.label : undefined} />

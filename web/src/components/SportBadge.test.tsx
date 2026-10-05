@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ICON_PATHS } from "../icons/paths.ts";
 import { ACTIVITIES } from "../shared.ts";
-import { FEATURED, SPORTS, SportBadge } from "./SportBadge.tsx";
+import { FAMILIES, FEATURED, SPORTS, SportBadge } from "./SportBadge.tsx";
 
 const channel = (hex: string, i: number) => {
   const v = parseInt(hex.slice(i, i + 2), 16) / 255;
@@ -52,7 +52,23 @@ describe("SportBadge", () => {
     }
   });
 
+  it("is pressed in when chosen, raised otherwise", () => {
+    const { container, rerender } = render(<SportBadge activity="gym" pressed />);
+    expect(container.firstElementChild).toHaveClass("pressed");
+    expect(container.firstElementChild).not.toHaveClass("raised-sm");
+    rerender(<SportBadge activity="gym" />);
+    expect(container.firstElementChild).toHaveClass("raised-sm");
+    expect(container.firstElementChild).not.toHaveClass("pressed");
+  });
+
   it("features the owner's four sports", () => {
     expect(FEATURED).toEqual(["tennis", "gym", "wakeboarding", "kitesurfing"]);
+  });
+
+  it("puts every activity in exactly one family, in the vocabulary's order", () => {
+    expect(FAMILIES.flatMap((family) => family.activities)).toEqual([...ACTIVITIES]);
+    expect(FAMILIES.map((family) => family.name)).toEqual([
+      "Your sports", "Racket", "On foot and wheels", "Water", "Combat, body and mind", "Team", "Snow and ice", "Everything else",
+    ]);
   });
 });

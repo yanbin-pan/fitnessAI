@@ -7,7 +7,7 @@ import { EXERCISE_CATEGORIES, MAX_BACKDATE_DAYS } from "../shared.ts";
 import type {
   Activity, DeleteResult, Entry, EntryResult, ExerciseCategory, ExerciseItem, ExerciseItemInput, FoodItem, FoodItemInput,
 } from "../shared.ts";
-import { FEATURED, SPORTS, SportBadge } from "./SportBadge.tsx";
+import { FAMILIES, FEATURED, SPORTS, SportBadge } from "./SportBadge.tsx";
 import { primaryButton, quietButton } from "./ui.tsx";
 
 export function toFoodInput(f: FoodItem): FoodItemInput {
@@ -84,39 +84,74 @@ function FoodRow({ food, onChange, onRemove }: { food: FoodItemInput; onChange: 
   );
 }
 
-/** The owner's four activities as a radio row of their badges, plus the exercise's own when it is another (spec §11.1); the full name is each choice's label. */
+/**
+ * An exercise's activity (spec §11.1): the owner's four and the exercise's own as a row of badges, and More,
+ * which swaps the row for every activity by family. Either way it is one radio group: one keyboard stop.
+ */
 function ActivityPicker({ exercise, value, onChange }: { exercise: number; value: Activity; onChange: (value: Activity) => void }) {
   const name = useId();
+  const [all, setAll] = useState(false);
+  // Armed when a pointer goes down in the picker, disarmed when a key does, spent by the radio's click.
+  const tapped = useRef(false);
   const shown = FEATURED.includes(value) ? FEATURED : [...FEATURED, value];
+  // A tap picks and folds the grid away. The arrow keys also "click" a radio: those only move the choice, so
+  // someone browsing the grid by keyboard keeps it open. The click cannot tell them apart: a tap reaches the
+  // radio through its label, and WebKit sends that forwarded click with detail 0, as it does a key's.
+  const folds = () => {
+    if (tapped.current) setAll(false);
+    tapped.current = false;
+  };
+  const choice = (activity: Activity) => {
+    const chosen = activity === value;
+    return (
+      <label
+        key={activity}
+        className={`flex cursor-pointer flex-col items-center gap-1 rounded-2xl py-1.5 text-xs has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${chosen ? "font-semibold text-ink" : "text-muted"}`}
+      >
+        <input
+          type="radio"
+          name={name}
+          value={activity}
+          checked={chosen}
+          onChange={() => onChange(activity)}
+          onClick={folds}
+          aria-label={SPORTS[activity].label}
+          className="sr-only"
+        />
+        <SportBadge activity={activity} size={32} labelled={false} pressed={chosen} />
+        {SPORTS[activity].short}
+      </label>
+    );
+  };
   return (
-    <fieldset className="mt-2">
+    <fieldset
+      className="mt-2"
+      onPointerDown={() => {
+        tapped.current = true;
+      }}
+      onKeyDown={() => {
+        tapped.current = false;
+      }}
+    >
       {/* Every exercise has a picker: the hidden words tell a screen reader which one this is. */}
       <legend className="text-xs">
         Activity <span className="sr-only">for exercise {exercise}</span>
       </legend>
-      <div className="mt-1 grid grid-cols-5 gap-1">
-        {shown.map((activity) => {
-          const chosen = activity === value;
-          return (
-            <label
-              key={activity}
-              className={`flex cursor-pointer flex-col items-center gap-1 rounded-2xl py-1.5 text-xs has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${chosen ? "raised-sm font-semibold text-ink" : "text-muted"}`}
-            >
-              <input
-                type="radio"
-                name={name}
-                value={activity}
-                checked={chosen}
-                onChange={() => onChange(activity)}
-                aria-label={SPORTS[activity].label}
-                className="sr-only"
-              />
-              <SportBadge activity={activity} size={32} labelled={false} />
-              {SPORTS[activity].short}
-            </label>
-          );
-        })}
-      </div>
+      {all ? (
+        <div className="mt-1 flex flex-col gap-2">
+          {FAMILIES.map((family) => (
+            <div key={family.name}>
+              <p className="px-1 text-xs text-muted">{family.name}</p>
+              <div className="mt-1 grid grid-cols-5 gap-1">{family.activities.map(choice)}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-1 grid grid-cols-5 gap-1">{shown.map(choice)}</div>
+      )}
+      <button type="button" aria-expanded={all} onClick={() => setAll((open) => !open)} className={`${quietButton} mt-1 min-h-11 text-xs`}>
+        {all ? "Fewer" : "More"}
+      </button>
     </fieldset>
   );
 }
