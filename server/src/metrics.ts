@@ -57,6 +57,9 @@ export function personLabels(person: { key: string; owner: boolean }): PersonLab
   return { person: shortKey(person.key), role: person.owner ? "owner" : "guest" };
 }
 
+/** The kinds of Claude token a coach run counts. */
+const TOKEN_KINDS = ["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"] as const;
+
 export function recordCoach(metrics: Metrics | undefined, result: ProcessOutcome | null, who: PersonLabels): void {
   if (!metrics) return;
   // Exactly these two labels, whatever else the caller's object carries.
@@ -65,9 +68,24 @@ export function recordCoach(metrics: Metrics | undefined, result: ProcessOutcome
   if (!result) return;
   metrics.coachModelCalls.inc({ person, role }, result.calls);
   if (result.usage) {
-    for (const kind of ["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"] as const) {
+    for (const kind of TOKEN_KINDS) {
       metrics.coachTokens.inc({ kind, person, role }, result.usage[kind]);
     }
+  }
+}
+
+/**
+ * Starts each person's counters at zero when the app starts. Prometheus reads growth between two scrapes, so a series
+ * that is born at 1 (a person's first request or message after a restart) shows no growth in increase() or rate().
+ * Of the message outcomes only "done" is seeded; any other is born with its first occurrence.
+ */
+export function seedPeople(metrics: Metrics, people: { key: string; owner: boolean }[]): void {
+  for (const person of people) {
+    const labels = personLabels(person);
+    metrics.requestsByPerson.inc(labels, 0);
+    metrics.coachModelCalls.inc(labels, 0);
+    metrics.coachMessages.inc({ outcome: "done", ...labels }, 0);
+    for (const kind of TOKEN_KINDS) metrics.coachTokens.inc({ kind, ...labels }, 0);
   }
 }
 

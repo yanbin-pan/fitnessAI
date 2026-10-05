@@ -136,7 +136,9 @@ Their snapshots age out of the backups under the 6-month retention.
 **For invitees** (send this with the invite): your entries, photos and coach
 conversations are stored on the owner's home server, and what you send the coach goes to
 Anthropic under the owner's account. Conversations and photos are deleted after 48
-hours; the numbers you log are kept, and backed up off-site for up to six months.
+hours; the numbers you log are kept, and backed up off-site for up to six months. The
+owner also sees how much each person uses the app — requests, coach messages and model
+calls — by a short id, never by name or email.
 
 ## Data, backups and restore
 

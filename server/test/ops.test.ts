@@ -4,9 +4,10 @@ import type { AddressInfo } from "node:net";
 import path from "node:path";
 import type { FastifyBaseLogger } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
+import { AiError } from "../src/ai/client.ts";
 import { preparePersonDir } from "../src/db/location.ts";
 import { runNightlySnapshot, startNightlySnapshot } from "../src/jobs.ts";
-import { createMetrics, personLabels, recordCoach, serveMetrics } from "../src/metrics.ts";
+import { createMetrics, personLabels, recordCoach, seedPeople, serveMetrics } from "../src/metrics.ts";
 import type { Metrics } from "../src/metrics.ts";
 import { personKey, shortKey } from "../src/people/people.ts";
 import { saveProfile } from "../src/profile/profile.ts";
@@ -24,6 +25,8 @@ const FRIEND = "friend@example.com";
 // How metrics, like logs, name a person: the first 8 hex characters of sha256(email) (2.2 §8), and owner or guest.
 const OWNER = { person: "c8cd3c64", role: "owner" } as const; // owner@example.com
 const GUEST = { person: "f387373a", role: "guest" } as const; // friend@example.com
+/** The same two people as startup knows them: their keys, and whether they own the app. */
+const PEOPLE = [{ key: personKey("owner@example.com"), owner: true }, { key: personKey(FRIEND), owner: false }];
 
 /** One metric's series as exposed (`name{labels} value`), sorted so the order they arrived in doesn't matter. */
 const seriesOf = (text: string, name: string) => text.split("\n").filter((line) => line.startsWith(`${name}{`)).sort();
@@ -135,6 +138,37 @@ describe("metrics", () => {
     expect(http.filter((line) => /person|role/.test(line))).toEqual([]);
   });
 
+  it("never count a static file or the health probe, even with the person's token on it", async () => {
+    const dist = tempDir();
+    fs.writeFileSync(path.join(dist, "index.html"), '<!doctype html><div id="root"></div>');
+    const metrics = createMetrics();
+    const t = await testApp({ webDist: dist, metrics });
+    ctx = t;
+    // Cloudflare Access puts the token on every request it forwards, the PWA's own files included.
+    for (const url of ["/", "/index.html", "/day/today", "/api/health"]) {
+      expect((await t.app.inject({ method: "GET", url, headers: t.headers })).statusCode).toBe(200);
+    }
+    await t.app.inject({ method: "GET", url: "/api/days/2026-10-01", headers: t.headers }); // the one that counts
+    expect(seriesOf(await metrics.registry.metrics(), "fitnessai_requests_by_person_total")).toEqual([
+      'fitnessai_requests_by_person_total{person="c8cd3c64",role="owner"} 1',
+    ]);
+  });
+
+  it("count a Retry under the person who sent the message", async () => {
+    const metrics = createMetrics();
+    const t = await testApp({ guests: [FRIEND], ai: fakeAi([new AiError("api_error", "down"), textReply("Noted.")]), metrics });
+    ctx = t;
+    saveProfile(t.storeOf(FRIEND).db, makeProfile(), NOW.toISOString());
+    const guest = await t.headersFor(FRIEND);
+    const sent = await t.app.inject({ method: "POST", url: "/api/messages", headers: guest, payload: { id: randomUUID(), sent_at: "2026-10-03T11:58:00.000Z", text: "two eggs" } });
+    expect(sent.json().user.status).toBe("failed");
+    const retried = await t.app.inject({ method: "POST", url: `/api/messages/${sent.json().user.id}/retry`, headers: guest });
+    expect(retried.json().user.status).toBe("done");
+    const text = await metrics.registry.metrics();
+    expect(text).toContain('fitnessai_coach_messages_total{outcome="ai_error",person="f387373a",role="guest"} 1');
+    expect(text).toContain('fitnessai_coach_messages_total{outcome="done",person="f387373a",role="guest"} 1');
+  });
+
   it("never carry an email or a whole key, whatever the people do", async () => {
     const metrics = createMetrics();
     const t = await twoPeopleAtWork(metrics);
@@ -146,6 +180,47 @@ describe("metrics", () => {
     expect(text).not.toContain("@");
     expect(text).not.toMatch(/[0-9a-f]{64}/);
     for (const email of ["owner@example.com", FRIEND, "stranger@example.com"]) expect(text).not.toContain(personKey(email));
+  });
+
+  // Prometheus sees growth only between two scrapes, so a series that is born at 1 after a restart looks like no growth at all.
+  it("start each person's series at zero, so their first request or message after a restart still counts as growth", async () => {
+    const metrics = createMetrics();
+    seedPeople(metrics, PEOPLE);
+    const text = await metrics.registry.metrics();
+    /** What seeding leaves of one metric: a zero for each person, sorted like `seriesOf`. */
+    const zeros = (name: string, before = "") => [OWNER, GUEST].map((who) => `${name}{${before}person="${who.person}",role="${who.role}"} 0`).sort();
+    expect(seriesOf(text, "fitnessai_requests_by_person_total")).toEqual(zeros("fitnessai_requests_by_person_total"));
+    expect(seriesOf(text, "fitnessai_coach_model_calls_total")).toEqual(zeros("fitnessai_coach_model_calls_total"));
+    // Only "done" is seeded: any other outcome is born with its first occurrence.
+    expect(seriesOf(text, "fitnessai_coach_messages_total")).toEqual(zeros("fitnessai_coach_messages_total", 'outcome="done",'));
+    const kinds = ["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"];
+    expect(seriesOf(text, "fitnessai_coach_tokens_total")).toEqual(kinds.flatMap((kind) => zeros("fitnessai_coach_tokens_total", `kind="${kind}",`)).sort());
+    // Seeded from keys, and still only short ids come out.
+    expect(text).not.toContain("@");
+    expect(text).not.toMatch(/[0-9a-f]{64}/);
+  });
+
+  it("count a person's activity on the series seeded for them, not beside them", async () => {
+    const metrics = createMetrics();
+    seedPeople(metrics, PEOPLE);
+    await twoPeopleAtWork(metrics);
+    const text = await metrics.registry.metrics();
+    // Still one series each: were the seed and the traffic to label a person differently, there would be four.
+    expect(seriesOf(text, "fitnessai_requests_by_person_total")).toEqual([
+      'fitnessai_requests_by_person_total{person="c8cd3c64",role="owner"} 2',
+      'fitnessai_requests_by_person_total{person="f387373a",role="guest"} 1',
+    ]);
+    expect(seriesOf(text, "fitnessai_coach_messages_total")).toEqual([
+      'fitnessai_coach_messages_total{outcome="done",person="c8cd3c64",role="owner"} 2',
+      'fitnessai_coach_messages_total{outcome="done",person="f387373a",role="guest"} 1',
+    ]);
+    expect(seriesOf(text, "fitnessai_coach_model_calls_total")).toEqual([
+      'fitnessai_coach_model_calls_total{person="c8cd3c64",role="owner"} 2',
+      'fitnessai_coach_model_calls_total{person="f387373a",role="guest"} 1',
+    ]);
+    expect(seriesOf(text, "fitnessai_coach_tokens_total")).toHaveLength(8);
+    expect(text).toContain('fitnessai_coach_tokens_total{kind="input_tokens",person="c8cd3c64",role="owner"} 200');
+    expect(text).toContain('fitnessai_coach_tokens_total{kind="input_tokens",person="f387373a",role="guest"} 100');
   });
 
   it("are served on their own port, and nothing else is", async () => {

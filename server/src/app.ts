@@ -52,6 +52,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       requests.inc({ method: req.method, route, status: String(reply.statusCode) });
       duration.observe({ method: req.method, route }, reply.elapsedTime / 1000);
       // Only a signed-in person's request has a person: the health probe, the PWA's files and refused tokens have none (2.2 §8).
+      // A stream the phone drops before it ends is not counted: onResponse fires on finish or error, as with the route metrics.
       if (req.person) byPerson.inc(personLabels(req.person));
     });
   }
