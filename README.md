@@ -11,10 +11,12 @@ kitesurfing to street photography, cycling and boxing — shown as a matte badge
 Daily targets come from your profile (Mifflin-St Jeor) and grow with part of
 your exercise calories. The conversation lasts 48 hours; what you logged stays.
 
-Design: [`docs/superpowers/specs/2026-10-03-fitnessai-design.md`](docs/superpowers/specs/2026-10-03-fitnessai-design.md)
+Design: [`docs/superpowers/specs/2026-10-03-fitnessai-design.md`](docs/superpowers/specs/2026-10-03-fitnessai-design.md),
+[`docs/superpowers/specs/2026-10-05-fitnessai-friends-and-family-design.md`](docs/superpowers/specs/2026-10-05-fitnessai-friends-and-family-design.md)
 · Plans: [milestone 1](docs/superpowers/plans/2026-10-03-fitnessai-milestone-1.md),
 [milestone 2](docs/superpowers/plans/2026-10-04-fitnessai-milestone-2.md),
-[milestone 2.1](docs/superpowers/plans/2026-10-04-fitnessai-milestone-2-1.md)
+[milestone 2.1](docs/superpowers/plans/2026-10-04-fitnessai-milestone-2-1.md),
+[milestone 2.2](docs/superpowers/plans/2026-10-05-fitnessai-milestone-2-2.md)
 
 ## How it fits together
 
@@ -33,7 +35,7 @@ Cloudflare Access. The database is one SQLite file on the `ssd` volume.
 ```bash
 nvm use            # Node 24
 npm ci
-npm run dev:server # http://localhost:8080, signed in as dev@localhost, data in .data/
+npm run dev:server # http://localhost:8080, signed in as dev@localhost (the owner), data in .data/
 npm run dev:web    # http://localhost:5173, proxies /api to the server
 ```
 
@@ -52,10 +54,12 @@ npm run icons --workspace web  # after changing web/public/logo.svg
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `OWNER_EMAIL` | — (required in production) | Cloudflare Access verification; only `OWNER_EMAIL` gets in |
+| `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `OWNER_EMAIL` | — (required in production) | Cloudflare Access verification; `OWNER_EMAIL` is the owner |
+| `ALLOWED_EMAILS` | unset (the owner alone) | Friends and family who may also sign in, comma-separated (see [Friends and family](#friends-and-family)) |
+| `AI_DAILY_CALL_CAP` / `GUEST_DAILY_CALL_CAP` | `200` / `60` | Claude calls a day for the owner / for each guest |
 | `ANTHROPIC_API_KEY` | unset | Turns the coach on |
 | `ANTHROPIC_MODEL` / `ANTHROPIC_EFFORT` | `claude-opus-5-5` / `medium` | `claude-sonnet-5-5` roughly halves the cost |
-| `DATA_DIR` | `./.data` | Database, photos and snapshots |
+| `DATA_DIR` | `./.data` | Everyone's databases, photos and snapshots |
 | `PORT` / `METRICS_PORT` | `8080` / `9464` | App and Prometheus ports |
 | `COACH_BUDGET_MS` | `90000` | Time one coach message may take |
 | `RETENTION_HOURS` | `48` | How long conversations and photos are kept (at most 8760) |
@@ -69,13 +73,16 @@ image to `ghcr.io/yanbin-pan/fitnessai`, and commit the pinned tag to
 `k8s/kustomization.yaml`. Flux (home-cluster `clusters/home/fitnessai.yaml`)
 picks that commit up within a minute. Roll back by reverting the `Deploy …`
 commit; CI ignores changes to that file, so the revert is not rebuilt.
-Rolling back past milestone 2 needs the database moved back first (see
-[Data, backups and restore](#data-backups-and-restore)).
+Rolling back past milestone 2.2 or 2 needs the data moved back first (see
+[Data, backups and restore](#data-backups-and-restore)); roll back one milestone
+at a time, newest first.
 
 Rolling back past milestone 2.1 also needs its new activities filed back under
-`other`, or milestone 2 shows a blank page on any day with one. With Flux
-suspended and the app scaled to 0 (as in the restore steps), run this on rpi-01
-in the PVC's directory (`sudo apt install sqlite3` if it's missing):
+`other`, or milestone 2 shows a blank page on any day with one. Roll back to
+milestone 2.1 first (see [Data, backups and restore](#data-backups-and-restore)):
+the command below reads `db/fitness.db`, where milestone 2.1 keeps its database.
+With Flux suspended and the app scaled to 0 (as in the restore steps), run this
+on rpi-01 in the PVC's directory (`sudo apt install sqlite3` if it's missing):
 
 ```bash
 sudo sqlite3 db/fitness.db "UPDATE exercise_items SET activity = 'other' WHERE activity NOT IN ('tennis', 'gym', 'wakeboarding', 'kitesurfing', 'other');"
@@ -88,21 +95,54 @@ Edit with `sops k8s/80-secrets.sops.yaml` and push. The app reads them only when
 it starts, so once Flux has applied the change, restart it:
 `kubectl -n fitnessai rollout restart deploy/fitnessai`.
 
+## Friends and family
+
+Each person signs in with their own email and gets the whole app, with a database of
+their own that nobody else sees — the owner included. Guests get the coach too, up to
+`GUEST_DAILY_CALL_CAP` calls a day (about 20–30 messages); every call is billed to the
+owner's Anthropic key.
+
+**Adding someone** — both lists, because the app checks its own as well as Cloudflare's:
+
+1. `sops k8s/80-secrets.sops.yaml` and add the email to `ALLOWED_EMAILS`
+   (comma-separated). Commit and push only the encrypted file.
+2. In home-cluster, add it to `fitness_emails` in `terraform/cloudflare/terraform.tfvars`
+   (never committed) and run `terraform apply` there.
+3. Once Flux has applied the secret, restart the app:
+   `kubectl -n fitnessai rollout restart deploy/fitnessai`.
+4. They open <https://fitness.minipi.net>, sign in with the emailed code, add it to
+   their home screen and set up their profile.
+
+**Removing someone:** take the email out of both lists and restart. They can no longer
+sign in. Their folder stays until you delete it — on rpi-01, in the PVC's directory:
+`sudo rm -rf users/<key>`, where `<key>` is `printf %s 'friend@example.com' | sha256sum`.
+Their snapshots age out of the backups under the 6-month retention.
+
+**For invitees** (send this with the invite): your entries, photos and coach
+conversations are stored on the owner's home server, and what you send the coach goes to
+Anthropic under the owner's account. Conversations and photos are deleted after 48
+hours; the numbers you log are kept.
+
 ## Data, backups and restore
 
 ```
-/data/db/fitness.db   the live database — never backed up (CACHEDIR.TAG)
-/data/photos/         photos, deleted after 48 hours — never backed up (CACHEDIR.TAG)
-/data/snapshots/      what the backups keep
+/data/users/<key>/db/fitness.db   a person's live database — never backed up (CACHEDIR.TAG)
+/data/users/<key>/photos/         their photos, deleted after 48 hours — never backed up (CACHEDIR.TAG)
+/data/users/<key>/snapshots/      what the backups keep
 ```
 
-- Every hour the app deletes messages, the coach's replies and photos once they
-  are 48 hours old, and the coach's raw history for a day once that day has no
-  messages left. Entries keep every number. A message the coach is still working
-  on is left until it finishes.
-- At 03:00 (profile timezone) the app writes `snapshots/fitness-YYYY-MM-DD.db`
-  (keeps 7); a startup with a database migration to run first writes
-  `startup-<time>.db` (keeps 3). Snapshots have the conversations removed.
+`<key>` is the sha256 of the person's email in lowercase hex:
+`printf %s 'friend@example.com' | sha256sum`. The owner's folder is the sha256 of
+`OWNER_EMAIL`.
+
+- Every hour the app deletes every person's messages, the coach's replies and
+  photos once they are 48 hours old, and the coach's raw history for a day once
+  that day has no messages left. Entries keep every number. A message the coach
+  is still working on is left until it finishes.
+- At 03:00 (profile timezone) the app writes every person's
+  `snapshots/fitness-YYYY-MM-DD.db` (keeps 7); a startup with a database
+  migration to run first writes `startup-<time>.db` (keeps 3). Snapshots have the
+  conversations removed.
 - The cluster's restic job copies the volume to R2 at 03:30 with
   `--exclude-caches`, which skips the two tagged folders, so the backups hold
   only snapshots — never a chat or a photo.
@@ -113,9 +153,9 @@ To restore:
 flux suspend kustomization fitnessai   # otherwise Flux scales the app back up
 kubectl -n fitnessai scale deploy/fitnessai --replicas=0
 # on rpi-01, in the PVC's directory under /mnt/ssd/nfs/k8s:
-sudo cp snapshots/fitness-YYYY-MM-DD.db db/fitness.db
-sudo rm -f db/fitness.db-journal       # a journal left by a crash would be replayed into the copy
-sudo chown 1000:1000 db/fitness.db     # the app runs as uid 1000
+sudo cp users/<key>/snapshots/fitness-YYYY-MM-DD.db users/<key>/db/fitness.db
+sudo rm -f users/<key>/db/fitness.db-journal     # a journal left by a crash would be replayed into the copy
+sudo chown 1000:1000 users/<key>/db/fitness.db   # the app runs as uid 1000
 kubectl -n fitnessai scale deploy/fitnessai --replicas=1
 flux resume kustomization fitnessai
 ```
@@ -125,8 +165,27 @@ so the database is unchanged: revert the update's `Deploy …` commit and the pr
 starts again. Restore the newest `startup-…` snapshot (as above) only if the migration
 committed and the app still fails — for example on the foreign-key check.
 
+**Rolling back to milestone 2.1.** Milestone 2.1 has one database at `/data/db/fitness.db`;
+milestone 2.2 moved it, the photos and the snapshots into the owner's folder. Move them
+back first:
+
+```bash
+flux suspend kustomization fitnessai
+kubectl -n fitnessai scale deploy/fitnessai --replicas=0
+# on rpi-01, in the PVC's directory under /mnt/ssd/nfs/k8s; <owner key> is the sha256 of OWNER_EMAIL:
+sudo mv users/<owner key>/db users/<owner key>/photos users/<owner key>/snapshots .
+sudo rmdir users/<owner key>   # must be empty now; a later roll-forward moves the data back in
+# revert milestone 2.2's Deploy commit on main and push it, then fetch it before resuming,
+# so Flux never re-applies milestone 2.2 to the moved data:
+flux reconcile source git fitnessai
+flux resume kustomization fitnessai
+kubectl -n fitnessai scale deploy/fitnessai --replicas=1
+```
+
+Guests' folders stay in `users/`, untouched; milestone 2.1 ignores them.
+
 **Rolling back to milestone 1.** Milestone 1 reads `/data/fitness.db`; milestone 2 moved it
-into `db/`. Move it back first, in this order:
+into `db/`. Roll back to milestone 2.1 first (above), then move it back, in this order:
 
 ```bash
 flux suspend kustomization fitnessai

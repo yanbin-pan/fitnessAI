@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Date** | 2026-10-05 |
-| **Status** | Approved by the owner, section by section. Builds after milestone 2.1 is deployed. |
+| **Status** | Approved by the owner, section by section. Built in milestone 2.2 and folded into the main design as revision 5. |
 | **Amends** | [`2026-10-03-fitnessai-design.md`](2026-10-03-fitnessai-design.md) (revision 4). The plan folds these changes into it as revision 5. |
 | **Reference** | tea-cabinet's multi-tenancy design (`docs/superpowers/specs/2026-08-11-multi-tenancy-design.md` in that repository): one folder per person, keyed by a hash of the verified email. |
 
