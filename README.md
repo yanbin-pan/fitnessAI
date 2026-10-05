@@ -6,10 +6,10 @@ and running on a home Raspberry Pi cluster.
 Tell the coach what you ate or did ("2 scrambled eggs and a coffee"), or send a
 photo of the plate, and it logs each item with calories, macros, saturated fat,
 sugars, salt, fluids, alcohol and food groups. Workouts get active calories,
-muscles and the sport — tennis, gym, wakeboarding, kitesurfing or other — shown
-as an icon. Daily targets come from your profile (Mifflin-St Jeor) and grow with
-part of your exercise calories. The conversation lasts 48 hours; what you logged
-stays.
+muscles and one of 33 activities — from tennis, gym, wakeboarding and
+kitesurfing to street photography, cycling and boxing — shown as a matte badge.
+Daily targets come from your profile (Mifflin-St Jeor) and grow with part of
+your exercise calories. The conversation lasts 48 hours; what you logged stays.
 
 Design: [`docs/superpowers/specs/2026-10-03-fitnessai-design.md`](docs/superpowers/specs/2026-10-03-fitnessai-design.md)
 · Plans: [milestone 1](docs/superpowers/plans/2026-10-03-fitnessai-milestone-1.md),
@@ -138,6 +138,9 @@ Open `https://fitness.minipi.net` in Safari, sign in, then Share → Add to Home
 Screen. Voice input is the keyboard's microphone; the camera button beside the
 text box takes or picks up to four photos. If the app shows "Signed out", tap
 the banner to sign in again; the Access session lasts 30 days.
+
+The home-screen icon is the zabaione ball. iOS keeps the icon it saw when the app was added, so after an icon
+change remove fitnessAI from the home screen and add it again; your data lives on the server and is not touched.
 
 ## Known issues
 
