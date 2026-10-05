@@ -137,13 +137,15 @@ conversation-free snapshots that the cluster backs up.
 - **Allowlist:** a correctly signed token for an email not on the list gets `401` with no body;
   the owner and every listed guest get in; listing compares case-insensitively.
 - **The move:** a milestone 2.1 data folder moves into the owner's folder with identical counts
-  and a snapshot first; a second start moves nothing; an existing owner folder is never
-  overwritten.
+  and a snapshot before the new migration; a second start moves nothing; an owner's folder that
+  holds anything is never overwritten (an empty one counts as absent); a move a crash cut short is
+  finished.
 - **Jobs:** retention and snapshots run for each person, and one person's failure doesn't stop
   the others.
 - **Cap:** a guest is refused at 60 calls and the owner at 200 (`ai_cap`, no AI call made);
   failed runs count; the count resets at the person's local midnight; the bubble's words.
-- **Featured row:** the most-logged four, ties by recency, the starter fill for owner and guest.
+- **Featured row:** the most-logged four, ties by recency, never `other`, the starter fill for owner
+  and guest; the More grid lists each activity once.
 - **Live check before merging:** two local test users side by side in the browser, with the
   owner's key on a throwaway data folder.
 

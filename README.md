@@ -193,7 +193,7 @@ kubectl -n fitnessai scale deploy/fitnessai --replicas=0
 kubectl -n fitnessai wait --for=delete pod -l app=fitnessai --timeout=120s   # the pod holds the database's lock until it is gone
 # on rpi-01, in the PVC's directory under /mnt/ssd/nfs/k8s:
 sudo mv users/<owner key>/db users/<owner key>/photos users/<owner key>/snapshots .
-sudo test -f db/fitness.db   # stop here if this fails: milestone 2.1 would start on an empty database
+sudo test -f db/fitness.db || echo "STOP: db/fitness.db is missing; milestone 2.1 would start on an empty database"
 sudo rmdir users/<owner key>   # must be empty now; a later roll-forward moves the data back in
 # revert milestone 2.2's Deploy commit on main and push it, then fetch it before resuming,
 # so Flux never re-applies milestone 2.2 to the moved data:
