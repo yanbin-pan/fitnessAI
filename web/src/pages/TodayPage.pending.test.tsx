@@ -15,8 +15,8 @@ describe("TodayPage with a message still with the coach", () => {
       return jsonResponse(dayView({ messages: [message({ id: "m1", status: loads === 1 ? "pending" : "done" })] }));
     });
     renderWithProviders(<TodayPage />, { route: "/day/today", path: "/day/:date" });
-    expect(await screen.findByText("Sending…")).toBeInTheDocument();
+    expect(await screen.findByText("Thinking…")).toBeInTheDocument();
     await vi.advanceTimersByTimeAsync(3100);
-    await waitFor(() => expect(screen.queryByText("Sending…")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("Thinking…")).not.toBeInTheDocument());
   });
 });

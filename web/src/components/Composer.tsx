@@ -1,12 +1,15 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { ApiError, api } from "../api.ts";
+import { dropLive, finishLive, firstStep, pushStep, startLive } from "../coach/live.ts";
+import { addPending, removePending } from "../coach/pending.ts";
+import { streamCoach } from "../coach/stream.ts";
 import { Icon } from "../icons/Icon.tsx";
 import { preparePhoto } from "../photos/prepare.ts";
 import { storeDay } from "../queries.ts";
 import { MAX_PHOTOS_PER_MESSAGE } from "../shared.ts";
-import type { MessageInput, MessageResult, PhotoUpload } from "../shared.ts";
+import type { MessageInput, PhotoUpload } from "../shared.ts";
 
 interface Attachment {
   key: string;
@@ -76,21 +79,10 @@ export function Composer() {
     };
   }, []);
 
-  const send = useMutation({
-    mutationFn: (body: MessageInput) => api<MessageResult>("/api/messages", { json: body }),
-    onSuccess: (result) => {
-      attempt.current = null;
-      storeDay(client, result.day);
-      setText("");
-      setNotice(null);
-      setAttachments((list) => {
-        for (const a of list) URL.revokeObjectURL(a.preview);
-        return [];
-      });
-    },
-    // A lost reply may still have reached the server: look again, and the pending poll shows the reply when it lands.
-    onError: () => void client.invalidateQueries({ queryKey: ["day"] }),
-  });
+  // "storing": sent but not yet stored, so the composer is locked in case the message has to come back to it.
+  // "working": stored and with the coach; typing is fine, sending waits for the reply (spec §11.1).
+  const [phase, setPhase] = useState<"idle" | "storing" | "working">("idle");
+  const [sendFailure, setSendFailure] = useState<unknown>(null);
 
   const patch = (key: string, changes: Partial<Attachment>) =>
     setAttachments((list) => list.map((a) => (a.key === key ? { ...a, ...changes } : a)));
@@ -168,7 +160,7 @@ export function Composer() {
     event.target.value = ""; // so choosing the same photo again still counts as a change
     const room = MAX_PHOTOS_PER_MESSAGE - attachments.length;
     setNotice(files.length > room ? `Up to ${MAX_PHOTOS_PER_MESSAGE} photos per message.` : null);
-    send.reset();
+    setSendFailure(null);
     for (const file of files.slice(0, Math.max(0, room))) void add(file);
   }
 
@@ -176,9 +168,9 @@ export function Composer() {
   const busy = attachments.some((a) => a.status === "preparing" || a.status === "uploading");
   const failed = attachments.some((a) => a.status === "failed");
   const full = attachments.length >= MAX_PHOTOS_PER_MESSAGE;
-  const canSend = !send.isPending && !busy && !failed && (trimmed !== "" || attachments.length > 0);
+  const canSend = phase === "idle" && !busy && !failed && (trimmed !== "" || attachments.length > 0);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canSend) return;
     const photoIds = attachments.map((a) => a.photoId).filter((id): id is string => id !== null);
@@ -186,12 +178,55 @@ export function Composer() {
     if (attempt.current?.key !== key) {
       attempt.current = { key, input: { id: crypto.randomUUID(), sent_at: new Date().toISOString(), text: trimmed, photo_ids: photoIds } };
     }
-    send.mutate(attempt.current.input);
+    const input = attempt.current.input;
+    // What goes back into the composer if the message never reaches the server.
+    const sent = { text, attachments };
+    setSendFailure(null);
+    setNotice(null);
+    setText("");
+    setAttachments([]);
+    setPhase("storing");
+    startLive(input.id, firstStep(input.photo_ids.length));
+    addPending(client, input);
+    let stored = false;
+    try {
+      const result = await streamCoach("/api/messages", input, (step) => {
+        if (step.type === "stored") {
+          stored = true;
+          storeDay(client, step.day);
+          setPhase("working");
+        } else {
+          pushStep(input.id, step.text);
+        }
+      });
+      finishLive(input.id);
+      storeDay(client, result.day);
+      attempt.current = null;
+      for (const a of sent.attachments) URL.revokeObjectURL(a.preview);
+    } catch (error) {
+      if (stored) {
+        // The server has the message and the coach is on it: the pending poll shows the reply when it lands.
+        dropLive(input.id);
+        attempt.current = null;
+        for (const a of sent.attachments) URL.revokeObjectURL(a.preview);
+      } else {
+        // It may never have arrived: put it back, so sending again carries the same id (spec §6.3).
+        finishLive(input.id);
+        removePending(client, input.id);
+        setText(sent.text);
+        setAttachments(sent.attachments);
+        setSendFailure(error);
+      }
+      // Either way the screen may be out of step with the server: look again.
+      void client.invalidateQueries({ queryKey: ["day"] });
+    } finally {
+      setPhase("idle");
+    }
   }
 
   // The band behind the card is the page colour, so the feed scrolling under it never shows between the card and the tab bar.
   return (
-    <form ref={form} onSubmit={submit} className="fixed inset-x-0 bottom-[calc(var(--tabbar-h)_+_env(safe-area-inset-bottom))] z-10 bg-base px-3 pt-2 pb-2">
+    <form ref={form} onSubmit={(event) => void submit(event)} className="fixed inset-x-0 bottom-[calc(var(--tabbar-h)_+_env(safe-area-inset-bottom))] z-10 bg-base px-3 pt-2 pb-2">
       <div className="raised mx-auto max-w-xl rounded-3xl p-2">
         {attachments.length > 0 && (
           <ul aria-label="Attached photos" className="mb-2 flex gap-2 px-1 pt-1.5">
@@ -216,7 +251,7 @@ export function Composer() {
                 <button
                   type="button"
                   aria-label={`Remove photo ${index + 1}`}
-                  disabled={send.isPending}
+                  disabled={phase === "storing"}
                   onClick={() => remove(a.key)}
                   className="raised-sm absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-ink disabled:opacity-40"
                 >
@@ -228,17 +263,17 @@ export function Composer() {
         )}
         <div className="flex items-end gap-2">
           <label
-            className={`tap raised-sm flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${full || send.isPending ? "opacity-40" : "cursor-pointer"}`}
+            className={`tap raised-sm flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${full || phase === "storing" ? "opacity-40" : "cursor-pointer"}`}
           >
             <Icon name="add_a_photo" size={22} />
-            <input type="file" accept="image/*" multiple aria-label="Add photos" disabled={full || send.isPending} onChange={onFiles} className="sr-only" />
+            <input type="file" accept="image/*" multiple aria-label="Add photos" disabled={full || phase === "storing"} onChange={onFiles} className="sr-only" />
           </label>
           <textarea
             aria-label="Message your coach"
             rows={1}
             value={text}
-            // Locked while a send is out, so nothing typed can be wiped when the reply arrives.
-            readOnly={send.isPending}
+            // Locked until the server has the message, so it can come back here intact.
+            readOnly={phase === "storing"}
             onChange={(event) => setText(event.target.value)}
             placeholder={attachments.length > 0 ? "Add a note, or just send" : "What did you eat or do?"}
             className="pressed field-sizing-content max-h-36 min-h-11 flex-1 resize-none rounded-2xl px-3 py-2.5 text-base text-ink placeholder:text-muted"
@@ -249,11 +284,7 @@ export function Composer() {
             disabled={!canSend}
             className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent shadow-[3px_3px_6px_var(--nm-lo),-3px_-3px_6px_var(--nm-hi)] disabled:opacity-40"
           >
-            {send.isPending ? (
-              <span className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            ) : (
-              <Icon name="arrow_upward" size={22} />
-            )}
+            <Icon name="arrow_upward" size={22} />
           </button>
         </div>
         {notice && (
@@ -266,9 +297,9 @@ export function Composer() {
             A photo didn't upload. Tap it to try again.
           </p>
         )}
-        {send.isError && (
+        {sendFailure !== null && (
           <p role="alert" className="mt-1.5 px-2 text-sm text-danger">
-            {sendError(send.error)}
+            {sendError(sendFailure)}
           </p>
         )}
       </div>

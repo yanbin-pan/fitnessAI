@@ -298,7 +298,7 @@ describe("TodayPage", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("keeps Retry from being tapped again while the first retry is still running", async () => {
+  it("takes Retry away while the first retry is still running, so it can't be tapped again", async () => {
     const failed = message({ id: "m9", text: "porridge", status: "failed", error_code: "timeout" });
     const done = message({ id: "m9", text: "porridge", status: "done" });
     const reply = message({ id: "r9", role: "assistant", status: null, reply_to: "m9", text: "Logged porridge." });
@@ -308,8 +308,9 @@ describe("TodayPage", () => {
     );
     renderDay();
     await userEvent.click(await screen.findByRole("button", { name: "Retry" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Retry" })).toBeDisabled());
-    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    // The message is pending again, with the coach's row where Retry was: there is nothing left to tap a second time.
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument());
+    expect(screen.getByRole("status")).toHaveTextContent("Thinking…");
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
     finish(jsonResponse({ user: done, reply, day: dayView({ messages: [done, reply] }) }));
     expect(await screen.findByText("Logged porridge.")).toBeInTheDocument();

@@ -335,19 +335,36 @@ describe("Composer photos", () => {
     expect(screen.queryByText("That photo can't be sent. Try another.")).toBeNull();
   });
 
-  it("locks itself while the message is on its way, then clears the photos", async () => {
+  it("clears the photos at once and stays locked until the server has the message", async () => {
     let arrive: (res: Response) => void = () => {};
     mockFetch((url) => (url === "/api/photos" ? uploaded("9".repeat(32)) : new Promise<Response>((resolve) => (arrive = resolve))));
     renderWithProviders(<Composer />);
     await userEvent.upload(screen.getByLabelText("Add photos"), photoFile());
     await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(screen.queryByRole("img", { name: "Photo 1" })).toBeNull();
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Remove photo 1" })).toBeDisabled();
     expect(screen.getByLabelText("Add photos")).toBeDisabled();
+    expect(screen.getByLabelText("Message your coach")).toHaveAttribute("readonly");
     arrive(stored());
-    await waitFor(() => expect(screen.queryByRole("img", { name: "Photo 1" })).toBeNull());
-    expect(screen.getByLabelText("Add photos")).toBeEnabled();
+    await waitFor(() => expect(screen.getByLabelText("Add photos")).toBeEnabled());
+    expect(screen.getByLabelText("Message your coach")).not.toHaveAttribute("readonly");
+  });
+
+  it("puts the photos back when the message never reached the server", async () => {
+    let sends = 0;
+    mockFetch((url) => {
+      if (url === "/api/photos") return uploaded("9".repeat(32));
+      sends += 1;
+      throw new TypeError("Failed to fetch");
+    });
+    renderWithProviders(<Composer />);
+    await userEvent.upload(screen.getByLabelText("Add photos"), photoFile());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("offline");
+    expect(screen.getByRole("img", { name: "Photo 1" })).toBeInTheDocument();
+    expect(sends).toBe(1);
   });
 
   describe("when the server won't take a message's photos", () => {

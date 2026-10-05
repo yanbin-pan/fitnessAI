@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { api } from "./api.ts";
+import { isLive } from "./coach/live.ts";
 import type { DaySummaries, DayView } from "./shared.ts";
 
 export const dayKey = (date: string) => ["day", date] as const;
@@ -10,7 +11,8 @@ export function useDay(date: string) {
     queryKey: dayKey(date),
     queryFn: () => api<DayView>(`/api/days/${date}`),
     // A message may still be with the coach (for instance after the app was suspended mid-send): look again.
-    refetchInterval: (query) => (query.state.data?.messages.some((m) => m.status === "pending") ? 3000 : false),
+    // One whose stream is open needs no polling; when a stream drops, the day is fetched again and the poll takes over.
+    refetchInterval: (query) => (query.state.data?.messages.some((m) => m.status === "pending" && !isLive(m.id)) ? 3000 : false),
   });
 }
 

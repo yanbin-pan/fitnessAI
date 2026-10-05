@@ -4,8 +4,9 @@ import type { ReactElement } from "react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { vi } from "vitest";
 
+// Not an <output>: that element is a live region (role "status"), and the page's own status rows are looked up by role.
 function LocationProbe() {
-  return <output data-testid="location">{useLocation().pathname}</output>;
+  return <span data-testid="location">{useLocation().pathname}</span>;
 }
 
 /** Renders inside a fresh query client and a memory router; the probe shows the current path. */

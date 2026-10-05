@@ -2,6 +2,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useParams } from "react-router";
 import { ApiError, api } from "../api.ts";
+import { dropLive, finishLive, firstStep, pushStep, startLive } from "../coach/live.ts";
+import { markPending } from "../coach/pending.ts";
+import { streamCoach } from "../coach/stream.ts";
 import { ActivitiesCard } from "../components/ActivitiesCard.tsx";
 import { Composer } from "../components/Composer.tsx";
 import { DayNav } from "../components/DayNav.tsx";
@@ -12,7 +15,7 @@ import { Summary } from "../components/Summary.tsx";
 import { Toggle, quietButton } from "../components/ui.tsx";
 import { storeDay, useDay } from "../queries.ts";
 import { MAX_BACKDATE_DAYS, daysBetween } from "../shared.ts";
-import type { DeleteResult, Entry, MessageResult } from "../shared.ts";
+import type { DeleteResult, Entry } from "../shared.ts";
 
 function actionError(error: unknown): string {
   if (error instanceof ApiError && error.kind === "offline") return "You're offline, so that didn't go through.";
@@ -30,7 +33,34 @@ export function TodayPage() {
   // that was already retried), so fetch the days again rather than trusting what is on screen.
   const refresh = () => void client.invalidateQueries({ queryKey: ["day"] });
   const retry = useMutation({
-    mutationFn: (id: string) => api<MessageResult>(`/api/messages/${id}/retry`, { method: "POST" }),
+    mutationFn: async (id: string) => {
+      const shown = day.data;
+      const photos = shown?.messages.find((m) => m.id === id)?.photo_ids.length ?? 0;
+      if (shown) markPending(client, shown, id);
+      startLive(id, firstStep(photos));
+      let stored = false;
+      try {
+        const result = await streamCoach(`/api/messages/${id}/retry`, undefined, (step) => {
+          if (step.type === "stored") {
+            stored = true;
+            storeDay(client, step.day);
+          } else {
+            pushStep(id, step.text);
+          }
+        });
+        finishLive(id);
+        return result;
+      } catch (error) {
+        if (stored) {
+          dropLive(id);
+        } else {
+          finishLive(id);
+          // Not restarted after all: show the message as it was until the fresh fetch arrives.
+          if (shown) storeDay(client, shown);
+        }
+        throw error;
+      }
+    },
     onSuccess: (result) => storeDay(client, result.day),
     onError: (error) => {
       refresh();

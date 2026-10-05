@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useStep } from "../coach/live.ts";
 import { dayLabel, failureText } from "../format.ts";
 import { Icon } from "../icons/Icon.tsx";
 import type { ChatMessage, DayView, Entry } from "../shared.ts";
@@ -40,6 +41,24 @@ function PhotoThumb({ id, index, single }: { id: string; index: number; single: 
   return <img src={`/api/photos/${id}`} alt={`Photo ${index + 1}`} loading="lazy" onError={() => setFailed(true)} className={`${size} rounded-xl object-cover`} />;
 }
 
+/** The coach's row while it works on a message (spec §11.1): dots, and what it is doing. Screen readers hear each step. */
+function CoachWorking({ id }: { id: string }) {
+  const step = useStep(id) ?? "Thinking…";
+  return (
+    <div role="status" className="mr-6 mt-3 flex items-center gap-2">
+      <span className="raised-sm flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-accent-ink">
+        <Icon name="sports" size={16} />
+      </span>
+      <span aria-hidden="true" className="flex gap-1">
+        {[0, 1, 2].map((dot) => (
+          <span key={dot} className="h-1.5 w-1.5 animate-pulse rounded-full bg-muted motion-reduce:animate-none" style={{ animationDelay: `${dot * 200}ms` }} />
+        ))}
+      </span>
+      <span className="text-sm text-muted">{step}</span>
+    </div>
+  );
+}
+
 function Bubble({
   message, entries, date, today, onRetry, onEdit, onUndo, retrying,
 }: { message: ChatMessage; entries: Map<string, Entry>; date: string; today: string } & Pick<FeedProps, "onRetry" | "onEdit" | "onUndo" | "retrying">) {
@@ -47,33 +66,35 @@ function Bubble({
     // An older server may not send photo_ids yet.
     const photoIds = message.photo_ids ?? [];
     return (
-      <div className="ml-10 flex flex-col items-end">
-        <div className="raised-sm max-w-full rounded-2xl rounded-br-md p-1.5">
-          {photoIds.length > 0 && (
-            <div className="flex flex-wrap justify-end gap-1.5">
-              {photoIds.map((id, index) => (
-                <PhotoThumb key={id} id={id} index={index} single={photoIds.length === 1} />
-              ))}
-            </div>
+      <>
+        <div className="ml-10 flex flex-col items-end">
+          <div className="raised-sm max-w-full rounded-2xl rounded-br-md p-1.5">
+            {photoIds.length > 0 && (
+              <div className="flex flex-wrap justify-end gap-1.5">
+                {photoIds.map((id, index) => (
+                  <PhotoThumb key={id} id={id} index={index} single={photoIds.length === 1} />
+                ))}
+              </div>
+            )}
+            {message.text && <p className="whitespace-pre-wrap px-2 py-1">{message.text}</p>}
+          </div>
+          {message.status === "failed" && (
+            <span className="mt-1 text-xs text-danger">
+              {failureText(message.error_code)}{" "}
+              {/* Padding makes the tap area 44 px tall (a fingertip); the matching negative margins keep the line where it was. */}
+              <button
+                type="button"
+                disabled={retrying === message.id}
+                className="-mx-2 -my-3.5 px-2 py-3.5 font-semibold underline disabled:opacity-40"
+                onClick={() => onRetry(message.id)}
+              >
+                Retry
+              </button>
+            </span>
           )}
-          {message.text && <p className="whitespace-pre-wrap px-2 py-1">{message.text}</p>}
         </div>
-        {message.status === "pending" && <span className="mt-1 text-xs text-muted">Sending…</span>}
-        {message.status === "failed" && (
-          <span className="mt-1 text-xs text-danger">
-            {failureText(message.error_code)}{" "}
-            {/* Padding makes the tap area 44 px tall (a fingertip); the matching negative margins keep the line where it was. */}
-            <button
-              type="button"
-              disabled={retrying === message.id}
-              className="-mx-2 -my-3.5 px-2 py-3.5 font-semibold underline disabled:opacity-40"
-              onClick={() => onRetry(message.id)}
-            >
-              Retry
-            </button>
-          </span>
-        )}
-      </div>
+        {message.status === "pending" && <CoachWorking id={message.id} />}
+      </>
     );
   }
   // Undo removes only what this reply's own message logged; an older entry it
