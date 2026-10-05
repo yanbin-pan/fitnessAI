@@ -1,10 +1,10 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useNavigate } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import { SignedOutBanner } from "../components/SignedOutBanner.tsx";
 import { SessionProvider } from "../session.tsx";
-import { dayView, entry, foodItem, message } from "../test/fixtures.ts";
+import { dayView, entry, exerciseItem, foodItem, message } from "../test/fixtures.ts";
 import { jsonResponse, mockFetch, renderWithProviders } from "../test/render.tsx";
 import { TodayPage } from "./TodayPage.tsx";
 
@@ -107,6 +107,16 @@ describe("TodayPage", () => {
     await userEvent.click(screen.getByLabelText("Log only"));
     expect(screen.queryByText("eggs and toast")).not.toBeInTheDocument();
     expect(screen.getByText("Scrambled eggs")).toBeInTheDocument();
+  });
+
+  it("puts the activities card under the summary, and its Edit opens the editor", async () => {
+    const ride = entry({ id: "e9", foods: [], exercises: [exerciseItem({ name: "Bike ride", activity: "cycling", kcal: 400 })] });
+    mockFetch(() => jsonResponse(dayView({ entries: [ride] })));
+    renderWithProviders(<TodayPage />, { route: "/day/today", path: "/day/:date" });
+    const card = await screen.findByRole("region", { name: "Activity" });
+    await userEvent.click(within(card).getByRole("button", { name: "Bike ride, 400 kcal" }));
+    await userEvent.click(within(card).getByRole("button", { name: "Edit" }));
+    expect(screen.getByRole("dialog", { name: "Edit entry" })).toBeInTheDocument();
   });
 
   it("raises the signed-out banner when Retry finds the Access session expired", async () => {
