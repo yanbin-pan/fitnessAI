@@ -1,11 +1,15 @@
 import { DrizzleQueryError } from "drizzle-orm";
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.ts";
 import { LOGGER, serializeError } from "../src/logging.ts";
 import { insertUserMessage } from "../src/messages/messages.ts";
-import { NOW, TEST_CAPS, makeAccess, openTestDb, testPeople } from "./helpers.ts";
+import { NOW, TEST_CAPS, makeAccess, openTestDb, tempDir, testPeople } from "./helpers.ts";
 
 const NOW_ISO = "2026-10-03T12:00:00.000Z";
+/** A person's key: the sha256 of their email, which is also the name of their folder. */
+const KEY = "c8cd3c6427301eaf6665bccacd65ddb614527acc843a15463e3faba57124c351";
 
 describe("serializeError", () => {
   it("keeps a failed query's parameters out of the logs", () => {
@@ -40,6 +44,42 @@ describe("serializeError", () => {
 
   it("is the logger's error serializer", () => {
     expect(LOGGER.serializers.err).toBe(serializeError);
+  });
+
+  describe("and a person's folder (2.2 §8)", () => {
+    /** A real fs error: listing a person's photo folder that isn't there. */
+    function missingPhotoFolder(): Error {
+      try {
+        fs.readdirSync(path.join(tempDir(), "users", KEY, "photos"));
+      } catch (err) {
+        return err as Error;
+      }
+      throw new Error("the folder was meant to be missing");
+    }
+
+    it("shows only the first 8 characters of the folder's name, in the message and the stack", () => {
+      const failure = missingPhotoFolder();
+      // fs puts the whole path in its message, and the stack starts with the message: this is what the serializer is for.
+      expect(failure.message).toContain(`users/${KEY}/photos`);
+      const logged = serializeError(failure);
+      expect(logged.message).toContain("users/c8cd3c64…/photos");
+      expect(logged.stack).toContain("users/c8cd3c64…/photos");
+      expect(JSON.stringify(logged)).not.toContain(KEY);
+    });
+
+    it("does the same for a cause", () => {
+      const logged = serializeError(new Error("could not list the photos", { cause: missingPhotoFolder() }));
+      expect(logged.cause).toMatchObject({ type: "Error", message: expect.stringContaining("users/c8cd3c64…/photos") });
+      expect(JSON.stringify(logged)).not.toContain(KEY);
+    });
+
+    it("does it whichever way the path is spelled, and leaves a photo's id alone", () => {
+      const photo = "a".repeat(32);
+      const windows = serializeError(new Error(`ENOENT: no such file or directory, open 'C:\\data\\users\\${KEY}\\photos\\${photo}.jpg'`));
+      expect(windows.message).toBe(`ENOENT: no such file or directory, open 'C:\\data\\users\\c8cd3c64…\\photos\\${photo}.jpg'`);
+      const posix = serializeError(new Error(`EACCES: permission denied, mkdir '/data/users/${KEY}.moving/db'`));
+      expect(posix.message).toBe("EACCES: permission denied, mkdir '/data/users/c8cd3c64….moving/db'");
+    });
   });
 });
 

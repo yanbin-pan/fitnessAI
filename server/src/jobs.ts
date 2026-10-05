@@ -15,9 +15,21 @@ export function runNightlySnapshot(sqlite: Database.Database, dir: string, keep:
   return file;
 }
 
-/** A job's work for every person's folder, one after another: one person's failure is logged and the rest go on (2.2 §5). */
+/**
+ * A job's work for every person's folder, one after another: one person's failure is logged and the rest go on (2.2 §5).
+ * It must not throw: croner runs a job's callback un-awaited, so a throw is an unhandled rejection, and Node 24 exits on
+ * those. That includes failing to list the folders at all.
+ */
 function forEachPerson(people: People, log: FastifyBaseLogger, failure: string, work: (store: Store) => void): void {
-  for (const key of people.keys()) {
+  let keys: string[];
+  try {
+    keys = people.keys();
+  } catch (err) {
+    // The listing itself failed (the volume, say), so there is no person to name.
+    log.error({ err }, failure);
+    return;
+  }
+  for (const key of keys) {
     try {
       work(people.store(key));
     } catch (err) {
@@ -25,6 +37,14 @@ function forEachPerson(people: People, log: FastifyBaseLogger, failure: string, 
       log.error({ err, person: shortKey(key) }, failure);
     }
   }
+}
+
+/**
+ * croner's `catch` for a job: anything that still escapes forEachPerson (a failing logger, say) is logged here instead
+ * of rejecting a promise nobody awaits. Belt and braces: forEachPerson catches everything else itself.
+ */
+function logEscape(log: FastifyBaseLogger, failure: string): (err: unknown) => void {
+  return (err) => log.error({ err }, failure);
 }
 
 /**
@@ -39,7 +59,7 @@ export function startNightlySnapshot(opts: {
   now?: () => Date;
 }): Cron {
   const now = opts.now ?? (() => new Date());
-  return new Cron("0 3 * * *", { timezone: opts.timeZone }, () => {
+  return new Cron("0 3 * * *", { timezone: opts.timeZone, catch: logEscape(opts.log, "nightly snapshot failed") }, () => {
     forEachPerson(opts.people, opts.log, "nightly snapshot failed", (store) => {
       const timeZone = getProfile(store.db)?.timezone ?? opts.timeZone;
       const file = runNightlySnapshot(store.sqlite, store.snapshotDir, opts.keep, timeZone, now());
@@ -64,5 +84,5 @@ export function startRetention(opts: {
       if (Object.values(counts).some((n) => n > 0)) opts.log.info({ person: shortKey(store.key), ...counts }, "expired conversations deleted");
     });
   run();
-  return new Cron("7 * * * *", run);
+  return new Cron("7 * * * *", { catch: logEscape(opts.log, "retention purge failed") }, run);
 }

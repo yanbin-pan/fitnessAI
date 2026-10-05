@@ -3,11 +3,12 @@ import type { AddressInfo } from "node:net";
 import path from "node:path";
 import type { FastifyBaseLogger } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
+import { preparePersonDir } from "../src/db/location.ts";
 import { runNightlySnapshot, startNightlySnapshot } from "../src/jobs.ts";
 import { createMetrics, recordCoach, serveMetrics } from "../src/metrics.ts";
 import { shortKey } from "../src/people/people.ts";
 import { saveProfile } from "../src/profile/profile.ts";
-import { NOW, makeProfile, openTestDb, tempDir, testApp, testPeople } from "./helpers.ts";
+import { NOW, makeProfile, openTestDb, tempDir, testApp, testPeople, unlistable } from "./helpers.ts";
 import type { TestApp } from "./helpers.ts";
 
 let ctx: TestApp | undefined;
@@ -106,14 +107,28 @@ describe("runNightlySnapshot", () => {
   });
 });
 
-/** A logger that only remembers what it was asked to say. */
+/** A logger that only remembers what it was asked to say. `refuseNextError` makes its next error line throw, as a broken log pipe might. */
 function recorder() {
   const calls: { level: "info" | "error"; fields: Record<string, unknown>; msg: string }[] = [];
+  let refusal: Error | null = null;
   const log = {
     info: (fields: Record<string, unknown>, msg: string) => calls.push({ level: "info", fields, msg }),
-    error: (fields: Record<string, unknown>, msg: string) => calls.push({ level: "error", fields, msg }),
+    error: (fields: Record<string, unknown>, msg: string) => {
+      if (refusal) {
+        const err = refusal;
+        refusal = null;
+        throw err;
+      }
+      calls.push({ level: "error", fields, msg });
+    },
   } as unknown as FastifyBaseLogger;
-  return { log, calls };
+  return {
+    log,
+    calls,
+    refuseNextError(err: Error) {
+      refusal = err;
+    },
+  };
 }
 
 describe("startNightlySnapshot", () => {
@@ -166,9 +181,65 @@ describe("startNightlySnapshot", () => {
       await expect(job.trigger()).resolves.toBeUndefined();
       const errors = calls.filter((c) => c.level === "error");
       expect(errors).toHaveLength(1);
-      expect(errors[0]).toMatchObject({ msg: "nightly snapshot failed", fields: { person: shortKey(stores[0].key) } });
-      expect(errors[0].fields.err).toBeInstanceOf(Error);
+      expect(errors[0].msg).toBe("nightly snapshot failed");
+      // Exactly the error and the start of the key: no email, no whole key, nothing else.
+      expect(errors[0].fields).toEqual({ err: expect.any(Error), person: shortKey(stores[0].key) });
       expect(fs.readdirSync(stores[1].snapshotDir)).toHaveLength(1);
+    } finally {
+      job.stop();
+      people.close();
+    }
+  });
+
+  it("logs a person whose database will not open, and still writes the next person's snapshot", async () => {
+    const { dataDir, people, stores } = testPeople("owner@example.com");
+    // A folder nobody has opened in this process, whose database is garbage. Its key sorts first, so the owner's comes after it.
+    const broken = "0".repeat(64);
+    fs.writeFileSync(preparePersonDir(dataDir, broken).dbFile, "this is not a database. ".repeat(20));
+    const { log, calls } = recorder();
+    const job = startNightlySnapshot({ people, keep: 7, timeZone: "Europe/London", log, now: () => NOW });
+    try {
+      expect(people.keys()).toEqual([broken, stores[0].key]);
+      await expect(job.trigger()).resolves.toBeUndefined();
+      expect(calls.filter((c) => c.level === "error")).toEqual([
+        { level: "error", msg: "nightly snapshot failed", fields: { err: expect.objectContaining({ code: "SQLITE_NOTADB" }), person: shortKey(broken) } },
+      ]);
+      expect(calls.filter((c) => c.level === "info").map((c) => c.fields.person)).toEqual([shortKey(stores[0].key)]);
+      expect(fs.readdirSync(stores[0].snapshotDir)).toEqual(["fitness-2026-10-03.db"]);
+    } finally {
+      job.stop();
+      people.close();
+    }
+  });
+
+  it("logs a failure to list the folders once and does not reject, because croner runs the job un-awaited and Node exits on an unhandled rejection", async () => {
+    const { people } = testPeople("owner@example.com");
+    const { log, calls } = recorder();
+    const job = startNightlySnapshot({ people: unlistable(people), keep: 7, timeZone: "Europe/London", log, now: () => NOW });
+    try {
+      await expect(job.trigger()).resolves.toBeUndefined();
+      expect(calls).toHaveLength(1);
+      expect(calls[0]).toMatchObject({ level: "error", msg: "nightly snapshot failed" });
+      // The listing itself failed, not anyone's folder: no person to name.
+      expect(Object.keys(calls[0].fields)).toEqual(["err"]);
+      expect(calls[0].fields.err).toBeInstanceOf(Error);
+    } finally {
+      job.stop();
+      people.close();
+    }
+  });
+
+  it("logs whatever else escapes a run through croner's own catch, so the run can never reject", async () => {
+    const { people } = testPeople("owner@example.com");
+    const { log, calls, refuseNextError } = recorder();
+    const job = startNightlySnapshot({ people: unlistable(people), keep: 7, timeZone: "Europe/London", log, now: () => NOW });
+    // The listing fails, and then the logger fails on the line about it: the one throw the job's own guard cannot catch.
+    refuseNextError(new Error("the log pipe is closed"));
+    try {
+      await expect(job.trigger()).resolves.toBeUndefined();
+      expect(calls).toHaveLength(1);
+      expect(calls[0]).toMatchObject({ level: "error", msg: "nightly snapshot failed" });
+      expect(calls[0].fields.err).toMatchObject({ message: "the log pipe is closed" });
     } finally {
       job.stop();
       people.close();

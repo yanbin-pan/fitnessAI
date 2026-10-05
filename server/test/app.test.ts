@@ -20,7 +20,7 @@ describe("authentication", () => {
     expect(res.json()).toEqual({ ok: true });
   });
 
-  it("answers every other /api route with a bodiless 401 without a valid token", async () => {
+  it("answers every other /api route with a bodiless 401 without a valid token for someone on the list", async () => {
     ctx = await testApp();
     const intruder = await ctx.auth.token({ email: "intruder@example.com" });
     for (const headers of [{}, { "cf-access-jwt-assertion": "garbage" }, { "cf-access-jwt-assertion": intruder }]) {

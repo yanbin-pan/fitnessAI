@@ -45,6 +45,16 @@ export function testPeople(...emails: string[]): { dataDir: string; people: Peop
   return { dataDir, people, stores: emails.map((email) => people.store(personKey(email))) };
 }
 
+/** `people` with a folder listing that fails, as an unreachable volume's would: what a job has to survive without crashing the process. */
+export function unlistable(people: People): People {
+  return {
+    ...people,
+    keys: () => {
+      throw Object.assign(new Error("EIO: i/o error, scandir"), { code: "EIO" });
+    },
+  };
+}
+
 export interface TokenClaims {
   /** `null` leaves the claim out entirely. */
   email?: string | null;

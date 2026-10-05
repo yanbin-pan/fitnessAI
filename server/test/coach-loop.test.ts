@@ -157,6 +157,16 @@ describe("runCoachLoop", () => {
     expect(silent.model).toBeNull();
   });
 
+  it("reports the model that answered last when a run takes more than one call", async () => {
+    // A fallback can change the model between the calls of one run: the run is recorded under the one that finished it.
+    const ai = fakeAi([
+      { ...toolCall([{ name: "log_items", input: {} }]), model: "claude-opus-5-5" },
+      { ...textReply("Logged."), model: "claude-sonnet-5-5" },
+    ]);
+    const result = await runCoachLoop(input(ai));
+    expect(result).toMatchObject({ ok: true, calls: 2, model: "claude-sonnet-5-5" });
+  });
+
   it("says what it is about to do: its first look, each tool, then the reply after the tools", async () => {
     const steps: LoopStep[] = [];
     const ai = fakeAi([toolCall([{ name: "log_items", input: { a: 1 } }, { name: "update_entry", input: { b: 2 } }]), textReply("Logged.")]);

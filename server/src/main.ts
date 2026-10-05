@@ -5,7 +5,7 @@ import { loadConfig } from "./config.ts";
 import { moveOwnerIn } from "./db/location.ts";
 import { startNightlySnapshot, startRetention } from "./jobs.ts";
 import { createMetrics, serveMetrics } from "./metrics.ts";
-import { createPeople, personKey } from "./people/people.ts";
+import { createPeople, personKey, shortKey } from "./people/people.ts";
 import { getProfile } from "./profile/profile.ts";
 
 const config = loadConfig(process.env);
@@ -15,9 +15,8 @@ const ownerKey = personKey(config.ownerEmail);
 // Before anything opens a database: milestone 2.1's one folder becomes the owner's (2.2 §4).
 const move = moveOwnerIn(config.dataDir, ownerKey);
 const people = createPeople({ dataDir: config.dataDir });
-// Everyone's database opens now, as the one database did before: a lock left by the previous pod is waited out here,
-// at startup, never inside a request. A database with a migration to run is snapshotted first.
-for (const key of people.keys()) people.store(key);
+// The owner's database opens first, and nothing guards it: without it there is nothing to serve, so a failure stops the
+// start, loudly, as it always did. A lock left by the previous pod is waited out here, at startup, never inside a request (P2).
 const owner = people.store(ownerKey);
 
 // loadConfig guarantees Access settings whenever the development bypass is off.
@@ -39,6 +38,20 @@ const app = buildApp({
 });
 if (move === "moved") app.log.info("moved the owner's data into users/ (milestone 2.2)");
 if (move === "both") app.log.warn("found data in both data/db and the owner's folder under data/users; using the owner's folder. Check the old data/db, data/photos and data/snapshots aren't needed, then remove them");
+
+// Everyone else's database opens now too, before the app listens (P2), and only now that the log and its serializer
+// exist. A database with a migration to run is snapshotted first. One that won't open is logged by the start of its
+// key and the rest go on: it must not take the app down for everyone else.
+for (const key of people.keys()) {
+  if (key === ownerKey) continue;
+  try {
+    people.store(key);
+  } catch (err) {
+    app.log.error({ err, person: shortKey(key) }, "a person's database could not be opened");
+  }
+}
+// From here a locked database is refused at once instead of blocking the event loop for up to 2 minutes.
+people.stopWaitingForLocks();
 
 const job = startNightlySnapshot({ people, keep: config.snapshotKeep, timeZone: getProfile(owner.db)?.timezone ?? "Europe/London", log: app.log });
 const retention = startRetention({ people, hours: config.retentionHours, log: app.log });

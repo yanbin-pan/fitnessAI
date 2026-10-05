@@ -32,6 +32,19 @@ function singlePersonFolder(): string {
   return dir;
 }
 
+describe("personPaths", () => {
+  it("refuses anything but a person's key, so no other string can become part of a path", () => {
+    const dir = tempDir();
+    for (const key of ["../x", "", KEY.toUpperCase(), `${KEY}\n`, `../${KEY}`, KEY.slice(0, 63), `${KEY}0`]) {
+      // personPaths builds every path, so it is where the key is checked: what is built on it is covered too.
+      expect(() => personPaths(dir, key), JSON.stringify(key)).toThrow("not a person key");
+      expect(() => preparePersonDir(dir, key), JSON.stringify(key)).toThrow("not a person key");
+      expect(() => moveOwnerIn(dir, key), JSON.stringify(key)).toThrow("not a person key");
+    }
+    expect(fs.readdirSync(dir)).toEqual([]);
+  });
+});
+
 describe("preparePersonDir", () => {
   it("lays out a person's folder: db/ and photos/ tagged for restic to skip, snapshots/ not", () => {
     const dir = tempDir();
@@ -98,14 +111,42 @@ describe("moveOwnerIn", () => {
     expect(fs.readdirSync(fresh)).toEqual([]);
   });
 
-  it("never overwrites an owner's folder that already exists", () => {
+  it("never overwrites an owner's folder that already holds data", () => {
     const dir = singlePersonFolder();
     const owner = personPaths(dir, KEY);
     fs.mkdirSync(path.dirname(owner.dbFile), { recursive: true });
     fs.writeFileSync(owner.dbFile, "the owner's current database");
     expect(moveOwnerIn(dir, KEY)).toBe("both");
     expect(fs.readFileSync(owner.dbFile, "utf8")).toBe("the owner's current database");
+    // Nothing was moved or staged: all of milestone 2.1's folders are still at the top.
+    for (const name of ["db", "photos", "snapshots"]) expect(fs.existsSync(path.join(dir, name))).toBe(true);
     expect(fs.existsSync(path.join(dir, "db", "fitness.db"))).toBe(true);
+    expect(fs.existsSync(`${owner.dir}.moving`)).toBe(false);
+  });
+
+  it("moves into an owner's folder that a rollback left empty", () => {
+    const dir = singlePersonFolder();
+    const owner = personPaths(dir, KEY);
+    // A rollback to milestone 2.1 moves db/, photos/ and snapshots/ back to the top and leaves the owner's folder behind, empty.
+    fs.mkdirSync(owner.dir, { recursive: true });
+    expect(moveOwnerIn(dir, KEY)).toBe("moved");
+    for (const name of ["db", "photos", "snapshots"]) expect(fs.existsSync(path.join(dir, name))).toBe(false);
+    const moved = new Database(owner.dbFile, { readonly: true });
+    expect(moved.prepare("SELECT id FROM entries ORDER BY id").pluck().all()).toEqual(["a", "b"]);
+    moved.close();
+    expect(fs.readFileSync(path.join(owner.photoDir, `${"1".repeat(32)}.jpg`), "utf8")).toBe("a photo");
+    expect(fs.readFileSync(path.join(owner.snapshotDir, "fitness-2026-10-02.db"), "utf8")).toBe("a snapshot");
+    expect(fs.existsSync(`${owner.dir}.moving`)).toBe(false);
+    expect(moveOwnerIn(dir, KEY)).toBe("none");
+  });
+
+  it("leaves an owner's folder alone when it holds anything at all", () => {
+    const dir = singlePersonFolder();
+    const owner = personPaths(dir, KEY);
+    fs.mkdirSync(path.join(owner.dir, "snapshots"), { recursive: true }); // not even a database: still the owner's
+    expect(moveOwnerIn(dir, KEY)).toBe("both");
+    expect(fs.readdirSync(owner.dir)).toEqual(["snapshots"]);
+    for (const name of ["db", "photos", "snapshots"]) expect(fs.existsSync(path.join(dir, name))).toBe(true);
   });
 
   it("finishes a move that a crash cut short", () => {
@@ -120,6 +161,38 @@ describe("moveOwnerIn", () => {
     expect(fs.existsSync(path.join(owner.snapshotDir, "fitness-2026-10-02.db"))).toBe(true);
     expect(fs.existsSync(staging)).toBe(false);
     for (const name of ["db", "photos", "snapshots"]) expect(fs.existsSync(path.join(dir, name))).toBe(false);
+  });
+
+  it("finishes a move that a crash cut short with only the final rename left", () => {
+    const dir = singlePersonFolder();
+    const staging = `${personPaths(dir, KEY).dir}.moving`;
+    fs.mkdirSync(staging, { recursive: true });
+    for (const name of ["db", "photos", "snapshots"]) fs.renameSync(path.join(dir, name), path.join(staging, name)); // the crash came after the third rename
+    expect(moveOwnerIn(dir, KEY)).toBe("moved");
+    const owner = personPaths(dir, KEY);
+    const moved = new Database(owner.dbFile, { readonly: true });
+    expect(moved.prepare("SELECT id FROM entries ORDER BY id").pluck().all()).toEqual(["a", "b"]);
+    moved.close();
+    expect(fs.existsSync(path.join(owner.photoDir, `${"1".repeat(32)}.jpg`))).toBe(true);
+    expect(fs.existsSync(path.join(owner.snapshotDir, "fitness-2026-10-02.db"))).toBe(true);
+    expect(fs.existsSync(staging)).toBe(false);
+  });
+
+  it("leaves a staging folder alone when the owner already has a folder with data in it", () => {
+    const dir = singlePersonFolder();
+    const owner = personPaths(dir, KEY);
+    const staging = `${owner.dir}.moving`;
+    fs.mkdirSync(path.dirname(owner.dbFile), { recursive: true });
+    fs.writeFileSync(owner.dbFile, "the owner's current database");
+    fs.mkdirSync(staging);
+    fs.renameSync(path.join(dir, "db"), path.join(staging, "db")); // an older move, cut short
+    expect(moveOwnerIn(dir, KEY)).toBe("both");
+    // Both are as they were: the owner's folder, the half-filled staging folder, and what was never staged.
+    expect(fs.readFileSync(owner.dbFile, "utf8")).toBe("the owner's current database");
+    expect(fs.readdirSync(owner.dir)).toEqual(["db"]);
+    expect(fs.existsSync(path.join(staging, "db", "fitness.db"))).toBe(true);
+    expect(fs.readdirSync(staging)).toEqual(["db"]);
+    for (const name of ["photos", "snapshots"]) expect(fs.existsSync(path.join(dir, name))).toBe(true);
   });
 });
 

@@ -147,7 +147,7 @@ describe("POST /api/photos", () => {
     expect(res.json()).toEqual({ error: "bad_request" });
   });
 
-  it("needs the owner's sign-in, like every API route", async () => {
+  it("needs a sign-in, like every API route", async () => {
     ctx = await testApp();
     expect((await upload(ctx, fakeJpeg(10, 10), "image/jpeg", {})).statusCode).toBe(401);
     // The sign-in check runs before the body is read, even in the photo routes' own context.

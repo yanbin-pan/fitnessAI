@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { entries, photos } from "../src/db/schema.ts";
+import { personKey } from "../src/people/people.ts";
 import { fakeAi, textReply, toolCall } from "./fake-ai.ts";
 import { fakeJpeg } from "./images.ts";
 import { logItemsInput, testApp } from "./helpers.ts";
@@ -32,6 +35,8 @@ async function twoPeople(): Promise<{ app: TestApp; owner: Headers; guest: Heade
   return { app, owner, guest };
 }
 
+/** The photo files in a folder, by what is really on disk. */
+const images = (dir: string) => fs.readdirSync(dir).filter((f) => /\.(jpg|png)$/.test(f));
 const get = (app: TestApp, url: string, headers: Headers) => app.app.inject({ method: "GET", url, headers });
 const addBanana = (app: TestApp, headers: Headers, id = randomUUID()) =>
   app.app.inject({ method: "POST", url: "/api/entries", headers, payload: { id, date: "2026-10-03", foods: [BANANA] } });
@@ -47,6 +52,9 @@ describe("friends and family (2.2)", () => {
     const unsigned = await app.app.inject({ method: "GET", url: "/api/profile" });
     expect([stranger.statusCode, stranger.body]).toEqual([401, ""]);
     expect([unsigned.statusCode, unsigned.body]).toEqual([401, ""]);
+    // The stranger made nothing: no folder of their own, only the owner's and the guest's.
+    const folders = fs.readdirSync(path.join(app.dataDir, "users")).sort();
+    expect(folders).toEqual([personKey("owner@example.com"), personKey(FRIEND)].sort());
   });
 
   it("gives each person their own profile", async () => {
@@ -107,6 +115,8 @@ describe("friends and family (2.2)", () => {
     expect(theirs.db.select().from(entries).all()).toEqual([]);
     expect(app.db.select().from(photos).all()).toEqual([]);
     expect(theirs.db.select().from(photos).all()).toHaveLength(1);
-    expect(theirs.photoDir).not.toBe(app.photoDir);
+    // The files themselves, not the paths: the guest's photo is in the guest's folder and nowhere in the owner's.
+    expect(images(theirs.photoDir)).toHaveLength(1);
+    expect(images(app.photoDir)).toEqual([]);
   });
 });
