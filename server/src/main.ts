@@ -2,19 +2,23 @@ import { anthropicClient } from "./ai/anthropic.ts";
 import { buildApp } from "./app.ts";
 import { createVerifier, devVerifier } from "./auth/access.ts";
 import { loadConfig } from "./config.ts";
-import { prepareDataDir } from "./db/location.ts";
-import { openDatabase } from "./db/open.ts";
+import { moveOwnerIn } from "./db/location.ts";
 import { startNightlySnapshot, startRetention } from "./jobs.ts";
-import { failInterrupted } from "./messages/messages.ts";
 import { createMetrics, serveMetrics } from "./metrics.ts";
+import { createPeople, personKey } from "./people/people.ts";
 import { getProfile } from "./profile/profile.ts";
 
 const config = loadConfig(process.env);
 // The development sign-in bypass must never be reachable from the network.
 const host = config.devAuthEmail ? "127.0.0.1" : "0.0.0.0";
-const paths = prepareDataDir(config.dataDir);
-const database = openDatabase({ file: paths.dbFile, snapshotDir: paths.snapshotDir });
-failInterrupted(database.db);
+const ownerKey = personKey(config.ownerEmail);
+// Before anything opens a database: milestone 2.1's one folder becomes the owner's (2.2 §4).
+const move = moveOwnerIn(config.dataDir, ownerKey);
+const people = createPeople({ dataDir: config.dataDir });
+// Everyone's database opens now, as the one database did before: a lock left by the previous pod is waited out here,
+// at startup, never inside a request. A database with a migration to run is snapshotted first.
+for (const key of people.keys()) people.store(key);
+const owner = people.store(ownerKey);
 
 // loadConfig guarantees Access settings whenever the development bypass is off.
 const verifier = config.devAuthEmail ? devVerifier(config.devAuthEmail) : createVerifier(config.access!);
@@ -23,27 +27,21 @@ const ai = config.anthropic.apiKey
   : null;
 const metrics = createMetrics();
 const app = buildApp({
-  db: database.db,
+  db: owner.db,
   verifier,
   ai,
   now: () => new Date(),
   webDist: config.webDist,
-  photoDir: paths.photoDir,
+  photoDir: owner.photoDir,
   coachBudgetMs: config.coachBudgetMs,
   metrics,
   logger: true,
 });
-if (paths.move === "moved") app.log.info("moved the database into db/, where backups skip it (spec §14.4)");
-if (paths.move === "both") app.log.warn("databases found at both data/fitness.db and data/db/fitness.db; using db/. The old file is still backed up: remove it once you have checked it isn't needed");
+if (move === "moved") app.log.info("moved the owner's data into users/ (milestone 2.2)");
+if (move === "both") app.log.warn("found data in both data/db and the owner's folder under data/users; using the owner's folder. Check the old data/db, data/photos and data/snapshots aren't needed, then remove them");
 
-const job = startNightlySnapshot({
-  sqlite: database.sqlite,
-  dir: paths.snapshotDir,
-  keep: config.snapshotKeep,
-  timeZone: getProfile(database.db)?.timezone ?? "Europe/London",
-  log: app.log,
-});
-const retention = startRetention({ sql: database.db, photoDir: paths.photoDir, hours: config.retentionHours, log: app.log });
+const job = startNightlySnapshot({ people, keep: config.snapshotKeep, timeZone: getProfile(owner.db)?.timezone ?? "Europe/London", log: app.log });
+const retention = startRetention({ people, hours: config.retentionHours, log: app.log });
 const metricsServer = await serveMetrics(metrics, config.metricsPort, host);
 await app.listen({ host, port: config.port });
 if (!ai) app.log.warn("ANTHROPIC_API_KEY is not set: the coach is off; manual logging still works");
@@ -57,7 +55,7 @@ async function shutdown(signal: string): Promise<void> {
   retention.stop();
   metricsServer.close();
   await app.close();
-  database.close();
+  people.close();
   process.exit(0);
 }
 process.on("SIGTERM", () => void shutdown("SIGTERM"));

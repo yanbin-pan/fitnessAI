@@ -5,7 +5,9 @@ import type { FastifyBaseLogger } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import { runNightlySnapshot, startNightlySnapshot } from "../src/jobs.ts";
 import { createMetrics, recordCoach, serveMetrics } from "../src/metrics.ts";
-import { openTestDb, tempDir, testApp } from "./helpers.ts";
+import { shortKey } from "../src/people/people.ts";
+import { saveProfile } from "../src/profile/profile.ts";
+import { NOW, makeProfile, openTestDb, tempDir, testApp, testPeople } from "./helpers.ts";
 import type { TestApp } from "./helpers.ts";
 
 let ctx: TestApp | undefined;
@@ -115,53 +117,61 @@ function recorder() {
 }
 
 describe("startNightlySnapshot", () => {
-  it("is set for 03:00 in the profile's timezone, whatever the pod's", () => {
-    const db = openTestDb();
-    const job = startNightlySnapshot({ sqlite: db.sqlite, dir: tempDir(), keep: 7, timeZone: "Europe/London", log: recorder().log });
-    const tokyo = startNightlySnapshot({ sqlite: db.sqlite, dir: tempDir(), keep: 7, timeZone: "Asia/Tokyo", log: recorder().log });
+  it("is set for 03:00 in the owner's timezone, whatever the pod's", () => {
+    const { people } = testPeople();
+    const job = startNightlySnapshot({ people, keep: 7, timeZone: "Europe/London", log: recorder().log });
+    const tokyo = startNightlySnapshot({ people, keep: 7, timeZone: "Asia/Tokyo", log: recorder().log });
     try {
       // 13:00 BST on 3 October: the next 03:00 in London is 03:00 BST, which is 02:00 UTC.
       expect(job.nextRun(new Date("2026-10-03T12:00:00Z"))?.toISOString()).toBe("2026-10-04T02:00:00.000Z");
       // After the clocks go back on 25 October, 03:00 in London is 03:00 UTC.
       expect(job.nextRun(new Date("2026-10-25T12:00:00Z"))?.toISOString()).toBe("2026-10-26T03:00:00.000Z");
-      // A job that lost its timezone follows the host's, and on a London host that passes the checks
-      // above. No host zone can also give Tokyo (UTC+9, no daylight saving): 18:00 UTC the evening before.
+      // No host zone can also give Tokyo (UTC+9, no daylight saving): 18:00 UTC the evening before.
       expect(tokyo.nextRun(new Date("2026-10-03T12:00:00Z"))?.toISOString()).toBe("2026-10-03T18:00:00.000Z");
     } finally {
       job.stop();
       tokyo.stop();
-      db.close();
+      people.close();
     }
   });
 
-  it("writes a snapshot when it fires and logs the file", async () => {
-    const db = openTestDb();
-    const dir = tempDir();
+  it("writes everyone's snapshot when it fires, each named after its person's own date, and logs no email", async () => {
+    const { people, stores } = testPeople("owner@example.com", "friend@example.com");
+    saveProfile(stores[1].db, makeProfile({ timezone: "Pacific/Kiritimati" }), NOW.toISOString());
     const { log, calls } = recorder();
-    const job = startNightlySnapshot({ sqlite: db.sqlite, dir, keep: 7, timeZone: "Europe/London", log });
+    // 12:00 UTC on 3 October is the 3rd in London (the default with no profile) and already the 4th on Kiritimati (UTC+14).
+    const job = startNightlySnapshot({ people, keep: 7, timeZone: "Europe/London", log, now: () => NOW });
     try {
       await job.trigger();
-      expect(fs.readdirSync(dir)).toHaveLength(1);
-      expect(fs.readdirSync(dir)[0]).toMatch(/^fitness-\d{4}-\d{2}-\d{2}\.db$/);
-      expect(calls.map((c) => c.level)).toEqual(["info"]);
+      expect(fs.readdirSync(stores[0].snapshotDir)).toEqual(["fitness-2026-10-03.db"]);
+      expect(fs.readdirSync(stores[1].snapshotDir)).toEqual(["fitness-2026-10-04.db"]);
+      expect(calls.map((c) => c.level)).toEqual(["info", "info"]);
+      expect(calls.map((c) => c.fields.person).sort()).toEqual(stores.map((s) => shortKey(s.key)).sort());
+      expect(calls.map((c) => c.fields.file).sort()).toEqual(["fitness-2026-10-03.db", "fitness-2026-10-04.db"]);
+      const text = JSON.stringify(calls);
+      expect(text).not.toContain("@");
+      for (const store of stores) expect(text).not.toContain(store.key);
     } finally {
       job.stop();
-      db.close();
+      people.close();
     }
   });
 
-  it("logs a failed snapshot instead of letting it escape and crash the server", async () => {
-    const db = openTestDb();
+  it("logs one person's failed snapshot and still writes everyone else's", async () => {
+    const { people, stores } = testPeople("owner@example.com", "friend@example.com");
     const { log, calls } = recorder();
-    const job = startNightlySnapshot({ sqlite: db.sqlite, dir: tempDir(), keep: 7, timeZone: "Europe/London", log });
-    db.close(); // the snapshot now fails: the connection is closed
+    const job = startNightlySnapshot({ people, keep: 7, timeZone: "Europe/London", log, now: () => NOW });
+    stores[0].sqlite.close(); // this person's snapshot now fails: the connection is closed
     try {
       await expect(job.trigger()).resolves.toBeUndefined();
-      expect(calls).toHaveLength(1);
-      expect(calls[0]).toMatchObject({ level: "error", msg: "nightly snapshot failed" });
-      expect(calls[0].fields.err).toBeInstanceOf(Error);
+      const errors = calls.filter((c) => c.level === "error");
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({ msg: "nightly snapshot failed", fields: { person: shortKey(stores[0].key) } });
+      expect(errors[0].fields.err).toBeInstanceOf(Error);
+      expect(fs.readdirSync(stores[1].snapshotDir)).toHaveLength(1);
     } finally {
       job.stop();
+      people.close();
     }
   });
 });

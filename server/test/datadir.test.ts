@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { CACHEDIR_TAG, moveOwnerIn, personPaths, prepareDataDir, preparePersonDir } from "../src/db/location.ts";
+import { CACHEDIR_TAG, moveOwnerIn, personPaths, preparePersonDir } from "../src/db/location.ts";
 import { openDatabase } from "../src/db/open.ts";
 import { CONVERSATION_TABLES, snapshot, stripConversations } from "../src/db/snapshot.ts";
 import { insertEntry } from "../src/log/entries.ts";
@@ -14,71 +14,6 @@ const SIGNATURE = "Signature: 8a477f597d28d172789f06886806bc55";
 
 /** What a snapshot being built leaves beside the live database: `<database>.snapshot-part`, and its journal. */
 const partFiles = (folder: string) => fs.readdirSync(folder).filter((f) => f.includes(".snapshot-part"));
-
-describe("prepareDataDir", () => {
-  it("lays out a fresh folder: db/ and photos/ tagged for restic to skip, snapshots/ not", () => {
-    const dir = tempDir();
-    const paths = prepareDataDir(dir);
-    expect(paths).toEqual({
-      dbFile: path.join(dir, "db", "fitness.db"),
-      photoDir: path.join(dir, "photos"),
-      snapshotDir: path.join(dir, "snapshots"),
-      move: "fresh",
-    });
-    for (const tagged of ["db", "photos"]) {
-      const tag = fs.readFileSync(path.join(dir, tagged, "CACHEDIR.TAG"), "utf8");
-      expect(tag.startsWith(SIGNATURE)).toBe(true);
-      expect(tag).toBe(CACHEDIR_TAG);
-    }
-    expect(fs.existsSync(path.join(dir, "snapshots", "CACHEDIR.TAG"))).toBe(false);
-  });
-
-  it("moves milestone 1's database and its journal into db/", () => {
-    const dir = tempDir();
-    const old = openDatabase({ file: path.join(dir, "fitness.db"), snapshotDir: null });
-    insertEntry(old.db, sampleEntry({ id: "kept" }), NOW.toISOString());
-    old.close();
-    fs.writeFileSync(path.join(dir, "fitness.db-journal"), "journal");
-
-    const paths = prepareDataDir(dir);
-    expect(paths.move).toBe("moved");
-    expect(fs.existsSync(path.join(dir, "fitness.db"))).toBe(false);
-    expect(fs.existsSync(path.join(dir, "fitness.db-journal"))).toBe(false);
-    expect(fs.readFileSync(`${paths.dbFile}-journal`, "utf8")).toBe("journal");
-    fs.rmSync(`${paths.dbFile}-journal`); // not a real journal: don't let SQLite try to roll it back
-    const moved = new Database(paths.dbFile);
-    expect(moved.prepare("SELECT id FROM entries").pluck().all()).toEqual(["kept"]);
-    moved.close();
-  });
-
-  it("leaves both files alone when each place already has a database", () => {
-    const dir = tempDir();
-    fs.mkdirSync(path.join(dir, "db"));
-    fs.writeFileSync(path.join(dir, "fitness.db"), "old");
-    fs.writeFileSync(path.join(dir, "db", "fitness.db"), "new");
-    expect(prepareDataDir(dir).move).toBe("both");
-    expect(fs.readFileSync(path.join(dir, "fitness.db"), "utf8")).toBe("old");
-    expect(fs.readFileSync(path.join(dir, "db", "fitness.db"), "utf8")).toBe("new");
-  });
-
-  it("is a no-op on the next start", () => {
-    const dir = tempDir();
-    prepareDataDir(dir);
-    fs.writeFileSync(path.join(dir, "db", "fitness.db"), "");
-    expect(prepareDataDir(dir).move).toBe("in_place");
-  });
-
-  it("clears a snapshot copy that a crash left beside the database", () => {
-    const dir = tempDir();
-    fs.mkdirSync(path.join(dir, "db"));
-    fs.writeFileSync(path.join(dir, "db", "fitness.db"), "");
-    for (const stale of ["fitness.db.snapshot-part", "fitness.db.snapshot-part-journal"]) {
-      fs.writeFileSync(path.join(dir, "db", stale), "a copy with conversations in it");
-    }
-    prepareDataDir(dir);
-    expect(fs.readdirSync(path.join(dir, "db")).sort()).toEqual(["CACHEDIR.TAG", "fitness.db"]);
-  });
-});
 
 const KEY = "c8cd3c6427301eaf6665bccacd65ddb614527acc843a15463e3faba57124c351";
 

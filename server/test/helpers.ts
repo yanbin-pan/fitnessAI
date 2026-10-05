@@ -12,6 +12,8 @@ import { buildApp } from "../src/app.ts";
 import type { ExerciseItemData, FoodItemData, NewEntry } from "../src/log/entries.ts";
 import type { AiClient } from "../src/ai/client.ts";
 import type { Metrics } from "../src/metrics.ts";
+import { createPeople, personKey } from "../src/people/people.ts";
+import type { People, Store } from "../src/people/people.ts";
 
 /** A complete profile: male, 35 on 2026-10-03, 180 cm, 80 kg, light activity, losing 0.5 kg a week. */
 export function makeProfile(overrides: Partial<ProfileInput> = {}): Profile {
@@ -34,6 +36,13 @@ export function tempDir(): string {
 /** A migrated database in a fresh temporary directory. Call `.close()` when done. */
 export function openTestDb() {
   return openDatabase({ file: path.join(tempDir(), "fitness.db"), snapshotDir: null });
+}
+
+/** A registry over a fresh data folder, with these people's databases already open. Call `people.close()` when done. */
+export function testPeople(...emails: string[]): { dataDir: string; people: People; stores: Store[] } {
+  const dataDir = tempDir();
+  const people = createPeople({ dataDir });
+  return { dataDir, people, stores: emails.map((email) => people.store(personKey(email))) };
 }
 
 export interface TokenClaims {

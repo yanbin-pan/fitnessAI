@@ -8,12 +8,13 @@ import { openDatabase } from "../src/db/open.ts";
 import { startRetention } from "../src/jobs.ts";
 import { getEntry, insertEntry } from "../src/log/entries.ts";
 import { insertReply, insertUserMessage, setMessageStatus } from "../src/messages/messages.ts";
+import { shortKey } from "../src/people/people.ts";
 import { claimPhotos, savePhoto } from "../src/photos/photos.ts";
 import { purgeExpired } from "../src/retention/retention.ts";
 import type { Sql } from "../src/db/types.ts";
 import type { MessageStatus } from "../src/shared.ts";
 import { fakeJpeg } from "./images.ts";
-import { NOW, openTestDb, sampleEntry, sampleFood, tempDir } from "./helpers.ts";
+import { NOW, openTestDb, sampleEntry, sampleFood, tempDir, testPeople } from "./helpers.ts";
 
 const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3_600_000).toISOString();
 
@@ -179,21 +180,23 @@ describe("purgeExpired", () => {
 });
 
 describe("startRetention", () => {
-  it("purges once straight away, then every hour", () => {
-    const db = openTestDb();
-    message(db.db, "old", "2026-10-01", hoursAgo(50));
+  it("purges everyone once straight away, then every hour, logging counts by person", () => {
+    const { people, stores } = testPeople("owner@example.com", "friend@example.com");
+    for (const store of stores) message(store.db, "old", "2026-10-01", hoursAgo(50));
     const logged: unknown[] = [];
     const log = { info: (obj: unknown) => logged.push(obj), error: () => {} } as unknown as FastifyBaseLogger;
-    const job = startRetention({ sql: db.db, photoDir: tempDir(), hours: 48, log, now: () => NOW });
-    expect(db.db.select().from(messages).all()).toEqual([]);
-    expect(logged).toEqual([{ messages: 1, photos: 0, threads: 0, orphanFiles: 0 }]);
+    const job = startRetention({ people, hours: 48, log, now: () => NOW });
+    for (const store of stores) expect(store.db.select().from(messages).all()).toEqual([]);
+    const keys = stores.map((s) => s.key).sort();
+    expect(logged).toEqual(keys.map((key) => ({ person: shortKey(key), messages: 1, photos: 0, threads: 0, orphanFiles: 0 })));
     expect(job.getPattern()).toBe("7 * * * *");
     job.stop();
-    db.close();
+    people.close();
   });
 
-  it("logs a purge that fails instead of throwing, and the job can still be stopped", () => {
-    const db = openTestDb();
+  it("logs one person's failed purge, goes on to the next, and the job can still be stopped", () => {
+    const { people, stores } = testPeople("owner@example.com", "friend@example.com");
+    for (const store of stores) message(store.db, "old", "2026-10-01", hoursAgo(50));
     const infos: unknown[][] = [];
     const errors: unknown[][] = [];
     const log = {
@@ -201,13 +204,14 @@ describe("startRetention", () => {
       error: (...args: unknown[]) => errors.push(args),
     } as unknown as FastifyBaseLogger;
     // The sweep cannot list a photo folder that is not there.
-    const photoDir = path.join(tempDir(), "missing");
-    const job = startRetention({ sql: db.db, photoDir, hours: 48, log, now: () => NOW });
-    expect(errors).toEqual([[{ err: expect.objectContaining({ code: "ENOENT" }) }, "retention purge failed"]]);
-    expect(infos).toEqual([]);
+    fs.rmSync(stores[0].photoDir, { recursive: true, force: true });
+    const job = startRetention({ people, hours: 48, log, now: () => NOW });
+    expect(errors).toEqual([[{ err: expect.objectContaining({ code: "ENOENT" }), person: shortKey(stores[0].key) }, "retention purge failed"]]);
+    expect(stores[1].db.select().from(messages).all()).toEqual([]);
+    expect(infos).toEqual([[{ person: shortKey(stores[1].key), messages: 1, photos: 0, threads: 0, orphanFiles: 0 }, "expired conversations deleted"]]);
     expect(job.isStopped()).toBe(false);
     job.stop();
     expect(job.isStopped()).toBe(true);
-    db.close();
+    people.close();
   });
 });
