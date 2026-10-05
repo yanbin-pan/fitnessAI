@@ -1,4 +1,4 @@
-import type { Activity, ExerciseCategory, EntrySource, FoodGroup, Muscle, MuscleRole } from "./vocab.ts";
+import type { Activity, BodyGoal, ExerciseCategory, EntrySource, FoodGroup, Muscle, MuscleRole } from "./vocab.ts";
 import type { Profile } from "./schemas.ts";
 
 // Shapes the API returns. The server builds them; the web app renders them.
@@ -137,4 +137,17 @@ export interface PhotoUpload {
 export interface ApiErrorBody {
   error: string;
   issues?: { path: string; message: string }[];
+}
+
+/** One day in the calendar (spec §12): what was eaten against that day's adjusted target. */
+export interface DaySummary {
+  date: string;
+  kcal: number;
+  target_kcal: number;
+}
+
+/** What GET /api/days?from=&to= returns: the current body goal, which decides the colours' direction, and the days with food. */
+export interface DaySummaries {
+  goal: BodyGoal;
+  days: DaySummary[];
 }
