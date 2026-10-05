@@ -1,14 +1,22 @@
 import http from "node:http";
 import { Counter, Histogram, Registry, collectDefaultMetrics } from "prom-client";
 import type { ProcessOutcome } from "./coach/process.ts";
+import { shortKey } from "./people/people.ts";
+
+/** How a metric names a person: the short id the logs use, and owner or guest. Never an email, never the whole key (2.2 §8). */
+export interface PersonLabels {
+  person: string;
+  role: "owner" | "guest";
+}
 
 export interface Metrics {
   registry: Registry;
   httpRequests: Counter<"method" | "route" | "status">;
   httpDuration: Histogram<"method" | "route">;
-  coachMessages: Counter<"outcome">;
-  coachModelCalls: Counter;
-  coachTokens: Counter<"kind">;
+  requestsByPerson: Counter<"person" | "role">;
+  coachMessages: Counter<"outcome" | "person" | "role">;
+  coachModelCalls: Counter<"person" | "role">;
+  coachTokens: Counter<"kind" | "person" | "role">;
 }
 
 export function createMetrics(): Metrics {
@@ -25,26 +33,40 @@ export function createMetrics(): Metrics {
       name: "fitnessai_http_request_duration_seconds", help: "HTTP request duration",
       labelNames: ["method", "route"], registers: [registry],
     }),
-    coachMessages: new Counter<"outcome">({
-      name: "fitnessai_coach_messages_total", help: "Coach messages by outcome",
-      labelNames: ["outcome"], registers: [registry],
+    requestsByPerson: new Counter<"person" | "role">({
+      name: "fitnessai_requests_by_person_total", help: "Signed-in API requests by person (short id) and role",
+      labelNames: ["person", "role"], registers: [registry],
     }),
-    coachModelCalls: new Counter({ name: "fitnessai_coach_model_calls_total", help: "Calls to the Claude API", registers: [registry] }),
-    coachTokens: new Counter<"kind">({
+    coachMessages: new Counter<"outcome" | "person" | "role">({
+      name: "fitnessai_coach_messages_total", help: "Coach messages by outcome",
+      labelNames: ["outcome", "person", "role"], registers: [registry],
+    }),
+    coachModelCalls: new Counter<"person" | "role">({
+      name: "fitnessai_coach_model_calls_total", help: "Calls to the Claude API",
+      labelNames: ["person", "role"], registers: [registry],
+    }),
+    coachTokens: new Counter<"kind" | "person" | "role">({
       name: "fitnessai_coach_tokens_total", help: "Claude tokens by kind",
-      labelNames: ["kind"], registers: [registry],
+      labelNames: ["kind", "person", "role"], registers: [registry],
     }),
   };
 }
 
-export function recordCoach(metrics: Metrics | undefined, result: ProcessOutcome | null): void {
+/** A signed-in person's labels: `shortKey` of their key (the id the logs use) and their role. */
+export function personLabels(person: { key: string; owner: boolean }): PersonLabels {
+  return { person: shortKey(person.key), role: person.owner ? "owner" : "guest" };
+}
+
+export function recordCoach(metrics: Metrics | undefined, result: ProcessOutcome | null, who: PersonLabels): void {
   if (!metrics) return;
-  metrics.coachMessages.inc({ outcome: result?.outcome ?? "internal" });
+  // Exactly these two labels, whatever else the caller's object carries.
+  const { person, role } = who;
+  metrics.coachMessages.inc({ outcome: result?.outcome ?? "internal", person, role });
   if (!result) return;
-  metrics.coachModelCalls.inc(result.calls);
+  metrics.coachModelCalls.inc({ person, role }, result.calls);
   if (result.usage) {
     for (const kind of ["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"] as const) {
-      metrics.coachTokens.inc({ kind }, result.usage[kind]);
+      metrics.coachTokens.inc({ kind, person, role }, result.usage[kind]);
     }
   }
 }

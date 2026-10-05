@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
@@ -5,9 +6,11 @@ import type { FastifyBaseLogger } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import { preparePersonDir } from "../src/db/location.ts";
 import { runNightlySnapshot, startNightlySnapshot } from "../src/jobs.ts";
-import { createMetrics, recordCoach, serveMetrics } from "../src/metrics.ts";
-import { shortKey } from "../src/people/people.ts";
+import { createMetrics, personLabels, recordCoach, serveMetrics } from "../src/metrics.ts";
+import type { Metrics } from "../src/metrics.ts";
+import { personKey, shortKey } from "../src/people/people.ts";
 import { saveProfile } from "../src/profile/profile.ts";
+import { fakeAi, textReply } from "./fake-ai.ts";
 import { NOW, makeProfile, openTestDb, tempDir, testApp, testPeople, unlistable } from "./helpers.ts";
 import type { TestApp } from "./helpers.ts";
 
@@ -17,16 +20,68 @@ afterEach(async () => {
   ctx = undefined;
 });
 
+const FRIEND = "friend@example.com";
+// How metrics, like logs, name a person: the first 8 hex characters of sha256(email) (2.2 §8), and owner or guest.
+const OWNER = { person: "c8cd3c64", role: "owner" } as const; // owner@example.com
+const GUEST = { person: "f387373a", role: "guest" } as const; // friend@example.com
+
+/** One metric's series as exposed (`name{labels} value`), sorted so the order they arrived in doesn't matter. */
+const seriesOf = (text: string, name: string) => text.split("\n").filter((line) => line.startsWith(`${name}{`)).sort();
+
+/** The owner and a guest, each with a profile and a coach that answers: two messages from the owner, one from the guest (streamed, as the phone sends it). */
+async function twoPeopleAtWork(metrics: Metrics): Promise<TestApp> {
+  const t = await testApp({ guests: [FRIEND], ai: fakeAi([textReply("Morning."), textReply("Noted."), textReply("Hello.")]), metrics });
+  ctx = t;
+  saveProfile(t.db, makeProfile(), NOW.toISOString());
+  saveProfile(t.storeOf(FRIEND).db, makeProfile(), NOW.toISOString());
+  const guest = await t.headersFor(FRIEND);
+  const message = (headers: Record<string, string>) =>
+    t.app.inject({ method: "POST", url: "/api/messages", headers, payload: { id: randomUUID(), sent_at: "2026-10-03T11:58:00.000Z", text: "two eggs" } });
+  const sent = [await message(t.headers), await message(t.headers), await message({ ...guest, accept: "text/event-stream" })];
+  expect(sent.map((res) => res.statusCode)).toEqual([201, 201, 200]);
+  return t;
+}
+
 describe("metrics", () => {
-  it("count coach outcomes, model calls and tokens", async () => {
+  it("count coach outcomes, model calls and tokens under each person's short id and role", async () => {
     const metrics = createMetrics();
-    recordCoach(metrics, { outcome: "done", calls: 2, usage: { input_tokens: 200, output_tokens: 40, cache_read_input_tokens: 0, cache_creation_input_tokens: 10 } });
-    recordCoach(metrics, null);
+    recordCoach(metrics, { outcome: "done", calls: 2, usage: { input_tokens: 200, output_tokens: 40, cache_read_input_tokens: 0, cache_creation_input_tokens: 10 } }, OWNER);
+    recordCoach(metrics, null, OWNER);
+    // A refusal never reached Claude: a message with no tokens, and its zero calls add nothing.
+    recordCoach(metrics, { outcome: "ai_cap", calls: 0, usage: null }, GUEST);
+    recordCoach(metrics, { outcome: "done", calls: 1, usage: { input_tokens: 100, output_tokens: 20, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }, GUEST);
     const text = await metrics.registry.metrics();
-    expect(text).toContain('fitnessai_coach_messages_total{outcome="done"} 1');
-    expect(text).toContain('fitnessai_coach_messages_total{outcome="internal"} 1');
-    expect(text).toContain("fitnessai_coach_model_calls_total 2");
-    expect(text).toContain('fitnessai_coach_tokens_total{kind="input_tokens"} 200');
+    expect(text).toContain('fitnessai_coach_messages_total{outcome="done",person="c8cd3c64",role="owner"} 1');
+    expect(text).toContain('fitnessai_coach_messages_total{outcome="internal",person="c8cd3c64",role="owner"} 1');
+    expect(text).toContain('fitnessai_coach_messages_total{outcome="ai_cap",person="f387373a",role="guest"} 1');
+    expect(text).toContain('fitnessai_coach_messages_total{outcome="done",person="f387373a",role="guest"} 1');
+    expect(text).toContain('fitnessai_coach_model_calls_total{person="c8cd3c64",role="owner"} 2');
+    expect(text).toContain('fitnessai_coach_model_calls_total{person="f387373a",role="guest"} 1');
+    expect(text).toContain('fitnessai_coach_tokens_total{kind="input_tokens",person="c8cd3c64",role="owner"} 200');
+    expect(text).toContain('fitnessai_coach_tokens_total{kind="cache_creation_input_tokens",person="c8cd3c64",role="owner"} 10');
+    expect(text).toContain('fitnessai_coach_tokens_total{kind="output_tokens",person="f387373a",role="guest"} 20');
+    // Every count is somebody's: no series without a person.
+    expect(text).not.toMatch(/^fitnessai_coach_\w+ \d/m);
+  });
+
+  it("name a person by the first 8 characters of their key and by their role, and by nothing else", () => {
+    expect(personLabels({ key: personKey("owner@example.com"), owner: true })).toEqual(OWNER);
+    // The signed-in person a route holds has more in it (their database, their photo folder): none of that comes out.
+    const person = { key: personKey(FRIEND), owner: false, photoDir: "/data/users/somebody/photos" };
+    expect(personLabels(person)).toEqual(GUEST);
+  });
+
+  it("label each person's coach messages, model calls and tokens through the message route, streamed or not", async () => {
+    const metrics = createMetrics();
+    await twoPeopleAtWork(metrics);
+    const text = await metrics.registry.metrics();
+    expect(text).toContain('fitnessai_coach_messages_total{outcome="done",person="c8cd3c64",role="owner"} 2');
+    expect(text).toContain('fitnessai_coach_messages_total{outcome="done",person="f387373a",role="guest"} 1');
+    expect(text).toContain('fitnessai_coach_model_calls_total{person="c8cd3c64",role="owner"} 2');
+    expect(text).toContain('fitnessai_coach_model_calls_total{person="f387373a",role="guest"} 1');
+    expect(text).toContain('fitnessai_coach_tokens_total{kind="input_tokens",person="c8cd3c64",role="owner"} 200');
+    expect(text).toContain('fitnessai_coach_tokens_total{kind="input_tokens",person="f387373a",role="guest"} 100');
+    expect(text).not.toMatch(/^fitnessai_coach_\w+ \d/m);
   });
 
   it("count HTTP requests by route", async () => {
@@ -52,6 +107,45 @@ describe("metrics", () => {
     expect(series).toHaveLength(2);
     expect(series.join("\n")).toContain('route="/api/days/:date"');
     expect(series.join("\n")).toContain('route="unmatched"');
+  });
+
+  it("count a signed-in request under the person's short id and role, and no other request", async () => {
+    const metrics = createMetrics();
+    const t = await testApp({ guests: [FRIEND], metrics });
+    ctx = t;
+    const guest = await t.headersFor(FRIEND);
+    const get = (url: string, headers?: Record<string, string>) => t.app.inject({ method: "GET", url, headers });
+    // Signed in: the owner twice (a lookup that finds nothing is still their request), the guest once.
+    await get("/api/profile", t.headers);
+    await get("/api/days/2026-10-01", t.headers);
+    await get("/api/days/2026-10-01", guest);
+    // Nobody signed in: the health probe, no token, a token for someone off the list, and a path outside the API.
+    await get("/api/health");
+    await get("/api/profile");
+    await get("/api/profile", await t.headersFor("stranger@example.com"));
+    await get("/no/such/path");
+    const text = await metrics.registry.metrics();
+    expect(seriesOf(text, "fitnessai_requests_by_person_total")).toEqual([
+      'fitnessai_requests_by_person_total{person="c8cd3c64",role="owner"} 2',
+      'fitnessai_requests_by_person_total{person="f387373a",role="guest"} 1',
+    ]);
+    // The route, status and duration metrics stay as they were: nothing about a person, so they don't grow with the guest list.
+    const http = text.split("\n").filter((line) => line.startsWith("fitnessai_http_"));
+    expect(http.length).toBeGreaterThan(0);
+    expect(http.filter((line) => /person|role/.test(line))).toEqual([]);
+  });
+
+  it("never carry an email or a whole key, whatever the people do", async () => {
+    const metrics = createMetrics();
+    const t = await twoPeopleAtWork(metrics);
+    await t.app.inject({ method: "GET", url: "/api/profile", headers: await t.headersFor("stranger@example.com") });
+    const text = await metrics.registry.metrics();
+    // The people are in there, so the checks below are not passing on an empty page.
+    expect(text).toContain('person="c8cd3c64"');
+    expect(text).toContain('person="f387373a"');
+    expect(text).not.toContain("@");
+    expect(text).not.toMatch(/[0-9a-f]{64}/);
+    for (const email of ["owner@example.com", FRIEND, "stranger@example.com"]) expect(text).not.toContain(personKey(email));
   });
 
   it("are served on their own port, and nothing else is", async () => {

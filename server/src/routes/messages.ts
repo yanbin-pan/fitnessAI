@@ -6,7 +6,7 @@ import { starterFor } from "../days/featured.ts";
 import { forRequest } from "../deps.ts";
 import type { AppDeps, RequestDeps } from "../deps.ts";
 import { getMessage, getReply, insertUserMessage, setMessageStatus, toChatMessage } from "../messages/messages.ts";
-import { recordCoach } from "../metrics.ts";
+import { personLabels, recordCoach } from "../metrics.ts";
 import { claimPhotos } from "../photos/photos.ts";
 import { getProfile } from "../profile/profile.ts";
 import { MAX_BACKDATE_DAYS, MessageInput, daysBetween } from "../shared.ts";
@@ -36,7 +36,7 @@ async function runSafely(deps: RequestDeps, id: string, log: FastifyBaseLogger, 
     setMessageStatus(deps.db, id, "failed", "internal");
   }
   if (outcome && outcome.outcome !== "done") log.warn({ outcome: outcome.outcome, detail: outcome.detail }, "coach message failed");
-  recordCoach(deps.metrics, outcome);
+  recordCoach(deps.metrics, outcome, personLabels(deps.person));
   return outcome;
 }
 

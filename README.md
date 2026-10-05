@@ -101,7 +101,8 @@ it starts, so once Flux has applied the change, restart it:
 Each person signs in with their own email and gets the whole app, with a database of
 their own that nobody else sees — the owner included. Guests get the coach too, up to
 `GUEST_DAILY_CALL_CAP` calls a day (about 20–30 messages); every call is billed to the
-owner's Anthropic key.
+owner's Anthropic key. Usage per person shows on the fitnessAI Grafana dashboard by short
+id: `printf %s 'friend@example.com' | sha256sum | cut -c1-8`.
 
 **Adding someone** — both lists, because the app checks its own as well as Cloudflare's:
 

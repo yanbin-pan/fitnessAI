@@ -6,6 +6,7 @@ import { AuthError } from "./auth/access.ts";
 import type { Identity } from "./auth/access.ts";
 import type { AppDeps } from "./deps.ts";
 import { LOGGER } from "./logging.ts";
+import { personLabels } from "./metrics.ts";
 import type { Person } from "./people/people.ts";
 import { answerError } from "./routes/http.ts";
 import { registerRoutes } from "./routes/index.ts";
@@ -44,11 +45,14 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   if (deps.metrics) {
     const requests = deps.metrics.httpRequests;
     const duration = deps.metrics.httpDuration;
+    const byPerson = deps.metrics.requestsByPerson;
     app.addHook("onResponse", async (req, reply) => {
       // The route pattern, not the URL, keeps label cardinality bounded.
       const route = req.routeOptions.url ?? "unmatched";
       requests.inc({ method: req.method, route, status: String(reply.statusCode) });
       duration.observe({ method: req.method, route }, reply.elapsedTime / 1000);
+      // Only a signed-in person's request has a person: the health probe, the PWA's files and refused tokens have none (2.2 §8).
+      if (req.person) byPerson.inc(personLabels(req.person));
     });
   }
 
