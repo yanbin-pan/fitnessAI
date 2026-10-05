@@ -1,7 +1,7 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MIN_STEP_MS, resetLive } from "../coach/live.ts";
+import { MIN_STEP_MS, isLive, resetLive } from "../coach/live.ts";
 import type { ChatMessage, DayView, MessageInput } from "../shared.ts";
 import { dayView, message } from "../test/fixtures.ts";
 import { jsonResponse, mockFetch, renderWithProviders } from "../test/render.tsx";
@@ -178,6 +178,34 @@ describe("TodayPage, while the coach works (spec §11.1)", () => {
     expect(await screen.findByText("Logged 2 eggs.")).toBeInTheDocument();
   });
 
+  it("leaves the server's own copy of a message in the feed when sending it again is refused", async () => {
+    let id = "";
+    let posts = 0;
+    let loads = 0;
+    mockFetch((url, init) => {
+      if (url === "/api/messages") {
+        id = (JSON.parse(String(init?.body)) as MessageInput).id;
+        posts += 1;
+        if (posts === 1) throw new TypeError("Failed to fetch"); // the server got it, and the answer was lost on the way back
+        return jsonResponse({ error: "in_progress" }, 409); // and the coach is still on it
+      }
+      loads += 1;
+      if (loads === 1) return jsonResponse(dayView());
+      if (loads === 2) return jsonResponse(dayView({ messages: [message({ id, text: "2 eggs", status: "pending" })] }));
+      throw new TypeError("Failed to fetch"); // offline from here on, so nothing could bring a removed copy back
+    });
+    renderToday();
+    await user.type(await screen.findByLabelText("Message your coach"), "2 eggs");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("offline");
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Thinking…")); // the server's copy
+    await user.click(screen.getByRole("button", { name: "Send" })); // the same message again, with the same id
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("still working"));
+    await waitFor(() => expect(loads).toBe(3));
+    expect(posts).toBe(2);
+    expect(screen.getByRole("status")).toHaveTextContent("Thinking…"); // the server's copy is still in the feed
+  });
+
   it("lets the poll find the reply when a Retry failed before it was stored but the server had restarted the message", async () => {
     const failed = message({ id: "m1", text: "2 eggs", status: "failed", error_code: "timeout" });
     const pending = { ...failed, status: "pending" as const, error_code: null };
@@ -212,6 +240,28 @@ describe("TodayPage, while the coach works (spec §11.1)", () => {
     expect(await screen.findByText("Logged 2 eggs.")).toBeInTheDocument();
   });
 
+  it("marks a Retry live before it shows the message pending, so no write leaves a pending message the poll would chase", async () => {
+    const stream = controlledStream();
+    const failed = message({ id: "m1", text: "2 eggs", status: "failed", error_code: "timeout" });
+    mockFetch((url) => (url === "/api/messages/m1/retry" ? stream.response : jsonResponse(dayView({ messages: [failed] }))));
+    const { client } = renderToday();
+    const retry = await screen.findByRole("button", { name: "Retry" });
+    // At every write that leaves m1 pending: was its stream open? A pending message that isn't live arms the 3 s poll.
+    const live: boolean[] = [];
+    client.getQueryCache().subscribe((event) => {
+      if (event.type !== "updated") return;
+      const view = event.query.state.data as DayView | undefined;
+      if (view?.messages.some((m) => m.id === "m1" && m.status === "pending")) live.push(isLive("m1"));
+    });
+    await user.click(retry);
+    const pending = { ...failed, status: "pending" as const, error_code: null };
+    act(() => stream.send("stored", { day: dayView({ messages: [pending] }) }));
+    answer(stream, pending);
+    expect(await screen.findByText("Logged 2 eggs.")).toBeInTheDocument();
+    expect(live.length).toBeGreaterThan(0);
+    expect(live).not.toContain(false);
+  });
+
   it("keeps a Retry's last step, and lets the poll find the reply, when its stream drops after the message was stored", async () => {
     const stream = controlledStream();
     const failed = message({ id: "m1", text: "2 eggs", status: "failed", error_code: "timeout" });
@@ -231,8 +281,11 @@ describe("TodayPage, while the coach works (spec §11.1)", () => {
     await act(() => vi.advanceTimersByTimeAsync(MIN_STEP_MS));
     act(() => stream.end());
     await waitFor(() => expect(loads).toBe(2));
+    await act(() => vi.advanceTimersByTimeAsync(50)); // let the screen settle after the drop
     expect(screen.getByRole("status")).toHaveTextContent("Logging eggs…");
+    expect(screen.queryByRole("alert")).toBeNull(); // the retry went through: as after a Send, there is nothing to report
     await act(() => vi.advanceTimersByTimeAsync(3100));
     expect(await screen.findByText("Logged 2 eggs.")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

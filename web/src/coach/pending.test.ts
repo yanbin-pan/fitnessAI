@@ -18,14 +18,14 @@ describe("the pending message", () => {
   it("goes into today's feed once, however often it is added", () => {
     const client = new QueryClient();
     client.setQueryData(dayKey("today"), dayView({ messages: [message({ id: "old" })] }));
-    addPending(client, input);
-    addPending(client, input);
+    expect(addPending(client, input)).toBe(true);
+    expect(addPending(client, input)).toBe(false); // already there, whoever put it there
     expect(idsToday(client)).toEqual(["old", input.id]);
   });
 
-  it("goes nowhere while today's day isn't loaded", () => {
+  it("goes nowhere while today's day isn't loaded, and says so", () => {
     const client = new QueryClient();
-    addPending(client, input);
+    expect(addPending(client, input)).toBe(false);
     expect(idsToday(client)).toBeUndefined();
   });
 

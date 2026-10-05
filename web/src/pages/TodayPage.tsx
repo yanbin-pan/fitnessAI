@@ -36,8 +36,8 @@ export function TodayPage() {
     mutationFn: async (id: string) => {
       const shown = day.data;
       const photos = shown?.messages.find((m) => m.id === id)?.photo_ids.length ?? 0;
-      if (shown) markPending(client, shown, id);
       startLive(id, firstStep(photos));
+      if (shown) markPending(client, shown, id);
       let stored = false;
       try {
         const result = await streamCoach(`/api/messages/${id}/retry`, undefined, (step) => {
@@ -52,16 +52,21 @@ export function TodayPage() {
         return result;
       } catch (error) {
         if (stored) {
+          // The server has the message and the coach is on it, as after a Send: the pending poll shows the reply
+          // when it lands, so there is nothing to report. The day is fetched again for the poll to take over.
           dropLive(id);
-        } else {
-          finishLive(id);
-          // Not restarted after all: show the message as it was until the fresh fetch arrives.
-          if (shown) storeDay(client, shown);
+          refresh();
+          return null;
         }
+        finishLive(id);
+        // Not restarted after all: show the message as it was until the fresh fetch arrives.
+        if (shown) storeDay(client, shown);
         throw error;
       }
     },
-    onSuccess: (result) => storeDay(client, result.day),
+    onSuccess: (result) => {
+      if (result) storeDay(client, result.day);
+    },
     onError: (error) => {
       refresh();
       // 409 not_failed: the message was restarted in the meantime (an earlier tap, another tab). That retry is

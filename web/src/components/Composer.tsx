@@ -187,7 +187,8 @@ export function Composer() {
     setAttachments([]);
     setPhase("storing");
     startLive(input.id, firstStep(input.photo_ids.length));
-    addPending(client, input);
+    // A message the feed has already is the server's own copy, from an earlier try: it is not ours to take out again.
+    const added = addPending(client, input);
     let stored = false;
     try {
       const result = await streamCoach("/api/messages", input, (step) => {
@@ -212,7 +213,7 @@ export function Composer() {
       } else {
         // It may never have arrived: put it back, so sending again carries the same id (spec §6.3).
         finishLive(input.id);
-        removePending(client, input.id);
+        if (added) removePending(client, input.id);
         setText(sent.text);
         setAttachments(sent.attachments);
         setSendFailure(error);

@@ -1,7 +1,8 @@
+import { onlineManager } from "@tanstack/react-query";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useNavigate } from "react-router";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { SignedOutBanner } from "../components/SignedOutBanner.tsx";
 import { SessionProvider } from "../session.tsx";
 import { dayView, entry, exerciseItem, foodItem, message } from "../test/fixtures.ts";
@@ -41,6 +42,9 @@ function fakeServer() {
   });
   return { calls, failing, deletes: () => calls.filter((c) => c.startsWith("DELETE")) };
 }
+
+// One test goes offline on TanStack's own clock; every test ends back online.
+afterEach(() => onlineManager.setOnline(true));
 
 describe("TodayPage", () => {
   it("offers profile setup until a profile exists", async () => {
@@ -314,6 +318,30 @@ describe("TodayPage", () => {
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
     finish(jsonResponse({ user: done, reply, day: dayView({ messages: [done, reply] }) }));
     expect(await screen.findByText("Logged porridge.")).toBeInTheDocument();
+  });
+
+  it("keeps Retry disabled, and queues it once, while the browser reports it is offline", async () => {
+    const failed = message({ id: "m9", text: "porridge", status: "failed", error_code: "timeout" });
+    const done = message({ id: "m9", text: "porridge", status: "done" });
+    const reply = message({ id: "r9", role: "assistant", status: null, reply_to: "m9", text: "Logged porridge." });
+    let retried = false;
+    const fetchMock = mockFetch((_url, init) => {
+      if (init?.method !== "POST") return jsonResponse(dayView({ messages: retried ? [done, reply] : [failed] }));
+      retried = true;
+      return jsonResponse({ user: done, reply, day: dayView({ messages: [done, reply] }) });
+    });
+    const retries = () => fetchMock.mock.calls.filter(([, init]) => init?.method === "POST");
+    renderDay();
+    await screen.findByRole("button", { name: "Retry" });
+    onlineManager.setOnline(false);
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    // TanStack holds the retry back until the network returns, so the message is still failed: the disabled Retry is what marks it as queued.
+    await waitFor(() => expect(screen.getByRole("button", { name: "Retry" })).toBeDisabled());
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(retries()).toHaveLength(0);
+    onlineManager.setOnline(true);
+    expect(await screen.findByText("Logged porridge.")).toBeInTheDocument();
+    expect(retries()).toHaveLength(1);
   });
 
   it("a second Retry that finds the message already restarted shows no alert and looks at the day again", async () => {

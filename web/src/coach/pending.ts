@@ -10,11 +10,12 @@ export function pendingMessage(input: MessageInput, date: string): ChatMessage {
   };
 }
 
-/** Puts a message into today's feed before the server has it. */
-export function addPending(client: QueryClient, input: MessageInput): void {
+/** Puts a message into today's feed before the server has it. False when that left the feed as it was: the message is in it already, or today isn't loaded. */
+export function addPending(client: QueryClient, input: MessageInput): boolean {
   const view = client.getQueryData<DayView>(dayKey("today"));
-  if (!view || view.messages.some((m) => m.id === input.id)) return;
+  if (!view || view.messages.some((m) => m.id === input.id)) return false;
   storeDay(client, { ...view, messages: [...view.messages, pendingMessage(input, view.date)] });
+  return true;
 }
 
 /** Takes it out again when it never reached the server. */
