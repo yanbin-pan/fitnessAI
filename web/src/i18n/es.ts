@@ -99,6 +99,7 @@ export const es: Messages = {
     tooMany: (n) => `Hasta ${n} fotos por mensaje.`,
     cantSend: "Esta foto no se puede enviar. Prueba con otra.",
     cantRead: "No se ha podido leer esta foto. Prueba con otra.",
+    cantPaste: "No se ha podido obtener la imagen del portapapeles. Adjúntala con el botón de la cámara.",
     uploadFailed: "Una foto no se ha subido. Tócala para reintentarlo.",
     offline: "Estás sin conexión, así que puede que el mensaje no se haya enviado. Toca Enviar para reintentarlo.",
     signedOut: "Has cerrado sesión. Vuelve a iniciarla y reenvía.",

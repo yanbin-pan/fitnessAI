@@ -99,6 +99,7 @@ export const de: Messages = {
     tooMany: (n) => `Höchstens ${n} Fotos pro Nachricht.`,
     cantSend: "Dieses Foto kann nicht gesendet werden. Versuch ein anderes.",
     cantRead: "Dieses Foto konnte nicht gelesen werden. Versuch ein anderes.",
+    cantPaste: "Das Bild in der Zwischenablage konnte nicht gelesen werden. Häng es stattdessen über die Kamerataste an.",
     uploadFailed: "Ein Foto wurde nicht hochgeladen. Tippe darauf, um es erneut zu versuchen.",
     offline: "Du bist offline, die Nachricht wurde vielleicht nicht gesendet. Tippe auf Senden, um es erneut zu versuchen.",
     signedOut: "Du bist abgemeldet. Melde dich wieder an und sende erneut.",
