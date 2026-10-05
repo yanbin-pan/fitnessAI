@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { api } from "./api.ts";
-import type { DayView } from "./shared.ts";
+import { isLive } from "./coach/live.ts";
+import type { DaySummaries, DayView } from "./shared.ts";
 
 export const dayKey = (date: string) => ["day", date] as const;
 
@@ -10,7 +11,8 @@ export function useDay(date: string) {
     queryKey: dayKey(date),
     queryFn: () => api<DayView>(`/api/days/${date}`),
     // A message may still be with the coach (for instance after the app was suspended mid-send): look again.
-    refetchInterval: (query) => (query.state.data?.messages.some((m) => m.status === "pending") ? 3000 : false),
+    // One whose stream is open needs no polling; when a stream drops, the day is fetched again and the poll takes over.
+    refetchInterval: (query) => (query.state.data?.messages.some((m) => m.status === "pending" && !isLive(m.id)) ? 3000 : false),
   });
 }
 
@@ -21,4 +23,12 @@ export function storeDay(client: QueryClient, view: DayView): void {
   // on since (a reply that lands just after midnight belongs to the day it was sent on).
   const alias = client.getQueryData<DayView>(dayKey("today"));
   if (view.date === view.today || alias?.date === view.date) client.setQueryData(dayKey("today"), view);
+}
+
+/** The calendar's six weeks (spec §12); fetched again whenever the calendar opens. */
+export function useDaySummaries(from: string, to: string) {
+  return useQuery({
+    queryKey: ["days", from, to],
+    queryFn: () => api<DaySummaries>(`/api/days?from=${from}&to=${to}`),
+  });
 }

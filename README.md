@@ -6,14 +6,15 @@ and running on a home Raspberry Pi cluster.
 Tell the coach what you ate or did ("2 scrambled eggs and a coffee"), or send a
 photo of the plate, and it logs each item with calories, macros, saturated fat,
 sugars, salt, fluids, alcohol and food groups. Workouts get active calories,
-muscles and the sport — tennis, gym, wakeboarding, kitesurfing or other — shown
-as an icon. Daily targets come from your profile (Mifflin-St Jeor) and grow with
-part of your exercise calories. The conversation lasts 48 hours; what you logged
-stays.
+muscles and one of 33 activities — from tennis, gym, wakeboarding and
+kitesurfing to street photography, cycling and boxing — shown as a matte badge.
+Daily targets come from your profile (Mifflin-St Jeor) and grow with part of
+your exercise calories. The conversation lasts 48 hours; what you logged stays.
 
 Design: [`docs/superpowers/specs/2026-10-03-fitnessai-design.md`](docs/superpowers/specs/2026-10-03-fitnessai-design.md)
 · Plans: [milestone 1](docs/superpowers/plans/2026-10-03-fitnessai-milestone-1.md),
-[milestone 2](docs/superpowers/plans/2026-10-04-fitnessai-milestone-2.md)
+[milestone 2](docs/superpowers/plans/2026-10-04-fitnessai-milestone-2.md),
+[milestone 2.1](docs/superpowers/plans/2026-10-04-fitnessai-milestone-2-1.md)
 
 ## How it fits together
 
@@ -70,6 +71,17 @@ picks that commit up within a minute. Roll back by reverting the `Deploy …`
 commit; CI ignores changes to that file, so the revert is not rebuilt.
 Rolling back past milestone 2 needs the database moved back first (see
 [Data, backups and restore](#data-backups-and-restore)).
+
+Rolling back past milestone 2.1 also needs its new activities filed back under
+`other`, or milestone 2 shows a blank page on any day with one. With Flux
+suspended and the app scaled to 0 (as in the restore steps), run this on rpi-01
+in the PVC's directory (`sudo apt install sqlite3` if it's missing):
+
+```bash
+sudo sqlite3 db/fitness.db "UPDATE exercise_items SET activity = 'other' WHERE activity NOT IN ('tennis', 'gym', 'wakeboarding', 'kitesurfing', 'other');"
+```
+
+Then revert the `Deploy …` commit.
 
 Secrets live in `k8s/80-secrets.sops.yaml`, encrypted to the cluster's age key.
 Edit with `sops k8s/80-secrets.sops.yaml` and push. The app reads them only when
@@ -138,6 +150,10 @@ Open `https://fitness.minipi.net` in Safari, sign in, then Share → Add to Home
 Screen. Voice input is the keyboard's microphone; the camera button beside the
 text box takes or picks up to four photos. If the app shows "Signed out", tap
 the banner to sign in again; the Access session lasts 30 days.
+
+The home-screen icon is the zabaione ball. iOS keeps the icon it saw when the
+app was added, so after an icon change remove fitnessAI from the home screen
+and add it again; your data lives on the server and is not touched.
 
 ## Known issues
 

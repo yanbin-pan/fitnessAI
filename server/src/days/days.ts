@@ -3,7 +3,8 @@ import { days } from "../db/schema.ts";
 import type { Sql } from "../db/types.ts";
 import { getEntry, listEntries } from "../log/entries.ts";
 import { listMessages } from "../messages/messages.ts";
-import type { DayView, Entry, MacroTargets, Profile, Totals } from "../shared.ts";
+import { addDays, daysBetween } from "../shared.ts";
+import type { DaySummary, DayView, Entry, MacroTargets, Profile, Totals } from "../shared.ts";
 import { adjustTargets, baselineTargets } from "../targets/targets.ts";
 import type { WorkoutSummary } from "../targets/targets.ts";
 
@@ -112,4 +113,20 @@ export function buildDayView(sql: Sql, profile: Profile, date: string, today: st
     linked_entries: linked,
     messages,
   };
+}
+
+/** The calendar's days (spec §12): each day in [from, to] with food logged, its eaten kcal and its adjusted target. */
+export function daySummaries(sql: Sql, profile: Profile, from: string, to: string, nowIso: string): DaySummary[] {
+  const out: DaySummary[] = [];
+  // Counted, not compared: stepping past 9999-12-31 gives "+010000-01", which is no date and sorts below it.
+  const count = daysBetween(from, to) + 1;
+  for (let i = 0; i < count; i++) {
+    const date = addDays(from, i);
+    const list = listEntries(sql, date);
+    if (!list.some((entry) => entry.foods.length > 0)) continue;
+    const snapshot = getDay(sql, date) ?? snapshotValues(profile, date, nowIso);
+    const t = adjustTargets(baseOf(snapshot), snapshot.add_back_pct, snapshot.weight_kg_used, summarizeWorkouts(list));
+    out.push({ date, kcal: sumTotals(list).kcal, target_kcal: t.adjusted.kcal });
+  }
+  return out;
 }

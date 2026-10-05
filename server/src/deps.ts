@@ -20,4 +20,6 @@ export interface AppDeps {
   /** Tests only: where log lines go when logger is on. */
   logStream?: { write(line: string): void };
   metrics?: Metrics;
+  /** How often a live-steps stream says it is still there (spec §6.3); 15 s unless a test changes it. */
+  streamKeepAliveMs?: number;
 }

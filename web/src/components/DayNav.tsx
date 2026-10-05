@@ -1,33 +1,60 @@
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { dayLabel } from "../format.ts";
+import { dayLabel, daySubtitle } from "../format.ts";
 import { Icon } from "../icons/Icon.tsx";
 import { addDays } from "../shared.ts";
+import { Calendar } from "./Calendar.tsx";
 
+const round = "tap flex h-11 w-11 items-center justify-center rounded-full text-ink disabled:opacity-30";
+
+/** The day bar (spec §11.1): ‹ the day › in the middle, the calendar in the top right corner. */
 export function DayNav({ date, today }: { date: string; today: string }) {
   const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const button = useRef<HTMLButtonElement>(null);
   const go = (target: string) => navigate(target >= today ? "/day/today" : `/day/${target}`);
-  const arrow = "tap raised-sm flex h-11 w-11 items-center justify-center rounded-full text-ink disabled:opacity-30";
+  const close = () => {
+    setOpen(false);
+    button.current?.focus();
+  };
   return (
     <nav aria-label="Day" className="flex items-center justify-between gap-2 py-3">
-      <button type="button" aria-label="Previous day" className={arrow} onClick={() => go(addDays(date, -1))}>
-        <Icon name="chevron_left" size={24} />
-      </button>
-      <div className="flex flex-col items-center">
-        <span className="text-base font-semibold">{dayLabel(date, today)}</span>
-        <input
-          type="date"
-          aria-label="Pick a day"
-          value={date}
-          max={today}
-          onChange={(event) => {
-            if (event.target.value) go(event.target.value);
-          }}
-          className="bg-transparent text-center text-xs text-muted"
-        />
+      {/* As wide as the calendar button, so the day stays centred. */}
+      <span aria-hidden="true" className="h-11 w-11" />
+      <div className="flex items-center gap-2">
+        <button type="button" aria-label="Previous day" className={`${round} raised-sm`} onClick={() => go(addDays(date, -1))}>
+          <Icon name="chevron_left" size={24} />
+        </button>
+        <div className="flex min-w-24 flex-col items-center">
+          <span className="text-base font-semibold">{dayLabel(date, today)}</span>
+          <span className="text-xs text-muted">{daySubtitle(date, today)}</span>
+        </div>
+        <button type="button" aria-label="Next day" className={`${round} raised-sm`} disabled={date >= today} onClick={() => go(addDays(date, 1))}>
+          <Icon name="chevron_right" size={24} />
+        </button>
       </div>
-      <button type="button" aria-label="Next day" className={arrow} disabled={date >= today} onClick={() => go(addDays(date, 1))}>
-        <Icon name="chevron_right" size={24} />
+      <button
+        ref={button}
+        type="button"
+        aria-label="Calendar"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        className={`${round} ${open ? "pressed text-accent-ink" : "raised-sm"}`}
+        onClick={() => setOpen((was) => !was)}
+      >
+        <Icon name="calendar_month" size={22} />
       </button>
+      {open && (
+        <Calendar
+          date={date}
+          today={today}
+          onClose={close}
+          onPick={(day) => {
+            setOpen(false);
+            go(day);
+          }}
+        />
+      )}
     </nav>
   );
 }

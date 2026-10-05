@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | **Date** | 2026-10-03, revised 2026-10-04 |
-| **Status** | Approved. Milestone 1 is live. |
-| **Revision** | 3 — photos, 48-hour conversations, sport activities and the neumorphic design move into milestone 2 |
+| **Status** | Approved. Milestones 1 and 2 are live. |
+| **Revision** | 4 — milestone 2.1: messages appear at once with the coach's live steps, an activities card, a calendar coloured by calories, 33 activities with matte badges, and a zabaione-ball home-screen icon (revision 3 brought photos, 48-hour conversations, sport activities and the neumorphic design into milestone 2) |
 | **Repository** | <https://github.com/yanbin-pan/fitnessAI> (public) |
 | **Deploys to** | <https://github.com/yanbin-pan/home-cluster> — k3s on four Raspberry Pi 4s |
 | **Reference app** | <https://github.com/yanbin-pan/tea-cabinet> — same deployment shape |
@@ -98,9 +98,11 @@ Access, deployed by Flux from this repository.
 | D15 | Holistic goals in your own words, each with measurable habits (nutrients, fluids, food groups, training, check-ins) that the coach proposes and you approve | Advice can be measured against numbers; the coach can't change goals on its own. |
 | D16 | Every food item also gets saturated fat, sugars, salt, fluid, alcohol units and food-group portions — from milestone 1 | A goal added later still has the full history behind it. |
 | D17 | Goal notes while logging: at most one short note, only when something clearly moves a goal; can be switched off | Goal-aware coaching without nagging. |
-| D18 | Photos upload as soon as they're attached (`POST /api/photos`); the message then refers to them by id | The upload overlaps typing, so Send stays quick; `POST /api/messages` stays JSON, so its idempotency is unchanged and a resend never re-uploads; no multipart dependency. |
+| D18 | Photos upload as soon as they're attached (`POST /api/photos`); the message then refers to them by id | The upload overlaps typing, so Send stays quick; the body of `POST /api/messages` stays JSON, so its idempotency is unchanged and a resend never re-uploads; no multipart dependency. |
 | D19 | Neumorphic visual design: one soft base colour per theme, raised and pressed-in surfaces, colour only where it carries meaning, text at WCAG AA contrast (§11.4) | The owner's choice; the contrast rules keep it readable, which plain neumorphism often isn't. |
-| D20 | Every exercise has an activity — `tennis`, `gym`, `wakeboarding`, `kitesurfing` or `other` — shown as a colour pictogram (§5.1) | The owner's four sports, recognisable at a glance in the feed. |
+| D20 | Every exercise has one of 33 activities — the owner's four sports first, then the mainstream ones, then `other` — shown as a matte badge with a soft-coloured pictogram (§5.1, §11.4) | Recognisable at a glance in the feed and the activities card; milestone 2's saturated discs looked out of place in the soft design. |
+| D21 | The coach's progress streams back on the send itself (`Accept: text/event-stream`), with plain JSON for everything refused or already finished | One request, steps arrive the moment they happen, older copies of the app keep working, and the stored pending message plus the existing poll cover a dropped stream. |
+| D22 | The calendar colours past days by calories against their adjusted target, in the direction of the current body goal | A month's adherence at a glance without a Trends screen; the day snapshot keeps targets but not the goal, so the current goal decides the direction. |
 
 ---
 
@@ -330,16 +332,68 @@ charts never split across synonyms.
 **Muscles (12):** `chest`, `upper_back`, `lats`, `shoulders`, `biceps`, `triceps`,
 `forearms`, `core`, `glutes`, `quads`, `hamstrings`, `calves`.
 
-**Activities (5)**, each with its icon (Material Symbols Rounded, filled, Apache 2.0 —
-bundled with the app as SVG) and badge colour:
+**Activities (33)**, in this order. Each has a name, a short name for tight rows, an icon
+(Material Symbols Rounded, filled, Apache 2.0 — bundled with the app as SVG) and a soft
+colour for its pictogram in each theme (§11.4 has the badge). Every pictogram colour is at
+least 3:1 against the base colour (lowest: tennis, 3.2:1 light; 6.1:1 dark).
 
-| Activity | Icon | Colour |
-|---|---|---|
-| `tennis` | `sports_tennis` | lime `#8DB82F` |
-| `gym` | `fitness_center` | coral `#E8735A` |
-| `wakeboarding` | `surfing` | blue `#3B82F6` |
-| `kitesurfing` | `kitesurfing` | teal `#14A39A` |
-| `other` | `directions_run` | slate `#64748B` |
+| Activity | Name · short | Icon | Light | Dark |
+|---|---|---|---|---|
+| `tennis` | Tennis · Tennis | `sports_tennis` | `#6E8B3D` | `#B5CF8A` |
+| `gym` | Gym · Gym | `fitness_center` | `#B5654A` | `#E7A58E` |
+| `wakeboarding` | Wakeboarding · Wake | `surfing` | `#4F7BB0` | `#9DBBE0` |
+| `kitesurfing` | Kitesurfing · Kite | `kitesurfing` | `#3E8C86` | `#8FCFC9` |
+| `padel` | Padel · Padel | `padel` | `#5F8A4A` | `#A9CF95` |
+| `badminton` | Badminton · Badminton | `badminton` | `#4A8A6A` | `#96CDB0` |
+| `running` | Running · Run | `directions_run` | `#A86C38` | `#E5B88A` |
+| `walking` | Walking · Walk | `directions_walk` | `#A0704A` | `#D8B394` |
+| `hiking` | Hiking · Hike | `hiking` | `#7E6A4F` | `#C8B497` |
+| `photography` | Photography · Photo | `photo_camera` | `#7A6F66` | `#C2B8AF` |
+| `cycling` | Cycling · Bike | `directions_bike` | `#9A7832` | `#E0C489` |
+| `skateboarding` | Skateboarding · Skateboard | `skateboarding` | `#8F7F45` | `#D2C48E` |
+| `swimming` | Swimming · Swim | `pool` | `#4A84A8` | `#97C3DD` |
+| `surfing` | Surfing · Surf | `waves` | `#3A8599` | `#8CCAD9` |
+| `rowing` | Rowing · Row | `rowing` | `#5670A8` | `#A3B5DE` |
+| `kayaking` | Kayak and SUP · Kayak | `kayaking` | `#3E7F8F` | `#8EC2CE` |
+| `sailing` | Sailing · Sail | `sailing` | `#4C6A9A` | `#9FB3D6` |
+| `diving` | Diving · Dive | `scuba_diving` | `#45608A` | `#98ABCC` |
+| `boxing` | Boxing · Boxing | `sports_mma` | `#B4554F` | `#E59C97` |
+| `martial_arts` | Martial arts · Martial | `sports_martial_arts` | `#9A5A55` | `#D8A39E` |
+| `yoga` | Yoga and pilates · Yoga | `self_improvement` | `#8A6FB0` | `#C5B3E0` |
+| `climbing` | Climbing · Climb | `mountain_flag` | `#857A6E` | `#C7BDB2` |
+| `football` | Football · Football | `sports_soccer` | `#5F68A8` | `#AAB0DE` |
+| `basketball` | Basketball · Basketball | `sports_basketball` | `#7B67A8` | `#BBADDD` |
+| `volleyball` | Volleyball · Volleyball | `sports_volleyball` | `#6E62A0` | `#B3AAD8` |
+| `rugby` | Rugby · Rugby | `sports_rugby` | `#665E96` | `#ADA6D2` |
+| `cricket` | Cricket · Cricket | `sports_cricket` | `#5E5A8C` | `#A8A4CC` |
+| `hockey` | Hockey · Hockey | `sports_hockey` | `#565E92` | `#A3A9D0` |
+| `skiing` | Skiing · Ski | `downhill_skiing` | `#5A86A3` | `#A6C4D8` |
+| `snowboarding` | Snowboarding · Snowboard | `snowboarding` | `#557C99` | `#A2BCD0` |
+| `skating` | Skating · Skating | `ice_skating` | `#4E728F` | `#9DB6CB` |
+| `golf` | Golf · Golf | `sports_golf` | `#4F7F55` | `#9CC6A1` |
+| `other` | Other · Other | `interests` | `#6F7785` | `#B7BECA` |
+
+The first four are the owner's main sports; the editor shows them first (§11.1). In the
+coach's tool schema the activity carries these hints, so the same thing is always filed the
+same way: `gym` is any weight or machine training and classes such as HIIT or circuits;
+`photography` is a photo walk or shoot; `yoga` includes pilates and stretching; `kayaking`
+includes canoeing and stand-up paddleboarding; `boxing` includes kickboxing and boxing
+fitness; `martial_arts` covers karate, judo, jiu-jitsu, taekwondo and MMA; `other` is
+anything with no fitting activity (squash, table tennis, dance, horse riding).
+
+Milestone 2.1's migration re-files exercises that are still `other` by their name. Each
+pattern must start a word (so `run` matches "Run" and "Running" but not "Trunk
+rotations"), matching ignores case, and the first match wins: `photo` → photography;
+`padel`; `badminton`; `boxing`, `kickboxing` → boxing; `karate`, `judo`, `jiu`,
+`taekwondo`, `martial` → martial_arts; `yoga`, `pilates` → yoga; `boulder`, `rock climb`,
+`climbing wall` → climbing; `hike`, `hiking` → hiking; `run`, `jog` → running; `walk` →
+walking; `cycl`, `bicycle`, `bike`, `biking`, `spinning` → cycling; `swim` → swimming; `rowing`,
+`rower` → rowing; `kayak`, `canoe`, `paddleboard` → kayaking; `sail` → sailing; `diving`,
+`scuba`, `snorkel` → diving; `surf` → surfing; `football`, `soccer`; `basketball`;
+`volleyball`; `rugby`; `cricket`; `hockey`; `snowboard`; `skiing`; `skateboard`;
+`skating`; `golf`; `hiit`, `circuit`, `crossfit` → gym. The running, walking, cycling,
+swimming and hiking patterns only re-file `cardio` or `sport` exercises, so a mobility
+drill such as "Inchworm walkouts" stays put. Anything else stays `other`.
 
 **Food groups**, with the reference portion the coach counts against:
 
@@ -422,7 +476,10 @@ Rules in the coach's instructions:
   instruction.
 - **Activities:** every exercise gets an activity (§5.1). Tennis notes singles or doubles;
   gym notes the intensity; for wakeboarding and kitesurfing the duration is time on the
-  water, not the whole session, and the assumption says what was counted.
+  water, not the whole session, and the assumption says what was counted. Street
+  photography counts the walking time at about 3.5 MET with a light camera, up to 4.5–5
+  carrying a heavy bag, a tripod, or on hills and stairs, and about 2.5 for time spent
+  standing and shooting; the assumption says which.
 - **Goal notes while logging:** when `goal_notes` is on, a logging reply may carry **at
   most one short note**, and only when something you logged clearly helps or hurts an
   active goal or habit — for example "Oats and berries: good soluble fibre for your LDL
@@ -507,6 +564,33 @@ coach only through what was logged — their conversations are gone after 48 hou
 Any failure — timeout, API error, refusal, an invalid tool call — marks the message
 `failed` with an error code. Its text and photos are kept, and the UI offers **Retry**
 (`POST /api/messages/:id/retry`).
+
+**Live steps (milestone 2.1).** A request that sends `Accept: text/event-stream` — the app
+always does, for a new message and for Retry — gets the same work as a stream instead of
+one response at the end:
+
+- Anything refused before the message is stored (validation, `no_profile`, a photo that is
+  missing or taken, `in_progress`) is the same JSON error as before. A repeated UUID whose
+  message is finished gets the stored result as plain JSON too, so the app accepts either
+  content type.
+- Otherwise the response is `200` with `content-type: text/event-stream`,
+  `cache-control: no-cache, no-transform` (so Cloudflare passes each event on at once) and
+  these events:
+  - `stored` — right after step 1: `{ day }`, the day view with the message `pending`;
+  - `step` — `{ text }`, what the coach is doing now, sent as it starts each part of the
+    work: "Looking at your photo…" (or "photos") before the first model call when the
+    message has photos, otherwise "Thinking…"; "Logging fried eggs, buttered toast and
+    baked beans…" when `log_items` runs (up to three item names, then "and 2 more"; a
+    name's first letter is lowercased unless its first word is an acronym or has another
+    capital); "Updating tennis singles…" when `update_entry` runs; "Writing a reply…"
+    before each model call that follows tool results;
+  - `result` — the same body as the JSON response, after which the stream ends. A failed
+    message ends with its `result` too (the message `failed`).
+- A comment line (`: keep-alive`) every 15 seconds keeps the connection open through a
+  long model call.
+- The coach's work never depends on the connection: if the phone goes away mid-stream,
+  processing finishes and commits as usual, and the app finds the reply when it looks
+  again. Step texts contain food names, so they are never logged.
 
 ### 6.4 Claude configuration
 
@@ -742,11 +826,36 @@ One mechanism: `entries.merged_into_entry_id`.
 Tabs: **Today · Trends · Goals · Body · Settings**.
 
 - **Today:**
-  - **‹ › arrows and a calendar** to move between days. Past days show their thread
-    read-only while it lasts (48 hours, §6.6), then their logbook only; their entries can
-    always be edited. This replaces a separate History screen.
-  - A summary header that collapses on scroll: calories eaten against the adjusted target
-    (with the add-back shown), protein / carbs / fat / fibre bars, and burn.
+  - **The day bar** (the only part pinned while the feed scrolls): ‹ and › either side of
+    the day's name ("Today", "Yesterday", or the date) with a second line beneath — the
+    date in words for today and yesterday ("Sun 4 Oct"), the year for older days — centred, and a **calendar button** in the top right corner. Past days show their
+    thread read-only while it lasts (48 hours, §6.6), then their logbook only; their
+    entries can always be edited. This replaces a separate History screen.
+  - **The calendar** drops down from under the day bar over a dimmed page, open at the
+    month being viewed: Monday first, ‹ › for the month (never past the current one),
+    future days greyed out and disabled. Today has an accent ring; the day being viewed is
+    pressed in. Tapping a day opens it and folds the calendar away; tapping outside, the
+    button again, or Escape closes it. Each past day with food logged is tinted by how it
+    went against its adjusted target (the ring's number, §7.2), compared as displayed —
+    eaten rounded to 1 kcal, the target to 10:
+    - goal lose or maintain: green at or under target, amber up to 10 % over, red more
+      than 10 % over;
+    - goal gain: green at or over target, amber up to 10 % under, red more than 10 % under.
+
+    The direction follows the current body goal. Today stays untinted while it is in
+    progress, and so do days with no food. A one-line legend sits under the grid ("Within
+    target · Up to 10 % over · More than 10 % over", or the gain wording), and each day's
+    accessible name says it in words ("3 October: 1,317 of 2,320 kcal, within target").
+  - A summary header: calories eaten against the adjusted target (with the add-back
+    shown), protein / carbs / fat / fibre bars, and burn.
+  - **The activities card**, under the summary, only when the day has exercise: "Activity"
+    and the day's total burned, then one badge per activity in time order with its kcal
+    underneath (an entry with several exercises of one activity — a gym session — is one
+    badge with their total). Tapping a badge presses it in and opens a panel inside the
+    card: the name, time, minutes, kcal and MET, each exercise's sets × reps × weight or
+    distance when known, the coach's assumption, and **Edit** (the entry editor). Tapping
+    it again closes the panel; tapping another switches. Each badge is a button named
+    like "Tennis singles, 788 kcal". The exercise cards stay in the feed.
   - A row of **habit chips** for the day's and week's habits — e.g. `Sat fat 12/20 g` ·
     `Fluids 1.2/2 L` · `Fruit & veg 3/5` · `Sunscreen ✓`. Tapping a check-in chip ticks or
     unticks it.
@@ -756,10 +865,24 @@ Tabs: **Today · Trends · Goals · Body · Settings**.
   - A **"Log only"** switch that hides the conversation and leaves a clean logbook.
   - The composer pinned at the bottom: a camera button, the text box and Send, with any
     attached photos as thumbnails above (upload progress, retry, ✕); plus **"+ Add
-    manually"** (name, kcal, macros) for when the AI is unavailable. A manual exercise
-    picks its activity from a row of the five icons.
+    manually"** (name, kcal, macros) for when the AI is unavailable. The editor picks an
+    exercise's activity from the owner's four, the entry's current activity if it is
+    another, and **More**, which opens every activity in a grid by family (§5.1); picking
+    one folds the grid away. It is one radio group: one keyboard stop, arrow keys move.
+  - **Sending is instant (milestone 2.1).** Send puts the message — text and photo
+    thumbnails — into the feed at once as pending and clears the composer. Under it, the
+    coach's row shows animated dots and one status line: "Looking at your photo…" or
+    "Thinking…" straight away, then each `step` the server streams (§6.3). Each step stays
+    on screen for at least 1.5 seconds, so one that ends at once (a tool runs in an instant)
+    is still readable; the `result` replaces the line with the reply and its cards as soon
+    as it arrives. If the message never reached the server
+    (offline, or refused before it was stored), the bubble goes and the text and photos
+    return to the composer with today's alert. If the stream drops after `stored`, the
+    message stays pending with the last step shown and the pending poll finds the reply.
+    A pending message seen any other way (the app reopened mid-reply) shows the dots and
+    "Thinking…". The dots hold still under `prefers-reduced-motion`.
   - Photos in the feed are thumbnails inside your message bubble; entries logged from a
-    photo say "from photo"; exercise cards show their activity's icon.
+    photo say "from photo"; exercise cards show their activity's badge.
 - **Trends:** over 7, 30 or 90 days — calories against the adjusted target, macros, burn,
   the extra nutrients your habits track, a muscle-by-week grid coloured by sets against
   target, habit adherence (share of days or weeks met) and streaks.
@@ -825,6 +948,15 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
 
 - **Macro colours:** protein `#5B8DEF`, carbs `#F2A93B`, fat `#E8735A`, fibre `#4CB782`.
   Activities have theirs (§5.1).
+- **Activity badges (milestone 2.1):** a matte disc — small raised, in the base colour —
+  with the pictogram in the activity's soft colour for the theme (§5.1). Pressed in when
+  selected (the activities card, the editor's picker). No coloured fills: milestone 2's
+  white pictograms on saturated discs are retired.
+- **Calendar tints:** within target `#4E9A6A` / `#7FCB9A`, a little off `#C99A3C` /
+  `#E3BE73`, well off `#C2664F` / `#E7957F` (light / dark), mixed 30 % (light) or 26 %
+  (dark) into the base as a disc behind the day's number; the number keeps the text
+  colour. The tints are deliberately soft, so the status is also in the legend and in
+  each day's accessible name.
 - **Raised** (`6px 6px 12px` dark, `-6px -6px 12px` highlight): cards, the summary, the
   composer, sheets. **Small raised** (3px/6px): icon buttons, chips, bubbles, the toggle
   knob, the selected option of a segmented control. **Pressed in** (inset 3px/6px): text
@@ -842,7 +974,15 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
   numbers.
 - **Phone chrome:** `apple-mobile-web-app-status-bar-style` `default` and a `theme-color`
   per scheme (the base colour), so the status bar text is dark on light and light on dark.
-  The home-screen icon is a green ring raised on the light base colour.
+  The home-screen icon (milestone 2.1, the owner's pick of five concepts) is the
+  **zabaione ball**: a coupe of zabaione whose golden dome carries a tennis ball's
+  cream-coloured seams — dessert and the owner's main sport in one shape — raised with the
+  soft shadows on the light base colour. Colours: zabaione `#EDB94E`, its highlight
+  `#F6D47E` and depth `#D99A35`, seams `#FFF4D6`, the glass `#F4F7FB` outlined in
+  `#A9B6C8`. The mark sits inside the maskable safe zone (a circle of radius 40 % of the
+  tile), and it reads at favicon size as a golden ball in a glass. One icon serves both
+  themes (a home-screen web app cannot switch icons), and iOS keeps the icon it saw when
+  the app was added, so the owner removes and re-adds the app to see a new one.
 - **Built with** Tailwind 4: the tokens are CSS variables (light, and dark under
   `prefers-color-scheme`), exposed through `@theme inline`, plus utilities — `raised`,
   `raised-sm`, `pressed` (pressed in) and `tap` (presses in while tapped). No component
@@ -856,10 +996,10 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
 |---|---|---|
 | `GET` | `/api/health` | Liveness; registered before authentication; returns `{ok:true}` only |
 | `GET` | `/api/days/:date` | Day view (`:date` may be `today`): base and adjusted targets, totals, habit progress, entries, `linked_entries` (entries this day's coach replies logged or changed on another day, such as back-dated ones: shown with their reply, never counted in this day's totals), messages, drafts, measurements, check-ins, burn |
-| `GET` | `/api/days?from=&to=` | Day summaries for the calendar |
+| `GET` | `/api/days?from=&to=` | Day summaries for the calendar: `{ goal, days: [{ date, kcal, target_kcal }] }` — the current body goal, and each day in the range with food logged — eaten kcal and the adjusted target (§7.2). Both dates are required, `from` ≤ `to`, at most 42 days (a six-week grid); otherwise 400 `bad_range`. Future days simply have nothing logged |
 | `POST` | `/api/photos` | Upload one photo: the raw `image/jpeg` or `image/png` body, up to 2 MB and 2000 px on each side → `{id, media_type, bytes, width, height}`; 413 or 400 `image_too_large`, 400 `not_an_image` |
-| `POST` | `/api/messages` | Send a message (JSON: `id`, `sent_at`, `text`, `photo_ids` — up to 4; `text` may be empty when there are photos) |
-| `POST` | `/api/messages/:id/retry` | Retry a failed message |
+| `POST` | `/api/messages` | Send a message (JSON: `id`, `sent_at`, `text`, `photo_ids` — up to 4; `text` may be empty when there are photos). With `Accept: text/event-stream`, streams `stored`, `step` and `result` events (§6.3) |
+| `POST` | `/api/messages/:id/retry` | Retry a failed message; streams like a new message when asked to |
 | `POST` | `/api/drafts/:id/commit` | "Log it" or "Add" — commits an entry, goal plan or habits draft; for a goal plan, the request says which proposed habits are toggled on |
 | `POST` | `/api/entries` | Add an entry manually |
 | `PATCH` | `/api/entries/:id` | Edit an entry's items |
@@ -1049,9 +1189,34 @@ No DNS or tunnel changes in either.
   the feed and the activity icons. Playwright smoke tests at phone size against the built
   container are left for a later milestone; milestone 2 was checked by hand in a browser at
   phone size, in light and dark.
+- **Milestone 2.1:**
+  - server: the event stream for a new message and for Retry — the order (`stored`, then
+    `step`s, then `result`), each step's text (photos or not, item names with "and N
+    more", the lowercasing rule, an update, "Writing a reply…"), a failed message ending
+    with its `result`, errors before storing staying JSON, a finished repeat answering
+    JSON, the keep-alive, and processing that completes after the client disconnects;
+  - `GET /api/days?from=&to=`: range validation, days without food left out, the adjusted
+    target per day, authentication;
+  - the calendar rule as a shared function at its edges: exactly on target, exactly 10 %
+    over (and under for gain), rounding as displayed;
+  - the activities: the vocabulary and the tool schema's enum agree, every activity has a
+    name, short name, icon and both colours, and the migration re-files clear names
+    (`Run` → `running`) while leaving ambiguous ones `other`;
+  - web: the optimistic bubble and the status line from a fake streamed body; the
+    rollback to the composer when sending fails before `stored`; the poll taking over
+    after a dropped stream; the activities card (hidden when empty, grouping, totals,
+    open, switch, close, Edit); the calendar (month navigation, disabled future days,
+    tints and their accessible names, picking a day navigates and closes); the picker's
+    More grid with one keyboard stop.
 - **CI image boot test** (§14.1).
 - **Live checks before merging milestone 2:** with the owner's key, a generated meal photo
   and nutrition label, one message per sport, and the strict-tool grammar check.
+- **Live checks before merging milestone 2.1:** with the owner's key on a local server: the
+  strict-tool grammar check with 33 activities; a message with a photo and one without,
+  watching the steps arrive one by one; a street-photography walk, a bike ride and a boxing
+  session filed under their activities; the calendar and the activities card at phone
+  size in light and dark; the generated icons — 180 px for the iPhone, the 512 px
+  maskable one inside its safe zone, and the favicon.
 - **On the owner's iPhone:** milestone 1 — install to the home screen, the Access re-login
   test (§16), keyboard dictation. Milestone 2 — a meal photo from the camera and one from
   the library, a label photo, one log per sport, light and dark, the status bar.
@@ -1087,13 +1252,19 @@ Each milestone ends deployed and usable.
    start; manual add, edit and Undo; the Today screen with day navigation; Access
    verification; CI/CD; `k8s/`; the first home-cluster pull request; database snapshots;
    the iPhone test.
-2. **Photos and a new look:** photos (camera or library, up to 4, resized on the phone,
-   uploaded on attach) and vision in the coach; conversations and photos kept 48 hours and
-   never backed up (the retention job, the database move, `secure_delete`,
-   conversation-free snapshots, `CACHEDIR.TAG`); exercise activities with their icons; the
-   neumorphic design on every screen in light and dark, with the status bar and the
-   home-screen icon; the README; the iPhone checks, including milestone 1's Access
-   re-login test.
+2. **Photos and a new look** (live 2026-10-04): photos (camera or library, up to 4,
+   resized on the phone, uploaded on attach) and vision in the coach; conversations and
+   photos kept 48 hours and never backed up (the retention job, the database move,
+   `secure_delete`, conversation-free snapshots, `CACHEDIR.TAG`); exercise activities with
+   their icons; the neumorphic design on every screen in light and dark, with the status
+   bar and the home-screen icon; the README; the iPhone checks, including milestone 1's
+   Access re-login test.
+
+   **2.1. Instant replies, activities and the calendar:** messages appear at once with the
+   coach's live steps (§6.3, §11.1); the activities card; the calendar coloured by
+   calories (with `GET /api/days?from=&to=`); 33 activities with matte badges, the
+   editor's More grid, and the migration that re-files clear `other` exercises; the
+   zabaione-ball home-screen icon (§11.4).
 3. **Full coach, goals and habits:** advice and drafts; context assembly (frozen prefix and
    per-turn block); `log_measurements`; the `get_*` tools; the AI cap and usage tracking;
    goals, habits and check-ins (`propose_goal`, `propose_habits`, `log_checkin`); goal

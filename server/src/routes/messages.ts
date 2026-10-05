@@ -1,4 +1,4 @@
-import type { FastifyBaseLogger, FastifyInstance } from "fastify";
+import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { processMessage } from "../coach/process.ts";
 import type { ProcessOutcome } from "../coach/process.ts";
 import { buildDayView, ensureDay } from "../days/days.ts";
@@ -8,15 +8,16 @@ import { recordCoach } from "../metrics.ts";
 import { claimPhotos } from "../photos/photos.ts";
 import { getProfile } from "../profile/profile.ts";
 import { MAX_BACKDATE_DAYS, MessageInput, daysBetween } from "../shared.ts";
-import type { MessageResult } from "../shared.ts";
+import type { DayView, MessageResult } from "../shared.ts";
 import { localDate, todayIn } from "../time.ts";
 import { parseBody } from "./http.ts";
+import { openEventStream } from "./stream.ts";
 
 /** Coach failures are recorded on the message; only an unexpected crash lands in the catch. */
-async function runSafely(deps: AppDeps, id: string, log: FastifyBaseLogger): Promise<ProcessOutcome | null> {
+async function runSafely(deps: AppDeps, id: string, log: FastifyBaseLogger, onStep?: (text: string) => void): Promise<ProcessOutcome | null> {
   let outcome: ProcessOutcome | null = null;
   try {
-    outcome = await processMessage({ db: deps.db, ai: deps.ai, now: deps.now, budgetMs: deps.coachBudgetMs, photoDir: deps.photoDir }, id);
+    outcome = await processMessage({ db: deps.db, ai: deps.ai, now: deps.now, budgetMs: deps.coachBudgetMs, photoDir: deps.photoDir, onStep }, id);
   } catch (err) {
     log.error({ err }, "coach processing failed");
     setMessageStatus(deps.db, id, "failed", "internal");
@@ -37,6 +38,50 @@ function messageResult(deps: AppDeps, id: string): MessageResult {
     reply: reply ? toChatMessage(reply) : null,
     day: buildDayView(deps.db, profile, user.date, todayIn(profile.timezone, now), now.toISOString()),
   };
+}
+
+/** How often a stream says it is still there while the coach thinks (spec §6.3). */
+export const KEEP_ALIVE_MS = 15_000;
+
+/** True when the phone asked to follow the coach's work as it happens (spec §6.3). */
+function wantsStream(req: FastifyRequest): boolean {
+  return (req.headers.accept ?? "").includes("text/event-stream");
+}
+
+/** The message's day as it stands now. */
+function dayOf(deps: AppDeps, date: string): DayView {
+  const profile = getProfile(deps.db);
+  if (!profile) throw new Error("the profile disappeared");
+  const now = deps.now();
+  return buildDayView(deps.db, profile, date, todayIn(profile.timezone, now), now.toISOString());
+}
+
+/**
+ * Runs a stored message through the coach as a stream: stored, each step, then the result. The coach's work
+ * never depends on the stream: if an event can't be built, the stream ends without it and the phone looks again.
+ */
+async function streamWork(deps: AppDeps, req: FastifyRequest, reply: FastifyReply, id: string, date: string): Promise<FastifyReply> {
+  const stream = openEventStream(reply, deps.streamKeepAliveMs ?? KEEP_ALIVE_MS);
+  try {
+    try {
+      stream.send("stored", { day: dayOf(deps, date) });
+    } catch (err) {
+      req.log.error({ err }, "the stored event could not be built");
+    }
+    await runSafely(deps, id, req.log, (text) => stream.send("step", { text }));
+    try {
+      stream.send("result", messageResult(deps, id));
+    } catch (err) {
+      req.log.error({ err }, "the result event could not be built");
+    }
+  } catch (err) {
+    // Once the stream has begun its headers are out and Fastify can no longer answer an error: a throw
+    // from here would reach the process. End the stream instead; the phone looks again.
+    req.log.error({ err }, "streaming the coach's work failed");
+  } finally {
+    stream.close();
+  }
+  return reply;
 }
 
 export function registerMessageRoutes(app: FastifyInstance, deps: AppDeps): void {
@@ -71,6 +116,7 @@ export function registerMessageRoutes(app: FastifyInstance, deps: AppDeps): void
       return claimed;
     });
     if (!claim.ok) return reply.code(claim.error === "photo_taken" ? 409 : 400).send({ error: claim.error });
+    if (wantsStream(req)) return streamWork(deps, req, reply, input.id, date);
     await runSafely(deps, input.id, req.log);
     return reply.code(201).send(messageResult(deps, input.id));
   });
@@ -80,6 +126,7 @@ export function registerMessageRoutes(app: FastifyInstance, deps: AppDeps): void
     if (!existing || existing.role !== "user") return reply.code(404).send({ error: "not_found" });
     if (existing.status !== "failed") return reply.code(409).send({ error: "not_failed" });
     setMessageStatus(deps.db, existing.id, "pending", null);
+    if (wantsStream(req)) return streamWork(deps, req, reply, existing.id, existing.date);
     await runSafely(deps, existing.id, req.log);
     return messageResult(deps, existing.id);
   });

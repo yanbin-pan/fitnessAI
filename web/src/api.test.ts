@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { ApiError, api, onSignedOut } from "./api.ts";
+import { ApiError, api, onSignedOut, responseError } from "./api.ts";
 import { jsonResponse, mockFetch } from "./test/render.tsx";
 
 describe("api", () => {
@@ -79,5 +79,14 @@ describe("api", () => {
     await expect(api("/api/profile")).rejects.toMatchObject({ kind: "signed_out" });
     expect(listener).toHaveBeenCalledTimes(1);
     stop();
+  });
+});
+
+describe("responseError", () => {
+  it("is null for a success, the server's code for a refusal, and signed out for a redirect or a 401", async () => {
+    expect(await responseError(new Response("{}", { status: 200 }))).toBeNull();
+    expect(await responseError(new Response(JSON.stringify({ error: "too_old" }), { status: 400 }))).toMatchObject({ kind: "http", status: 400, code: "too_old" });
+    expect(await responseError(new Response(null, { status: 401 }))).toMatchObject({ kind: "signed_out" });
+    expect(await responseError(new Response(null, { status: 302 }))).toMatchObject({ kind: "signed_out" });
   });
 });

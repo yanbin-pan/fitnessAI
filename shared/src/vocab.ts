@@ -19,8 +19,20 @@ export type FoodGroup = (typeof FOOD_GROUPS)[number];
 export const EXERCISE_CATEGORIES = ["strength", "cardio", "mobility", "sport"] as const;
 export type ExerciseCategory = (typeof EXERCISE_CATEGORIES)[number];
 
-/** The sport an exercise was (spec §5.1). `category` drives muscle volume and habits; this drives the icon. */
-export const ACTIVITIES = ["tennis", "gym", "wakeboarding", "kitesurfing", "other"] as const;
+/**
+ * The sport an exercise was (spec §5.1). `category` drives muscle volume and habits; this drives the badge.
+ * The owner's four come first and `other` last; the rest follow the More grid's families.
+ */
+export const ACTIVITIES = [
+  "tennis", "gym", "wakeboarding", "kitesurfing",
+  "padel", "badminton",
+  "running", "walking", "hiking", "photography", "cycling", "skateboarding",
+  "swimming", "surfing", "rowing", "kayaking", "sailing", "diving",
+  "boxing", "martial_arts", "yoga", "climbing",
+  "football", "basketball", "volleyball", "rugby", "cricket", "hockey",
+  "skiing", "snowboarding", "skating",
+  "golf", "other",
+] as const;
 export type Activity = (typeof ACTIVITIES)[number];
 
 /** Day-to-day activity EXCLUDING workouts (spec §5, profile.activity_level); workouts are added back separately (spec §7.2). */

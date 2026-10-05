@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { buildDayView, ensureDay, getDay, refreshDay } from "../src/days/days.ts";
+import { buildDayView, daySummaries, ensureDay, getDay, refreshDay } from "../src/days/days.ts";
 import type { Sql } from "../src/db/types.ts";
 import { insertEntry } from "../src/log/entries.ts";
 import { insertReply, insertUserMessage } from "../src/messages/messages.ts";
@@ -148,5 +148,57 @@ describe("linked entries (a reply that recorded something for another day)", () 
     const view = buildDayView(db.db, makeProfile(), "2026-10-03", "2026-10-03", NOW_ISO);
     expect(view.entries.map((e) => e.id)).toEqual(["eggs"]);
     expect(view.linked_entries).toEqual([]);
+  });
+});
+
+describe("day summaries", () => {
+  it("list the days with food, with the eaten kcal and the adjusted target, workouts included", () => {
+    db = openTestDb();
+    const profile = makeProfile();
+    saveProfile(db.db, profile, NOW_ISO);
+    for (const date of ["2026-10-01", "2026-10-02", "2026-10-03"]) ensureDay(db.db, profile, date, NOW_ISO);
+    insertEntry(db.db, sampleEntry({ date: "2026-10-01", foods: [sampleFood({ kcal: 500 })] }), NOW_ISO);
+    insertEntry(db.db, sampleEntry({ date: "2026-10-02", foods: [], exercises: [sampleExercise()] }), NOW_ISO);
+    insertEntry(db.db, sampleEntry({ date: "2026-10-03", foods: [sampleFood({ kcal: 900 })], exercises: [sampleExercise({ kcal: 320 })] }), NOW_ISO);
+
+    const got = daySummaries(db.db, profile, "2026-09-28", "2026-10-04", NOW_ISO);
+    expect(got.map((d) => d.date)).toEqual(["2026-10-01", "2026-10-03"]); // the day with only exercise is left out
+    expect(got[0].kcal).toBe(500);
+    expect(got[1].kcal).toBe(900);
+    for (const day of got) {
+      expect(day.target_kcal).toBeCloseTo(buildDayView(db.db, profile, day.date, "2026-10-03", NOW_ISO).targets.adjusted.kcal, 6);
+    }
+    expect(got[1].target_kcal).toBeGreaterThan(got[0].target_kcal); // the workout's add-back
+  });
+
+  it("cover the range inclusively, and only the range", () => {
+    db = openTestDb();
+    const sql = db.db;
+    for (const date of ["2026-09-30", "2026-10-01", "2026-10-03", "2026-10-04"]) {
+      insertEntry(sql, sampleEntry({ date, foods: [sampleFood({ kcal: 100 })] }), NOW_ISO);
+    }
+    const datesIn = (from: string, to: string) => daySummaries(sql, makeProfile(), from, to, NOW_ISO).map((d) => d.date);
+    expect(datesIn("2026-10-01", "2026-10-03")).toEqual(["2026-10-01", "2026-10-03"]); // both ends in, the days beside them out
+    expect(datesIn("2026-10-03", "2026-10-03")).toEqual(["2026-10-03"]); // a one-day range
+    expect(datesIn("2026-10-02", "2026-10-02")).toEqual([]); // a day with no food
+  });
+
+  it("use the targets a day froze, and the current profile for a day that never froze any", () => {
+    db = openTestDb();
+    ensureDay(db.db, makeProfile(), "2026-10-01", NOW_ISO); // frozen at the calculated 1,863.125 kcal
+    for (const date of ["2026-10-01", "2026-10-02"]) insertEntry(db.db, sampleEntry({ date, foods: [sampleFood({ kcal: 100 })] }), NOW_ISO);
+    const [frozen, unfrozen] = daySummaries(db.db, makeProfile({ override_kcal: 3000 }), "2026-10-01", "2026-10-02", NOW_ISO);
+    expect(frozen.target_kcal).toBeCloseTo(1863.125, 6); // the profile changed since: the day keeps its own
+    expect(unfrozen.target_kcal).toBe(3000); // nothing stored for it, so what it would freeze today
+    expect(getDay(db.db, "2026-10-02")).toBeNull(); // and reading does not store it
+  });
+
+  it("reach the last date there is, and stop there instead of stepping past it", () => {
+    db = openTestDb();
+    const profile = makeProfile();
+    // The day after 9999-12-31 is not a date the helpers can write, so the loop must never take that step.
+    expect(daySummaries(db.db, profile, "9999-12-30", "9999-12-31", NOW_ISO)).toEqual([]);
+    insertEntry(db.db, sampleEntry({ date: "9999-12-31", foods: [sampleFood({ kcal: 100 })] }), NOW_ISO);
+    expect(daySummaries(db.db, profile, "9999-12-30", "9999-12-31", NOW_ISO).map((d) => d.date)).toEqual(["9999-12-31"]);
   });
 });

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { ensureDay, getDay } from "../src/days/days.ts";
 import { insertEntry } from "../src/log/entries.ts";
 import { saveProfile } from "../src/profile/profile.ts";
-import { NOW, makeProfile, sampleEntry, testApp } from "./helpers.ts";
+import { NOW, makeProfile, sampleEntry, sampleFood, testApp } from "./helpers.ts";
 import type { TestApp } from "./helpers.ts";
 
 const PROFILE = {
@@ -84,6 +84,44 @@ describe("day routes", () => {
     expect(getDay(ctx.db, "2026-10-04")).toBeNull();
     await ctx.app.inject({ method: "GET", url: "/api/days/today", headers: ctx.headers });
     expect(getDay(ctx.db, "2026-10-03")).not.toBeNull();
+  });
+});
+
+describe("GET /api/days?from=&to=", () => {
+  it("summarises the days with food, and says which way the goal points", async () => {
+    ctx = await withProfile({ goal: "gain", goal_rate_kg_week: 0.25 });
+    insertEntry(ctx.db, sampleEntry({ date: "2026-10-02", foods: [sampleFood({ kcal: 2600 })] }), NOW.toISOString());
+    const res = await ctx.app.inject({ method: "GET", url: "/api/days?from=2026-09-28&to=2026-11-08", headers: ctx.headers });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ goal: "gain", days: [{ date: "2026-10-02", kcal: 2600, target_kcal: expect.any(Number) }] });
+  });
+
+  it("refuses a missing, invalid, reversed or longer than six-week range", async () => {
+    ctx = await withProfile();
+    const bad = ["", "?from=2026-10-01", "?from=2026-10-05&to=2026-10-01", "?from=2026-10-01&to=2026-11-12", "?from=2026-02-30&to=2026-03-01", "?from=2026-10-01&from=2026-10-02&to=2026-10-03"];
+    for (const query of bad) {
+      const res = await ctx.app.inject({ method: "GET", url: `/api/days${query}`, headers: ctx.headers });
+      expect(res.statusCode, query).toBe(400);
+      expect(res.json(), query).toEqual({ error: "bad_range" });
+    }
+    const sixWeeks = await ctx.app.inject({ method: "GET", url: "/api/days?from=2026-10-01&to=2026-11-11", headers: ctx.headers });
+    expect(sixWeeks.statusCode).toBe(200); // exactly 42 days
+  });
+
+  it("answers a range that ends on the last date there is", async () => {
+    ctx = await withProfile();
+    const res = await ctx.app.inject({ method: "GET", url: "/api/days?from=9999-12-30&to=9999-12-31", headers: ctx.headers });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ goal: "lose", days: [] });
+  });
+
+  it("needs a profile, and the owner's token", async () => {
+    ctx = await testApp();
+    const noProfile = await ctx.app.inject({ method: "GET", url: "/api/days?from=2026-10-01&to=2026-10-03", headers: ctx.headers });
+    expect(noProfile.statusCode).toBe(409);
+    const anonymous = await ctx.app.inject({ method: "GET", url: "/api/days?from=2026-10-01&to=2026-10-03" });
+    expect(anonymous.statusCode).toBe(401);
+    expect(anonymous.body).toBe("");
   });
 });
 

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { dayView, entry, exerciseItem } from "../test/fixtures.ts";
@@ -89,6 +89,15 @@ describe("EntryEditor", () => {
     expect(JSON.parse(String(init?.body)).exercises[0]).toMatchObject({ name: "Tennis", activity: "gym" });
   });
 
+  it("offers the owner's four sports, and the exercise's own activity when it is another", () => {
+    const ride = entry({ foods: [], exercises: [exerciseItem({ name: "Bike ride", category: "cardio", activity: "cycling" })] });
+    mockFetch(() => jsonResponse({ entry: ride, day: dayView() }));
+    renderWithProviders(<EntryEditor date="2026-10-03" entry={ride} onClose={() => {}} />);
+    const group = screen.getByRole("group", { name: "Activity for exercise 1" });
+    expect(within(group).getAllByRole("radio").map((radio) => radio.getAttribute("aria-label"))).toEqual(["Tennis", "Gym", "Wakeboarding", "Kitesurfing", "Cycling"]);
+    expect(within(group).getByRole("radio", { name: "Cycling" })).toBeChecked();
+  });
+
   it("keeps each exercise's activity to itself", async () => {
     mockFetch(() => jsonResponse({ entry: entry(), day: dayView() }, 201));
     renderWithProviders(<EntryEditor date="2026-10-03" entry={null} onClose={() => {}} />);
@@ -101,7 +110,8 @@ describe("EntryEditor", () => {
     await userEvent.click(within(second).getByRole("radio", { name: "Gym" }));
     expect(within(first).getByRole("radio", { name: "Other" })).toBeChecked();
     expect(within(second).getByRole("radio", { name: "Gym" })).toBeChecked();
-    expect(within(second).getByRole("radio", { name: "Other" })).not.toBeChecked();
+    // Other is offered only while it is the exercise's own activity, and the second one is a gym session now.
+    expect(within(second).queryByRole("radio", { name: "Other" })).toBeNull();
   });
 
   it("is one stop for the keyboard, and the arrow keys move between the activities", async () => {
@@ -114,7 +124,69 @@ describe("EntryEditor", () => {
     await userEvent.keyboard("{ArrowLeft}");
     expect(screen.getByRole("radio", { name: "Kitesurfing" })).toBeChecked();
     await userEvent.tab();
-    expect(screen.getByLabelText("Minutes")).toHaveFocus(); // the rest of the group is skipped
+    expect(screen.getByRole("button", { name: "More" })).toHaveFocus(); // the rest of the group is skipped
+    await userEvent.tab();
+    expect(screen.getByLabelText("Minutes")).toHaveFocus();
+  });
+
+  it("opens every activity by family under More, and a tap picks one and folds them away", async () => {
+    const fetchMock = mockFetch(() => jsonResponse({ entry: entry(), day: dayView() }, 201));
+    renderWithProviders(<EntryEditor date="2026-10-03" entry={null} onClose={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
+    await userEvent.type(screen.getByLabelText("Exercise"), "Boxing class");
+    const more = screen.getByRole("button", { name: "More" });
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(more);
+    const group = screen.getByRole("group", { name: "Activity for exercise 1" });
+    expect(within(group).getAllByRole("radio")).toHaveLength(33);
+    expect(within(group).getByText("Combat, body and mind")).toBeInTheDocument();
+    await userEvent.click(within(group).getByRole("radio", { name: "Boxing" }));
+    expect(screen.getByRole("button", { name: "More" })).toHaveAttribute("aria-expanded", "false");
+    expect(within(group).getAllByRole("radio").map((radio) => radio.getAttribute("aria-label"))).toEqual(["Tennis", "Gym", "Wakeboarding", "Kitesurfing", "Boxing"]);
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).exercises[0].activity).toBe("boxing");
+  });
+
+  it("keeps the open grid for the keyboard: the arrow keys move through every activity", async () => {
+    mockFetch(() => jsonResponse({ entry: entry(), day: dayView() }, 201));
+    renderWithProviders(<EntryEditor date="2026-10-03" entry={null} onClose={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
+    await userEvent.click(screen.getByRole("button", { name: "More" }));
+    screen.getByRole("radio", { name: "Other" }).focus();
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(screen.getByRole("radio", { name: "Golf" })).toBeChecked();
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(screen.getByRole("radio", { name: "Skating" })).toBeChecked();
+    expect(screen.getByRole("button", { name: "Fewer" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getAllByRole("radio")).toHaveLength(33);
+  });
+
+  it("folds the grid for a tap even when the radio's click has no detail, as WebKit sends a label's", async () => {
+    mockFetch(() => jsonResponse({ entry: entry(), day: dayView() }, 201));
+    renderWithProviders(<EntryEditor date="2026-10-03" entry={null} onClose={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
+    await userEvent.click(screen.getByRole("button", { name: "More" }));
+    const boxing = screen.getByRole("radio", { name: "Boxing" });
+    // A finger lands on the badge, and the label forwards a click to the radio. WebKit gives that click detail 0,
+    // like a key's (jsdom and Chromium give it 1), so only the pointer going down tells a tap from the arrow keys.
+    fireEvent.pointerDown(boxing.closest("label")?.querySelector("span") as HTMLElement);
+    fireEvent.click(boxing, { detail: 0 });
+    expect(screen.getAllByRole("radio")).toHaveLength(5);
+    expect(screen.getByRole("radio", { name: "Boxing" })).toBeChecked();
+  });
+
+  it("presses in the chosen activity's badge", async () => {
+    mockFetch(() => jsonResponse({ entry: entry(), day: dayView() }, 201));
+    renderWithProviders(<EntryEditor date="2026-10-03" entry={null} onClose={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Gym" }));
+    const gym = screen.getByRole("radio", { name: "Gym" }).closest("label");
+    const tennis = screen.getByRole("radio", { name: "Tennis" }).closest("label");
+    expect(gym?.querySelector(".pressed")).not.toBeNull();
+    expect(tennis?.querySelector(".pressed")).toBeNull();
+    // The chosen option is not raised as well: its badge is the one pressed in.
+    expect(gym).not.toHaveClass("raised-sm");
   });
 
   it("explains a date too far back instead of blaming the numbers", async () => {

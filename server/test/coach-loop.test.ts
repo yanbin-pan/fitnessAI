@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AiError } from "../src/ai/client.ts";
 import type { AiClient, AiContentBlock, AiMessage } from "../src/ai/client.ts";
 import { runCoachLoop } from "../src/coach/loop.ts";
-import type { LoopInput } from "../src/coach/loop.ts";
+import type { LoopInput, LoopStep } from "../src/coach/loop.ts";
 import { fakeAi, stopWith, textReply, toolCall } from "./fake-ai.ts";
 
 const userTurn: AiMessage = { role: "user", content: [{ type: "text", text: "2 eggs" }] };
@@ -147,5 +147,17 @@ describe("runCoachLoop", () => {
 
   it("treats a reply cut off by the context window like one cut off by max_tokens", async () => {
     expect(await runCoachLoop(input(fakeAi([stopWith("model_context_window_exceeded")])))).toMatchObject({ ok: false, failure: "max_tokens" });
+  });
+
+  it("says what it is about to do: its first look, each tool, then the reply after the tools", async () => {
+    const steps: LoopStep[] = [];
+    const ai = fakeAi([toolCall([{ name: "log_items", input: { a: 1 } }, { name: "update_entry", input: { b: 2 } }]), textReply("Logged.")]);
+    await runCoachLoop(input(ai, { onStep: (step) => steps.push(step) }));
+    expect(steps).toEqual([
+      { kind: "start" },
+      { kind: "tool", name: "log_items", input: { a: 1 } },
+      { kind: "tool", name: "update_entry", input: { b: 2 } },
+      { kind: "reply" },
+    ]);
   });
 });
