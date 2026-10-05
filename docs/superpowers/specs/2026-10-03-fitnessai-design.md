@@ -4,7 +4,7 @@
 |---|---|
 | **Date** | 2026-10-03, revised 2026-10-05 |
 | **Status** | Approved. Milestones 1, 2, 2.1 and 2.2 are live. |
-| **Revision** | 5 — milestone 2.2: friends and family, each with a database of their own, an allowlist, a daily coach cap per person and their own featured activities (revision 4 brought instant replies with live steps, the activities card, the calendar, 33 activities and the zabaione-ball icon) |
+| **Revision** | 6 — the app is called Zabaione on the phone and lives at `zabaione.minipi.net`; the first address, `fitness.minipi.net`, redirects there (revision 5 brought milestone 2.2: friends and family, each with a database of their own, an allowlist, a daily coach cap per person and their own featured activities; revision 4 brought instant replies with live steps, the activities card, the calendar, 33 activities and the zabaione-ball icon) |
 | **Repository** | <https://github.com/yanbin-pan/fitnessAI> (public) |
 | **Deploys to** | <https://github.com/yanbin-pan/home-cluster> — k3s on four Raspberry Pi 4s |
 | **Reference app** | <https://github.com/yanbin-pan/tea-cabinet> — same deployment shape |
@@ -44,8 +44,11 @@ kept for good. Workouts carry the sport they were (tennis, gym, wakeboarding, ki
 other) and show it as an icon, and the whole interface has a soft, neumorphic look in light
 and dark.
 
-It runs as one container on the home cluster at `fitness.minipi.net`, behind Cloudflare
-Access, deployed by Flux from this repository.
+It runs as one container on the home cluster at `zabaione.minipi.net`, behind Cloudflare
+Access, deployed by Flux from this repository. On the phone it is called **Zabaione**,
+after its icon; the code, the repository and the cluster keep the name fitnessAI. The
+first address, `fitness.minipi.net`, permanently redirects to the same path on the new
+one and stays behind Access too.
 
 ---
 
@@ -118,7 +121,7 @@ Access, deployed by Flux from this repository.
 
 ```
 Phone (installed PWA)                         iPhone: Health Auto Export
-  │ HTTPS fitness.minipi.net                    │ HTTPS POST + service-token headers
+  │ HTTPS zabaione.minipi.net                   │ HTTPS POST + service-token headers
   ▼                                             ▼
 Cloudflare edge ─ TLS · Access: the owner's and the invited emails (30-day session) · service token for /api/ingest
   ▼ Cloudflare Tunnel (outbound only)
@@ -792,7 +795,7 @@ Calculated, not stored.
 Health Auto Export with Premium (a lifetime purchase, $24.99 at the time of writing),
 configured as a REST API automation:
 
-- URL `https://fitness.minipi.net/api/ingest/health`, method POST, format **JSON v2**.
+- URL `https://zabaione.minipi.net/api/ingest/health`, method POST, format **JSON v2**.
 - Headers `CF-Access-Client-Id` and `CF-Access-Client-Secret` — the service token.
 - Date range **Default** (the previous full day plus today), so every payload contains
   complete days.
@@ -1002,6 +1005,8 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
 - **No blur or translucency:** the header is solid base colour.
 - **Typography:** the system font (SF Pro on iPhone); 400 and 500 weights, 600 for the big
   numbers.
+- **Name:** **Zabaione** — the home-screen label (`apple-mobile-web-app-title`, and the
+  manifest's `name` and `short_name`), the tab title and the coach's name for the app.
 - **Phone chrome:** `apple-mobile-web-app-status-bar-style` `default` and a `theme-color`
   per scheme (the base colour), so the status bar text is dark on light and light on dark.
   The home-screen icon (milestone 2.1, the owner's pick of five concepts) is the
@@ -1051,9 +1056,10 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
 ## 13. Security
 
 - **At the edge:**
-  - An Access application for `fitness.minipi.net`: the owner's email and the invited
-    ones (`fitness_emails`), one-time PIN, 30-day session.
-  - A separate, path-scoped Access application for `fitness.minipi.net/api/ingest` that
+  - An Access application for `zabaione.minipi.net` that also covers the first address,
+    `fitness.minipi.net`, which only redirects: the owner's email and the invited ones
+    (`fitness_emails`), one-time PIN, 30-day session.
+  - A separate, path-scoped Access application for `zabaione.minipi.net/api/ingest` that
     allows only the Health Auto Export service token.
 - **In the app** (fails closed with a bodiless 401):
   - Every `/api/*` request except `/api/health` must carry a valid
@@ -1122,7 +1128,8 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
   384 Mi; readiness and liveness probes on `/api/health`, plus a startup probe allowing
   3 minutes so the startup lock wait (§14.4) can't get the pod killed; annotations
   `prometheus.io/scrape: "true"` and `prometheus.io/port: "9464"`.
-- Service; Ingress for `fitness.minipi.net`; Traefik rate-limit middlewares (general for
+- Service; Ingress for `zabaione.minipi.net`, and one for `fitness.minipi.net` whose only
+  middleware is the permanent redirect to it; Traefik rate-limit middlewares (general for
   `/api`, stricter for `/api/messages` and `/api/ingest`).
 - Secret `fitnessai-secrets` (SOPS-encrypted): `ANTHROPIC_API_KEY`, `OWNER_EMAIL` and
   `ALLOWED_EMAILS`.
@@ -1137,7 +1144,7 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
    - `clusters/home/fitnessai.yaml`: a `GitRepository` (public HTTPS, 1-minute interval)
      and a `Kustomization` (`path: ./k8s`, `dependsOn: infrastructure`, SOPS decryption
      through `sops-age`, `wait: true`, `timeout: 10m`), following `tea-cabinet.yaml`.
-   - Terraform: the Access application for `fitness.minipi.net` (§13).
+   - Terraform: the Access application for `zabaione.minipi.net` (§13).
 2. **Milestone 4:** Terraform: the path-scoped Access application for `/api/ingest`, its
    service token and policy, and `Access: Service Tokens → Edit` added to the Cloudflare
    API token's permissions.

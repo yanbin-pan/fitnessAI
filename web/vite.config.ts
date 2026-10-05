@@ -12,8 +12,8 @@ export default defineConfig({
       useCredentials: true,
       includeAssets: ["favicon.ico", "apple-touch-icon-180x180.png"],
       manifest: {
-        name: "fitnessAI",
-        short_name: "fitnessAI",
+        name: "Zabaione",
+        short_name: "Zabaione",
         description: "Food, training and goals logbook with an AI coach",
         start_url: "/day/today",
         scope: "/",
