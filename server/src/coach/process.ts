@@ -7,11 +7,12 @@ import { photoData } from "../photos/photos.ts";
 import { getProfile } from "../profile/profile.ts";
 import { todayIn } from "../time.ts";
 import { runCoachLoop } from "./loop.ts";
-import type { CoachFailure } from "./loop.ts";
+import type { CoachFailure, LoopStep } from "./loop.ts";
 import { PHOTOS_ONLY_TEXT, hydrateTurns, photoRef } from "./photo-blocks.ts";
 import { buildSystemPrompt, buildTurnContext } from "./prompt.ts";
 import { applyStaging, executeTool, newStaging } from "./staging.ts";
 import type { ToolContext } from "./staging.ts";
+import { stepText } from "./steps.ts";
 import { appendTurns, getOrCreateThread, loadTurns } from "./thread.ts";
 import { COACH_TOOLS } from "./tools.ts";
 
@@ -25,6 +26,8 @@ export interface CoachDeps {
   /** Where the message's photos are stored (spec §6.5). */
   photoDir: string;
   newId?: () => string;
+  /** Hears each step of the work (spec §6.3). Best effort: it can never stop the coach. */
+  onStep?: (text: string) => void;
 }
 
 export type ProcessOutcomeCode = "done" | CoachFailure | "ai_unavailable" | "no_profile";
@@ -98,6 +101,18 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
     newId: deps.newId ?? (() => randomUUID()),
   };
 
+  const onStep = deps.onStep;
+  const photos = message.photo_ids.length;
+  const report = onStep
+    ? (step: LoopStep) => {
+        try {
+          onStep(stepText(step, photos));
+        } catch {
+          // Telling the phone how it is going must never cost the message.
+        }
+      }
+    : undefined;
+
   const result = await withBudget(deps.budgetMs, (signal) =>
     runCoachLoop({
       ai,
@@ -108,6 +123,7 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
       execute: (name, input) => executeTool(name, input, context),
       signal,
       maxCalls: MAX_MODEL_CALLS,
+      onStep: report,
     }),
   );
   if (!result.ok) return fail(deps.db, messageId, result.failure, result.calls, result.usage, result.detail);

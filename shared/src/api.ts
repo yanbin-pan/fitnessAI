@@ -125,6 +125,13 @@ export interface MessageResult {
   day: DayView;
 }
 
+/** The live steps' events (spec §6.3), as POST /api/messages and Retry stream them when asked to. */
+export interface CoachStreamEvents {
+  stored: { day: DayView };
+  step: { text: string };
+  result: MessageResult;
+}
+
 /** What POST /api/photos returns (spec §12). */
 export interface PhotoUpload {
   id: string;

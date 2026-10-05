@@ -71,7 +71,7 @@ export async function makeAccess(ownerEmail = "owner@example.com") {
 /** The clock every test app uses: 13:00 BST on Saturday 3 October 2026. */
 export const NOW = new Date("2026-10-03T12:00:00.000Z");
 
-export async function testApp(opts: { now?: Date; webDist?: string | null; ai?: AiClient | null; coachBudgetMs?: number; metrics?: Metrics } = {}) {
+export async function testApp(opts: { now?: Date; webDist?: string | null; ai?: AiClient | null; coachBudgetMs?: number; metrics?: Metrics; streamKeepAliveMs?: number; logLines?: string[] } = {}) {
   const auth = await makeAccess();
   const database = openTestDb();
   const photoDir = tempDir();
@@ -84,6 +84,9 @@ export async function testApp(opts: { now?: Date; webDist?: string | null; ai?: 
     ai: opts.ai ?? null,
     coachBudgetMs: opts.coachBudgetMs ?? 90_000,
     metrics: opts.metrics,
+    streamKeepAliveMs: opts.streamKeepAliveMs,
+    logger: opts.logLines !== undefined,
+    logStream: opts.logLines ? { write: (line: string) => void opts.logLines?.push(line) } : undefined,
   });
   await app.ready();
   const owner = await auth.token();

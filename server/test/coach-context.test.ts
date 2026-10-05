@@ -40,6 +40,10 @@ describe("buildSystemPrompt", () => {
     expect(COACH_INSTRUCTIONS).toContain("about MET 3.5 with a light camera");
     expect(COACH_INSTRUCTIONS).toContain("about 2.5 for time spent standing and shooting");
   });
+
+  it("asks for a gym session's intensity to be said in the assumption (spec §6.1)", () => {
+    expect(COACH_INSTRUCTIONS).toContain("(say the intensity in the assumption)");
+  });
 });
 
 describe("buildTurnContext", () => {

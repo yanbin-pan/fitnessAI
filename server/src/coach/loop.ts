@@ -5,6 +5,9 @@ import type { ToolOutcome } from "./staging.ts";
 
 export type CoachFailure = "timeout" | "ai_error" | "ai_rate_limited" | "refused" | "max_tokens" | "tool_loop_limit";
 
+/** What the coach is about to do (spec §6.3): its first look, a tool, or a reply once tools have run. */
+export type LoopStep = { kind: "start" } | { kind: "tool"; name: string; input: unknown } | { kind: "reply" };
+
 export interface LoopInput {
   ai: AiClient;
   system: string;
@@ -15,6 +18,8 @@ export interface LoopInput {
   execute: (name: string, input: unknown) => ToolOutcome;
   signal: AbortSignal;
   maxCalls: number;
+  /** Told before each model call and each tool, for the live steps. */
+  onStep?: (step: LoopStep) => void;
 }
 
 export type LoopResult =
@@ -35,6 +40,7 @@ export async function runCoachLoop(input: LoopInput): Promise<LoopResult> {
 
   while (calls < input.maxCalls) {
     calls += 1;
+    input.onStep?.(calls === 1 ? { kind: "start" } : { kind: "reply" });
     let response: AiResponse;
     try {
       response = await input.ai.complete(
@@ -67,6 +73,7 @@ export async function runCoachLoop(input: LoopInput): Promise<LoopResult> {
     if (toolUses.length === 0) return { ok: true, turns, replyText: texts.join("\n\n"), calls, usage };
 
     const results: Anthropic.Beta.BetaToolResultBlockParam[] = toolUses.map((use) => {
+      input.onStep?.({ kind: "tool", name: use.name, input: use.input });
       const outcome = input.execute(use.name, use.input);
       return { type: "tool_result", tool_use_id: use.id, content: outcome.content, is_error: outcome.isError };
     });

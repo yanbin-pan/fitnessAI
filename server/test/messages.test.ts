@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
+import http from "node:http";
 import { sql } from "drizzle-orm";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AiError } from "../src/ai/client.ts";
 import { processMessage } from "../src/coach/process.ts";
-import { coachTurns, messages } from "../src/db/schema.ts";
-import { failInterrupted, getMessage, insertUserMessage } from "../src/messages/messages.ts";
+import { coachTurns, entries, messages } from "../src/db/schema.ts";
+import { failInterrupted, getMessage, getReply, insertUserMessage } from "../src/messages/messages.ts";
 import { getPhoto, savePhoto } from "../src/photos/photos.ts";
 import { saveProfile } from "../src/profile/profile.ts";
 import { fakeAi, hangUntilAborted, textReply, toolCall } from "./fake-ai.ts";
@@ -46,6 +47,27 @@ function sendWith(app: TestApp, body: { id?: string; text?: string; photo_ids?: 
     method: "POST", url: "/api/messages", headers: app.headers,
     payload: { id, sent_at: "2026-10-03T11:58:00.000Z", text: "", photo_ids: [], ...rest },
   });
+}
+
+function streamed(app: TestApp, body: { id?: string; text?: string; photo_ids?: string[] }) {
+  const { id = randomUUID(), ...rest } = body;
+  return app.app.inject({
+    method: "POST", url: "/api/messages", headers: { ...app.headers, accept: "text/event-stream" },
+    payload: { id, sent_at: "2026-10-03T11:58:00.000Z", text: "", photo_ids: [], ...rest },
+  });
+}
+
+/** The events of a text/event-stream body, comments left out. */
+function eventsOf(payload: string) {
+  return payload
+    .split("\n\n")
+    .filter((block) => block.trim() !== "" && !block.startsWith(":"))
+    .map((block) => {
+      const lines = block.split("\n");
+      const event = lines.find((line) => line.startsWith("event: "))?.slice(7) ?? "";
+      const data = JSON.parse(lines.find((line) => line.startsWith("data: "))?.slice(6) ?? "null");
+      return { event, data };
+    });
 }
 
 describe("POST /api/messages", () => {
@@ -242,6 +264,158 @@ describe("POST /api/messages/:id/retry", () => {
   });
 });
 
+describe("POST /api/messages, streamed (spec §6.3)", () => {
+  it("streams stored, then what the coach is doing, then the result", async () => {
+    const { app } = await appWith([toolCall([{ name: "log_items", input: logItemsInput() }]), textReply("Logged 2 scrambled eggs, 180 kcal.")]);
+    const res = await streamed(app, { text: "2 scrambled eggs" });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toBe("text/event-stream; charset=utf-8");
+    expect(res.headers["cache-control"]).toBe("no-cache, no-transform");
+    const events = eventsOf(res.payload);
+    expect(events.map((e) => e.event)).toEqual(["stored", "step", "step", "step", "result"]);
+    expect(events[0].data.day.messages).toEqual([expect.objectContaining({ text: "2 scrambled eggs", status: "pending" })]);
+    expect(events.slice(1, 4).map((e) => e.data.text)).toEqual(["Thinking…", "Logging scrambled eggs…", "Writing a reply…"]);
+    expect(events[4].data.user).toMatchObject({ status: "done" });
+    expect(events[4].data.reply.text).toBe("Logged 2 scrambled eggs, 180 kcal.");
+    expect(events[4].data.day.entries).toHaveLength(1);
+  });
+
+  it("looks at the photo, or the photos, first", async () => {
+    const { app } = await appWith([textReply("A plate."), textReply("Two plates.")]);
+    expect(eventsOf((await streamed(app, { photo_ids: [addPhoto(app)] })).payload)[1]).toEqual({ event: "step", data: { text: "Looking at your photo…" } });
+    expect(eventsOf((await streamed(app, { photo_ids: [addPhoto(app), addPhoto(app)] })).payload)[1]).toEqual({ event: "step", data: { text: "Looking at your photos…" } });
+  });
+
+  it("ends a failed message with its result", async () => {
+    const { app } = await appWith([new AiError("api_error", "boom")]);
+    const events = eventsOf((await streamed(app, { text: "hello" })).payload);
+    expect(events.map((e) => e.event)).toEqual(["stored", "step", "result"]);
+    expect(events[2].data.user).toMatchObject({ status: "failed", error_code: "ai_error" });
+  });
+
+  it("answers a refusal before storing, and a finished repeat, with plain JSON", async () => {
+    const { app } = await appWith([textReply("Hi!")]);
+    const refused = await streamed(app, { photo_ids: ["0".repeat(32)] });
+    expect(refused.statusCode).toBe(400);
+    expect(refused.json()).toEqual({ error: "photo_not_found" });
+    const id = randomUUID();
+    await streamed(app, { id, text: "hello" });
+    const again = await streamed(app, { id, text: "hello" });
+    expect(again.statusCode).toBe(200);
+    expect(again.headers["content-type"]).toContain("application/json");
+    expect(again.json().reply.text).toBe("Hi!");
+  });
+
+  it("answers every other refusal before storing as plain JSON too, for a send and for a Retry", async () => {
+    const { app } = await appWith([textReply("Hi!"), textReply("Noted.")]);
+    const finished = randomUUID();
+    await streamed(app, { id: finished, text: "hello" });
+    const photo = addPhoto(app);
+    await streamed(app, { photo_ids: [photo] });
+    const pending = randomUUID();
+    insertUserMessage(app.db, { id: pending, date: "2026-10-03", text: "x", photoIds: [], sentAt: NOW.toISOString(), nowIso: NOW.toISOString() });
+
+    const post = (url: string, payload?: object) => app.app.inject({ method: "POST", url, headers: { ...app.headers, accept: "text/event-stream" }, payload });
+    const message = (overrides: object) => ({ id: randomUUID(), sent_at: "2026-10-03T11:58:00.000Z", text: "x", photo_ids: [], ...overrides });
+    const answeredAsJson = (what: string, res: Awaited<ReturnType<typeof post>>, status: number, error: string) => {
+      expect(res.statusCode, what).toBe(status);
+      expect(res.headers["content-type"], what).toContain("application/json");
+      expect(res.json().error, what).toBe(error);
+    };
+    answeredAsJson("a bad body", await post("/api/messages", { id: "nope" }), 400, "invalid_request");
+    answeredAsJson("a message from the future", await post("/api/messages", message({ sent_at: "2026-10-04T12:00:00.000Z" })), 400, "future_date");
+    answeredAsJson("a message from too long ago", await post("/api/messages", message({ sent_at: "2026-09-20T12:00:00.000Z" })), 400, "too_old");
+    answeredAsJson("a message still being processed", await post("/api/messages", message({ id: pending })), 409, "in_progress");
+    answeredAsJson("a photo another message has", await post("/api/messages", message({ photo_ids: [photo] })), 409, "photo_taken");
+    answeredAsJson("a Retry of an unknown message", await post(`/api/messages/${randomUUID()}/retry`), 404, "not_found");
+    answeredAsJson("a Retry of a message that did not fail", await post(`/api/messages/${finished}/retry`), 409, "not_failed");
+  });
+
+  it("answers no_profile as plain JSON too", async () => {
+    ctx = await testApp({ ai: fakeAi([]) });
+    const res = await streamed(ctx, { text: "hello" });
+    expect(res.statusCode).toBe(409);
+    expect(res.headers["content-type"]).toContain("application/json");
+    expect(res.json()).toEqual({ error: "no_profile" });
+  });
+
+  it("keeps the connection open while the coach thinks", async () => {
+    const slow: FakeStep = () => new Promise((resolve) => setTimeout(() => resolve(textReply("Done.")), 60));
+    ctx = await testApp({ ai: fakeAi([slow]), streamKeepAliveMs: 10 });
+    saveProfile(ctx.db, makeProfile(), NOW.toISOString());
+    const res = await streamed(ctx, { text: "hello" });
+    expect(res.payload).toContain(": keep-alive\n\n");
+    expect(eventsOf(res.payload).at(-1)?.event).toBe("result");
+  });
+
+  it("streams a Retry the same way", async () => {
+    const { app } = await appWith([new AiError("api_error", "boom"), textReply("Back again.")]);
+    const id = randomUUID();
+    await streamed(app, { id, text: "hello" });
+    const res = await app.app.inject({ method: "POST", url: `/api/messages/${id}/retry`, headers: { ...app.headers, accept: "text/event-stream" } });
+    const events = eventsOf(res.payload);
+    expect(events.map((e) => e.event)).toEqual(["stored", "step", "result"]);
+    expect(events[0].data.day.messages[0]).toMatchObject({ id, status: "pending" });
+    expect(events[2].data.reply.text).toBe("Back again.");
+  });
+
+  it("never writes a step to the log", async () => {
+    const logLines: string[] = [];
+    ctx = await testApp({ ai: fakeAi([toolCall([{ name: "log_items", input: logItemsInput() }]), textReply("Logged.")]), logLines });
+    saveProfile(ctx.db, makeProfile(), NOW.toISOString());
+    await streamed(ctx, { text: "2 scrambled eggs" });
+    expect(logLines.join("")).not.toMatch(/scrambled/i);
+  });
+
+  it("finishes and commits when the phone goes away mid-stream", async () => {
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const held: FakeStep = async () => {
+      await gate;
+      return toolCall([{ name: "log_items", input: logItemsInput() }]);
+    };
+    ctx = await testApp({ ai: fakeAi([held, textReply("Logged 2 scrambled eggs, 180 kcal.")]) });
+    saveProfile(ctx.db, makeProfile(), NOW.toISOString());
+    const live = ctx;
+    const port = new URL(await live.app.listen({ host: "127.0.0.1", port: 0 })).port;
+    const id = randomUUID();
+    // A real connection, which the phone drops as soon as the first event has come.
+    await new Promise<void>((resolve) => {
+      const req = http.request(
+        { agent: false, host: "127.0.0.1", port, method: "POST", path: "/api/messages", headers: { ...live.headers, accept: "text/event-stream", "content-type": "application/json" } },
+        (res) => {
+          res.on("error", () => {});
+          res.once("data", () => {
+            req.destroy();
+            resolve();
+          });
+        },
+      );
+      req.on("error", () => {});
+      req.end(JSON.stringify({ id, sent_at: "2026-10-03T11:58:00.000Z", text: "2 scrambled eggs", photo_ids: [] }));
+    });
+    const connections = () => new Promise<number>((resolve) => live.app.server.getConnections((_err, count) => resolve(count)));
+    await vi.waitFor(async () => expect(await connections()).toBe(0), { timeout: 3000 });
+    // Nobody is listening, and the coach is still at work.
+    expect(getMessage(live.db, id)?.status).toBe("pending");
+    release();
+    await vi.waitFor(() => expect(getMessage(live.db, id)?.status).toBe("done"), { timeout: 3000 });
+    expect(getReply(live.db, id)?.text).toBe("Logged 2 scrambled eggs, 180 kcal.");
+    expect(live.db.select().from(entries).all()).toHaveLength(1);
+  });
+
+  it("ends the stream, and the server carries on, when even recording a failure fails", async () => {
+    const { app } = await appWith([new AiError("api_error", "boom")]);
+    // The coach fails, and then the database refuses to record that it failed. Once the stream has
+    // begun Fastify can no longer answer an error (its headers are out), so a throw here would
+    // reach the process instead of ending the response.
+    app.db.run(sql.raw("CREATE TRIGGER boom BEFORE UPDATE ON messages WHEN NEW.status = 'failed' BEGIN SELECT RAISE(ABORT, 'boom'); END"));
+    const res = await streamed(app, { text: "hello" });
+    expect(res.statusCode).toBe(200);
+    expect(eventsOf(res.payload).map((e) => e.event)).toEqual(["stored", "step"]);
+  });
+});
+
 describe("failInterrupted", () => {
   it("marks messages left pending by a restart so they can be retried", async () => {
     const { app } = await appWith([]);
@@ -307,6 +481,20 @@ describe("processMessage", () => {
     insertUserMessage(app.db, { id: "m1", date: "2026-10-03", text: "2 eggs", photoIds: [], sentAt: NOW.toISOString(), nowIso: NOW.toISOString() });
     const outcome = await processMessage({ db: app.db, ai, now: () => NOW, budgetMs: 1000, photoDir: tempDir() }, "m1");
     expect(outcome).toMatchObject({ outcome: "ai_error", detail: "400 invalid_request_error: fallbacks" });
+  });
+
+  it("goes on to the end, and still tells every step, when whoever hears the steps throws", async () => {
+    const { app, ai } = await appWith([toolCall([{ name: "log_items", input: logItemsInput() }]), textReply("Logged.")]);
+    insertUserMessage(app.db, { id: "m1", date: "2026-10-03", text: "2 eggs", photoIds: [], sentAt: NOW.toISOString(), nowIso: NOW.toISOString() });
+    const heard: string[] = [];
+    const onStep = (text: string) => {
+      heard.push(text);
+      throw new Error("the phone has gone");
+    };
+    const outcome = await processMessage({ db: app.db, ai, now: () => NOW, budgetMs: 1000, photoDir: tempDir(), onStep }, "m1");
+    expect(outcome.outcome).toBe("done");
+    expect(heard).toEqual(["Thinking…", "Logging scrambled eggs…", "Writing a reply…"]);
+    expect(getMessage(app.db, "m1")).toMatchObject({ status: "done" });
   });
 });
 
