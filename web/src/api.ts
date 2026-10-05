@@ -27,6 +27,26 @@ export function onSignedOut(listener: () => void): () => void {
   };
 }
 
+/** The ApiError a response stands for, or null when it is a success. A redirect or a 401 means the Access session expired. */
+export async function responseError(res: Response): Promise<ApiError | null> {
+  if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400) || res.status === 401) {
+    for (const listener of signedOutListeners) {
+      try {
+        listener();
+      } catch {
+        // A failing listener must not hide the sign-out or starve the listeners after it.
+      }
+    }
+    return new ApiError("signed_out", res.status, "signed_out", "Signed out");
+  }
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: unknown } | null;
+    const code = typeof body?.error === "string" ? body.error : "http_error";
+    return new ApiError("http", res.status, code, `Request failed (${res.status})`);
+  }
+  return null;
+}
+
 export async function api<T>(path: string, options: { method?: string; json?: unknown; blob?: Blob } = {}): Promise<T> {
   const hasJson = options.json !== undefined;
   const blob = options.blob;
@@ -49,21 +69,8 @@ export async function api<T>(path: string, options: { method?: string; json?: un
     throw new ApiError("offline", 0, "offline", "You appear to be offline.");
   }
 
-  if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400) || res.status === 401) {
-    for (const listener of signedOutListeners) {
-      try {
-        listener();
-      } catch {
-        // A failing listener must not hide the sign-out or starve the listeners after it.
-      }
-    }
-    throw new ApiError("signed_out", res.status, "signed_out", "Signed out");
-  }
-  if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { error?: unknown } | null;
-    const code = typeof body?.error === "string" ? body.error : "http_error";
-    throw new ApiError("http", res.status, code, `Request failed (${res.status})`);
-  }
+  const failure = await responseError(res);
+  if (failure) throw failure;
   if (res.status === 204) return undefined as T;
   try {
     return (await res.json()) as T;
