@@ -2483,3 +2483,31 @@ If a check fails, fix it with a test first. The fix is its own commit, reviewed 
 
 1. Update the memory file `fitnessai-project.md` with 2.2's state.
 2. Tell the owner what's live, the decisions made (P1–P10 and every ruling), and the invite note to send.
+
+---
+
+## Appendix: changes made during execution
+
+What the reviews and rulings changed relative to the task text above. The executor's ledger has the full rulings, each with its cost if wrong; the R-numbers continue milestone 2.1's.
+
+- **Task 1:** the existing keySetFor test now expects `{ email, owner: true }` (R29).
+- **Tasks 2–3, a combined fix round:**
+  - A job lists people inside its try, and both Crons have croner `catch` handlers, so a listing failure can't crash the process.
+  - The log serializer shortens `users/<64 hex>` to 8 characters in message, stack and cause (R30).
+  - Startup opens the owner first and fail-loud, then every guest after `buildApp`, each guarded, then calls `People.stopWaitingForLocks()`, so only startup waits for an old pod's lock (R31).
+  - `store()` closes its handle if `failInterrupted` throws.
+  - `personPaths` checks the key (`PERSON_KEY`).
+  - `moveOwnerIn` treats an empty owner folder (left by a rollback) as absent.
+  - `close()` is exception-safe.
+  - Missing tests were added (R32, R33).
+- **Task 4:** the separation test checks the real photo folders and that a stranger creates nothing (R36).
+- **Task 5:**
+  - The cap is accepted as a soft limit under parallel sends (R34).
+  - A streamed `ai_cap` test and three pins were added: refusal side effects, the run-day date, the last-answering model (R35, R37).
+- **Task 6:** the reworded editor test title (R40).
+- **Task 7:** two extra README sentences (R41).
+- **Final fix wave:**
+  - `view.featured ?? []`, and `familiesFor` drops empty families, so an older server can't blank the editor.
+  - Pins for each person's starter on every route (including the streamed send and Retry), "Your sports" membership, the KNOWN filter, and request-path isolation.
+  - A README and spec docs pass (R42–R44): the rollback waits for the pod, checks the database before reverting and removes the emptied owner folder; removal guards an empty key; P8 is stated.
+- **Merge:** merged as soon as it was open, since the same checks ran green locally and main re-verifies (R45).
