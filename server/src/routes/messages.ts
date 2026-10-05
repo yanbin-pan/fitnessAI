@@ -2,7 +2,8 @@ import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest }
 import { processMessage } from "../coach/process.ts";
 import type { ProcessOutcome } from "../coach/process.ts";
 import { buildDayView, ensureDay } from "../days/days.ts";
-import type { AppDeps } from "../deps.ts";
+import { forRequest } from "../deps.ts";
+import type { AppDeps, RequestDeps } from "../deps.ts";
 import { getMessage, getReply, insertUserMessage, setMessageStatus, toChatMessage } from "../messages/messages.ts";
 import { recordCoach } from "../metrics.ts";
 import { claimPhotos } from "../photos/photos.ts";
@@ -14,7 +15,7 @@ import { parseBody } from "./http.ts";
 import { openEventStream } from "./stream.ts";
 
 /** Coach failures are recorded on the message; only an unexpected crash lands in the catch. */
-async function runSafely(deps: AppDeps, id: string, log: FastifyBaseLogger, onStep?: (text: string) => void): Promise<ProcessOutcome | null> {
+async function runSafely(deps: RequestDeps, id: string, log: FastifyBaseLogger, onStep?: (text: string) => void): Promise<ProcessOutcome | null> {
   let outcome: ProcessOutcome | null = null;
   try {
     outcome = await processMessage({ db: deps.db, ai: deps.ai, now: deps.now, budgetMs: deps.coachBudgetMs, photoDir: deps.photoDir, onStep }, id);
@@ -27,7 +28,7 @@ async function runSafely(deps: AppDeps, id: string, log: FastifyBaseLogger, onSt
   return outcome;
 }
 
-function messageResult(deps: AppDeps, id: string): MessageResult {
+function messageResult(deps: RequestDeps, id: string): MessageResult {
   const profile = getProfile(deps.db);
   const user = getMessage(deps.db, id);
   if (!profile || !user) throw new Error(`message ${id} or the profile disappeared`);
@@ -49,7 +50,7 @@ function wantsStream(req: FastifyRequest): boolean {
 }
 
 /** The message's day as it stands now. */
-function dayOf(deps: AppDeps, date: string): DayView {
+function dayOf(deps: RequestDeps, date: string): DayView {
   const profile = getProfile(deps.db);
   if (!profile) throw new Error("the profile disappeared");
   const now = deps.now();
@@ -60,7 +61,7 @@ function dayOf(deps: AppDeps, date: string): DayView {
  * Runs a stored message through the coach as a stream: stored, each step, then the result. The coach's work
  * never depends on the stream: if an event can't be built, the stream ends without it and the phone looks again.
  */
-async function streamWork(deps: AppDeps, req: FastifyRequest, reply: FastifyReply, id: string, date: string): Promise<FastifyReply> {
+async function streamWork(deps: RequestDeps, req: FastifyRequest, reply: FastifyReply, id: string, date: string): Promise<FastifyReply> {
   const stream = openEventStream(reply, deps.streamKeepAliveMs ?? KEEP_ALIVE_MS);
   try {
     try {
@@ -84,8 +85,9 @@ async function streamWork(deps: AppDeps, req: FastifyRequest, reply: FastifyRepl
   return reply;
 }
 
-export function registerMessageRoutes(app: FastifyInstance, deps: AppDeps): void {
+export function registerMessageRoutes(app: FastifyInstance, appDeps: AppDeps): void {
   app.post("/api/messages", async (req, reply) => {
+    const deps = forRequest(appDeps, req);
     const input = parseBody(MessageInput, req.body, reply);
     if (!input) return reply;
     const profile = getProfile(deps.db);
@@ -122,6 +124,7 @@ export function registerMessageRoutes(app: FastifyInstance, deps: AppDeps): void
   });
 
   app.post<{ Params: { id: string } }>("/api/messages/:id/retry", async (req, reply) => {
+    const deps = forRequest(appDeps, req);
     const existing = getMessage(deps.db, req.params.id);
     if (!existing || existing.role !== "user") return reply.code(404).send({ error: "not_found" });
     if (existing.status !== "failed") return reply.code(409).send({ error: "not_failed" });

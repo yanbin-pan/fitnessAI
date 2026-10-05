@@ -25,7 +25,7 @@ const jpegOfLength = (length: number) => fakeJpeg(10, 10, length - fakeJpeg(10, 
 /** No photo row and no file at all, not even a temporary one. */
 function expectNothingStored(app: TestApp) {
   expect(app.db.select().from(photos).all()).toEqual([]);
-  expect(fs.readdirSync(app.photoDir)).toEqual([]);
+  expect(fs.readdirSync(app.photoDir).filter((f) => f !== "CACHEDIR.TAG")).toEqual([]);
 }
 
 describe("image checks", () => {

@@ -3,7 +3,7 @@ import http from "node:http";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildApp, cacheControlFor } from "../src/app.ts";
-import { makeAccess, NOW, openTestDb, tempDir, testApp } from "./helpers.ts";
+import { makeAccess, NOW, tempDir, testApp, testPeople } from "./helpers.ts";
 import type { TestApp } from "./helpers.ts";
 
 let ctx: TestApp | undefined;
@@ -20,7 +20,7 @@ describe("authentication", () => {
     expect(res.json()).toEqual({ ok: true });
   });
 
-  it("answers every other /api route with a bodiless 401 without a valid owner token", async () => {
+  it("answers every other /api route with a bodiless 401 without a valid token", async () => {
     ctx = await testApp();
     const intruder = await ctx.auth.token({ email: "intruder@example.com" });
     for (const headers of [{}, { "cf-access-jwt-assertion": "garbage" }, { "cf-access-jwt-assertion": intruder }]) {
@@ -48,15 +48,15 @@ describe("authentication, however the request spells the path", () => {
   // prefix before matching, so these spellings must not slip past the auth hook.
   async function appWithSecret() {
     const auth = await makeAccess();
-    const database = openTestDb();
-    const app = buildApp({ db: database.db, verifier: auth.verifier, now: () => NOW, webDist: null, photoDir: tempDir(), ai: null, coachBudgetMs: 90_000 });
+    const { people } = testPeople();
+    const app = buildApp({ people, verifier: auth.verifier, now: () => NOW, webDist: null, ai: null, coachBudgetMs: 90_000 });
     const probe = {
       app,
       auth,
       served: 0,
       close: async () => {
         await app.close();
-        database.close();
+        people.close();
       },
     };
     app.get("/api/secret", async () => {

@@ -81,16 +81,15 @@ export async function makeAccess(ownerEmail = "owner@example.com", allowedEmails
 /** The clock every test app uses: 13:00 BST on Saturday 3 October 2026. */
 export const NOW = new Date("2026-10-03T12:00:00.000Z");
 
-export async function testApp(opts: { now?: Date; webDist?: string | null; ai?: AiClient | null; coachBudgetMs?: number; metrics?: Metrics; streamKeepAliveMs?: number; logLines?: string[] } = {}) {
-  const auth = await makeAccess();
-  const database = openTestDb();
-  const photoDir = tempDir();
+export async function testApp(opts: { now?: Date; webDist?: string | null; ai?: AiClient | null; coachBudgetMs?: number; metrics?: Metrics; streamKeepAliveMs?: number; logLines?: string[]; guests?: string[] } = {}) {
+  const auth = await makeAccess("owner@example.com", opts.guests ?? []);
+  const { dataDir, people, stores } = testPeople(auth.access.ownerEmail);
+  const owner = stores[0];
   const app = buildApp({
-    db: database.db,
+    people,
     verifier: auth.verifier,
     now: () => opts.now ?? NOW,
     webDist: opts.webDist ?? null,
-    photoDir,
     ai: opts.ai ?? null,
     coachBudgetMs: opts.coachBudgetMs ?? 90_000,
     metrics: opts.metrics,
@@ -99,16 +98,23 @@ export async function testApp(opts: { now?: Date; webDist?: string | null; ai?: 
     logStream: opts.logLines ? { write: (line: string) => void opts.logLines?.push(line) } : undefined,
   });
   await app.ready();
-  const owner = await auth.token();
+  const ownerToken = await auth.token();
   return {
     app,
-    db: database.db,
-    photoDir,
+    /** The owner's database and photo folder: what every one-person test reads and seeds. */
+    db: owner.db,
+    photoDir: owner.photoDir,
+    dataDir,
+    people,
     auth,
-    headers: { "cf-access-jwt-assertion": owner },
+    headers: { "cf-access-jwt-assertion": ownerToken },
+    /** Headers signed in as `email`, whether or not they're on the list. */
+    headersFor: async (email: string) => ({ "cf-access-jwt-assertion": await auth.token({ email }) }),
+    /** That person's database and photo folder, opened if need be. */
+    storeOf: (email: string): Store => people.store(personKey(email.trim().toLowerCase())),
     close: async () => {
       await app.close();
-      database.close();
+      people.close();
     },
   };
 }

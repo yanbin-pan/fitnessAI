@@ -27,12 +27,11 @@ const ai = config.anthropic.apiKey
   : null;
 const metrics = createMetrics();
 const app = buildApp({
-  db: owner.db,
+  people,
   verifier,
   ai,
   now: () => new Date(),
   webDist: config.webDist,
-  photoDir: owner.photoDir,
   coachBudgetMs: config.coachBudgetMs,
   metrics,
   logger: true,

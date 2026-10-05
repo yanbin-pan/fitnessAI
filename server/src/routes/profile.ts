@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { refreshDay } from "../days/days.ts";
+import { forRequest } from "../deps.ts";
 import type { AppDeps } from "../deps.ts";
 import { getProfile, saveProfile } from "../profile/profile.ts";
 import { ProfileInput } from "../shared.ts";
@@ -12,14 +13,16 @@ function profileView(profile: Profile, now: Date): ProfileView {
   return { profile, calculated: baselineTargets(profile, profile.weight_kg, todayIn(profile.timezone, now), false) };
 }
 
-export function registerProfileRoutes(app: FastifyInstance, deps: AppDeps): void {
-  app.get("/api/profile", async (_req, reply) => {
+export function registerProfileRoutes(app: FastifyInstance, appDeps: AppDeps): void {
+  app.get("/api/profile", async (req, reply) => {
+    const deps = forRequest(appDeps, req);
     const profile = getProfile(deps.db);
     if (!profile) return reply.code(404).send({ error: "no_profile" });
     return profileView(profile, deps.now());
   });
 
   app.put("/api/profile", async (req, reply) => {
+    const deps = forRequest(appDeps, req);
     const profile = parseBody(ProfileInput, req.body, reply);
     if (!profile) return reply;
     const now = deps.now();

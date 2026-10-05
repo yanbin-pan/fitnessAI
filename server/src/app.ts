@@ -6,12 +6,15 @@ import { AuthError } from "./auth/access.ts";
 import type { Identity } from "./auth/access.ts";
 import type { AppDeps } from "./deps.ts";
 import { LOGGER } from "./logging.ts";
+import type { Person } from "./people/people.ts";
 import { answerError } from "./routes/http.ts";
 import { registerRoutes } from "./routes/index.ts";
 
 declare module "fastify" {
   interface FastifyRequest {
     identity: Identity | null;
+    /** The signed-in person's data, set with the identity (2.2 §4). */
+    person: Person | null;
   }
 }
 
@@ -36,6 +39,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     bodyLimit: 1_048_576,
   });
   app.decorateRequest("identity", null);
+  app.decorateRequest("person", null);
 
   if (deps.metrics) {
     const requests = deps.metrics.httpRequests;
@@ -48,7 +52,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     });
   }
 
-  // Fail closed: everything under /api except the health probe needs the owner's
+  // Fail closed: everything under /api except the health probe needs a signed-in person's
   // Access token (spec §13). A refusal carries no body.
   // The router decodes percent-escapes and absolute-form targets before matching
   // ("/%61pi/x" reaches /api/x), so the matched route counts as well as the raw path.
@@ -58,8 +62,9 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     if (!isApi(route) && !isApi(pathOf(req.url))) return;
     const header = req.headers["cf-access-jwt-assertion"];
     const token = typeof header === "string" ? header : "";
+    let identity: Identity;
     try {
-      req.identity = await deps.verifier.verify(token);
+      identity = await deps.verifier.verify(token);
     } catch (err) {
       // Say why, never what: no token, email or payload. Requests without a token (probes,
       // stray scanners) stay quiet. jose's claim errors carry the payload, so never log `err`.
@@ -69,6 +74,9 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       }
       return reply.code(401).send();
     }
+    req.identity = identity;
+    // Opens the person's database on their first request. Everything a route reads or writes is theirs alone.
+    req.person = deps.people.personFor(identity);
   });
 
   app.setErrorHandler(answerError);
