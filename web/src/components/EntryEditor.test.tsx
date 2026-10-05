@@ -110,6 +110,9 @@ describe("EntryEditor", () => {
     expect(within(picker).getAllByRole("radio").map((radio) => radio.getAttribute("aria-label"))).toEqual(["Running", "Walking", "Cycling", "Gym", "Other"]);
     await userEvent.click(within(picker).getByRole("button", { name: "More" }));
     expect(within(picker).getByText("Your sports")).toBeInTheDocument();
+    // The four are what the "Your sports" family holds, in order, and not just somewhere in the grid.
+    const yours = within(picker).getByText("Your sports").parentElement as HTMLElement;
+    expect(within(yours).getAllByRole("radio").map((r) => r.getAttribute("aria-label"))).toEqual(["Running", "Walking", "Cycling", "Gym"]);
     expect(within(picker).getAllByRole("radio", { name: "Running" })).toHaveLength(1); // once, under Your sports
     expect(within(picker).getByRole("radio", { name: "Tennis" })).toBeInTheDocument(); // in Racket now
   });

@@ -28,7 +28,8 @@ k8s/      what Flux deploys to the cluster
 ```
 
 One container serves the API and the built PWA at `fitness.minipi.net`, behind
-Cloudflare Access. The database is one SQLite file on the `ssd` volume.
+Cloudflare Access. Each person has a SQLite database of their own on the `ssd`
+volume.
 
 ## Develop
 
@@ -63,7 +64,7 @@ npm run icons --workspace web  # after changing web/public/logo.svg
 | `PORT` / `METRICS_PORT` | `8080` / `9464` | App and Prometheus ports |
 | `COACH_BUDGET_MS` | `90000` | Time one coach message may take |
 | `RETENTION_HOURS` | `48` | How long conversations and photos are kept (at most 8760) |
-| `SNAPSHOT_KEEP` | `7` | Nightly snapshots kept |
+| `SNAPSHOT_KEEP` | `7` | Nightly snapshots kept per person |
 | `DEV_AUTH_EMAIL` | unset | Development only (`NODE_ENV=development`): skips Access |
 
 ## Deploy
@@ -113,15 +114,28 @@ owner's Anthropic key.
 4. They open <https://fitness.minipi.net>, sign in with the emailed code, add it to
    their home screen and set up their profile.
 
-**Removing someone:** take the email out of both lists and restart. They can no longer
-sign in. Their folder stays until you delete it — on rpi-01, in the PVC's directory:
-`sudo rm -rf users/<key>`, where `<key>` is `printf %s 'friend@example.com' | sha256sum`.
+A malformed `ALLOWED_EMAILS` entry stops the app from starting until the secret is fixed
+(the log names the entry's position, never the address); an invitee stuck on "Signed out"
+is on only one list, or the app wasn't restarted.
+
+**Removing someone:** take the email out of both lists — `sops k8s/80-secrets.sops.yaml`
+for `ALLOWED_EMAILS`, and `fitness_emails` plus `terraform apply` in home-cluster — and
+restart the app once Flux has applied the secret (a restart before that keeps the old
+list). They can no longer sign in. Their folder stays until you delete it — on rpi-01, in
+the PVC's directory (look at `ls users/` first, if you like):
+
+```bash
+key=$(printf %s 'friend@example.com' | sha256sum | cut -d' ' -f1); sudo rm -rf -- "users/${key:?}"
+```
+
+The email goes in lowercase, because the app lowercases it before hashing, and `${key:?}`
+stops the command if the key comes out empty, so it can never become `rm -rf users/`.
 Their snapshots age out of the backups under the 6-month retention.
 
 **For invitees** (send this with the invite): your entries, photos and coach
 conversations are stored on the owner's home server, and what you send the coach goes to
 Anthropic under the owner's account. Conversations and photos are deleted after 48
-hours; the numbers you log are kept.
+hours; the numbers you log are kept, and backed up off-site for up to six months.
 
 ## Data, backups and restore
 
@@ -131,20 +145,21 @@ hours; the numbers you log are kept.
 /data/users/<key>/snapshots/      what the backups keep
 ```
 
-`<key>` is the sha256 of the person's email in lowercase hex:
-`printf %s 'friend@example.com' | sha256sum`. The owner's folder is the sha256 of
-`OWNER_EMAIL`.
+`<key>` is the sha256 of the person's email in lowercase hex, and the app lowercases the
+email before hashing it, so do the same:
+`printf %s 'friend@example.com' | sha256sum | cut -d' ' -f1`. The owner's folder is the
+sha256 of `OWNER_EMAIL`.
 
 - Every hour the app deletes every person's messages, the coach's replies and
   photos once they are 48 hours old, and the coach's raw history for a day once
   that day has no messages left. Entries keep every number. A message the coach
   is still working on is left until it finishes.
-- At 03:00 (profile timezone) the app writes every person's
-  `snapshots/fitness-YYYY-MM-DD.db` (keeps 7); a startup with a database
-  migration to run first writes `startup-<time>.db` (keeps 3). Snapshots have the
-  conversations removed.
+- At 03:00 in the owner's timezone the app writes every person's
+  `snapshots/fitness-YYYY-MM-DD.db`, named by that person's own local date (keeps 7); a
+  startup with a database migration to run first writes `startup-<time>.db` (keeps 3).
+  Snapshots have the conversations removed.
 - The cluster's restic job copies the volume to R2 at 03:30 with
-  `--exclude-caches`, which skips the two tagged folders, so the backups hold
+  `--exclude-caches`, which skips each person's two tagged folders, so the backups hold
   only snapshots — never a chat or a photo.
 
 To restore:
@@ -163,17 +178,22 @@ flux resume kustomization fitnessai
 **If an update fails to start.** A failed migration rolls back inside its own transaction,
 so the database is unchanged: revert the update's `Deploy …` commit and the previous version
 starts again. Restore the newest `startup-…` snapshot (as above) only if the migration
-committed and the app still fails — for example on the foreign-key check.
+committed and the app still fails — for example on the foreign-key check. The exception is
+milestone 2.2: once its first start has moved the data, roll back with "Rolling back to
+milestone 2.1" below (the data goes back first), not by only reverting the `Deploy …`
+commit, or milestone 2.1 starts on a new, empty database.
 
 **Rolling back to milestone 2.1.** Milestone 2.1 has one database at `/data/db/fitness.db`;
 milestone 2.2 moved it, the photos and the snapshots into the owner's folder. Move them
-back first:
+back first. `<owner key>` is the sha256 of `OWNER_EMAIL`, worked out as above:
 
 ```bash
 flux suspend kustomization fitnessai
 kubectl -n fitnessai scale deploy/fitnessai --replicas=0
-# on rpi-01, in the PVC's directory under /mnt/ssd/nfs/k8s; <owner key> is the sha256 of OWNER_EMAIL:
+kubectl -n fitnessai wait --for=delete pod -l app=fitnessai --timeout=120s   # the pod holds the database's lock until it is gone
+# on rpi-01, in the PVC's directory under /mnt/ssd/nfs/k8s:
 sudo mv users/<owner key>/db users/<owner key>/photos users/<owner key>/snapshots .
+sudo test -f db/fitness.db   # stop here if this fails: milestone 2.1 would start on an empty database
 sudo rmdir users/<owner key>   # must be empty now; a later roll-forward moves the data back in
 # revert milestone 2.2's Deploy commit on main and push it, then fetch it before resuming,
 # so Flux never re-applies milestone 2.2 to the moved data:
@@ -182,10 +202,13 @@ flux resume kustomization fitnessai
 kubectl -n fitnessai scale deploy/fitnessai --replicas=1
 ```
 
-Guests' folders stay in `users/`, untouched; milestone 2.1 ignores them.
+Guests' folders stay in `users/`, untouched; milestone 2.1 ignores them, so while it
+serves they get no 48-hour clean-up and no snapshots.
 
 **Rolling back to milestone 1.** Milestone 1 reads `/data/fitness.db`; milestone 2 moved it
-into `db/`. Roll back to milestone 2.1 first (above), then move it back, in this order:
+into `db/`. Roll back to milestone 2 first — milestone 2.2 to 2.1 (above), then 2.1 to 2,
+which needs the activities 2.1 added filed back under `other` (see [Deploy](#deploy)) —
+and then move the database back, in this order:
 
 ```bash
 flux suspend kustomization fitnessai
@@ -199,6 +222,10 @@ flux reconcile source git fitnessai
 flux resume kustomization fitnessai
 kubectl -n fitnessai scale deploy/fitnessai --replicas=1
 ```
+
+That revert may stop on a conflict in `newTag` in `k8s/kustomization.yaml`, because the
+later `Deploy …` commits changed the same line: resolve it to milestone 1's image tag, the
+one the reverted commit replaced.
 
 Milestone 1 ignores the new columns and the photos table, but it keeps its database outside
 `db/`, so backups hold its conversations again while it runs.

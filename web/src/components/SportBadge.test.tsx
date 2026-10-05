@@ -95,4 +95,14 @@ describe("SportBadge", () => {
     expect(grid.map((family) => family.name)).not.toContain("Snow and ice");
     expect(grid.find((family) => family.name === "Everything else")?.activities).toEqual(["other"]);
   });
+
+  it("leaves out Your sports when there are none to feature, and still lists every activity once", () => {
+    // An older server sends no featured row, and the editor then works from an empty one.
+    const grid = familiesFor([]);
+    expect(grid.map((family) => family.name)).not.toContain("Your sports");
+    expect(grid.every((family) => family.activities.length > 0)).toBe(true);
+    const listed = grid.flatMap((family) => family.activities);
+    expect(listed).toHaveLength(33);
+    expect([...listed].sort()).toEqual([...ACTIVITIES].sort());
+  });
 });

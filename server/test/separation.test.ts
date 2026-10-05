@@ -119,4 +119,27 @@ describe("friends and family (2.2)", () => {
     expect(images(theirs.photoDir)).toHaveLength(1);
     expect(images(app.photoDir)).toEqual([]);
   });
+
+  it("fails one person's first request when their folder can't be made, and serves everyone else as before, with no address or whole key in the log", async () => {
+    const lines: string[] = [];
+    const app = await testApp({ guests: [FRIEND, "mum@example.com"], logLines: lines });
+    t = app;
+    // A file where the friend's folder should be, as a broken volume might leave: it can't be opened or made.
+    const users = path.join(app.dataDir, "users");
+    fs.mkdirSync(users, { recursive: true });
+    fs.writeFileSync(path.join(users, personKey(FRIEND)), "a file, not a folder");
+    const broken = await get(app, "/api/profile", await app.headersFor(FRIEND));
+    expect(broken.statusCode).toBe(500);
+    expect(broken.json()).toEqual({ error: "internal" });
+    // The friend's failure is theirs alone: the owner, and a guest who hasn't been in yet, are served as ever.
+    for (const headers of [app.headers, await app.headersFor("mum@example.com")]) {
+      const saved = await app.app.inject({ method: "PUT", url: "/api/profile", headers, payload: PROFILE });
+      expect(saved.statusCode).toBe(200);
+    }
+    // The failure is in the log, by the first 8 characters of the folder's name (sha256 of the friend's email) and nothing more.
+    const logged = lines.join("");
+    expect(logged).toContain("users/f387373a…");
+    expect(logged).not.toContain(personKey(FRIEND));
+    expect(logged).not.toContain("@");
+  });
 });

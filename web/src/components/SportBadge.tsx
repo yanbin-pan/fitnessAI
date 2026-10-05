@@ -68,11 +68,12 @@ export const FAMILIES: readonly { name: string; activities: readonly Activity[] 
 
 /**
  * The More grid for someone: their featured four as "Your sports", then every other activity in its family, so each
- * appears once (one radio per activity); a family the four have emptied is left out.
+ * appears once (one radio per activity). A family with nothing left to show is left out: one the four have emptied, and
+ * "Your sports" itself when there are none (an older server sends no featured row).
  */
 export function familiesFor(featured: readonly Activity[]): { name: string; activities: readonly Activity[] }[] {
   const rest = FAMILIES.map((family) => ({ name: family.name, activities: family.activities.filter((activity) => !featured.includes(activity)) }));
-  return [{ name: "Your sports", activities: featured }, ...rest.filter((family) => family.activities.length > 0)];
+  return [{ name: "Your sports", activities: featured }, ...rest].filter((family) => family.activities.length > 0);
 }
 
 /**
