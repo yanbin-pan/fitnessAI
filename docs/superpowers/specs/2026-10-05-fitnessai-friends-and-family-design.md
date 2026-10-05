@@ -63,8 +63,11 @@ conversation-free snapshots that the cluster backs up.
 - Photos are served only from the requester's own folder: someone else's photo id is a `404`.
 - **The owner's data moves once.** On the first start of milestone 2.2, if `/data/db/fitness.db`
   exists and the owner's folder doesn't, the app moves `db/` (database and journal together),
-  `photos/` and `snapshots/` into `users/<owner key>/`, after a snapshot. It never overwrites,
-  and a second start finds nothing to move — the same pattern as milestone 2's move into `db/`.
+  `photos/` and `snapshots/` into `users/<owner key>/` through a staging folder and one final
+  rename; the first open then takes the startup snapshot before the new migration. It never
+  overwrites an owner's folder that holds anything (an empty one, left by a rollback, counts as
+  absent), and a second start finds nothing to move — the same pattern as milestone 2's move
+  into `db/`.
 - Disk: each person adds a small database and at most 48 hours of photos to the shared volume.
   NFS enforces no quota; for a handful of people this is accepted and watched by the existing
   filesystem alert.
@@ -96,7 +99,7 @@ conversation-free snapshots that the cluster backs up.
 ## 7. The featured row
 
 - The day view gains `featured`: the person's four activities with the most exercise items
-  over the 60 days ending on the viewed day, ties broken by the most recent. Fewer than four
+  over the 60 days ending on the viewed day, ties broken by the most recent, never `other`. Fewer than four
   are filled from a starter set, skipping repeats — the owner's is tennis, gym, wakeboarding,
   kitesurfing; everyone else's is running, walking, cycling, gym.
 - The editor's picker shows `featured` (plus the exercise's own activity when it isn't one of

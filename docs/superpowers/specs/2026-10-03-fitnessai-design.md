@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Date** | 2026-10-03, revised 2026-10-05 |
-| **Status** | Approved. Milestones 1, 2 and 2.1 are live. |
+| **Status** | Approved. Milestones 1, 2, 2.1 and 2.2 are live. |
 | **Revision** | 5 — milestone 2.2: friends and family, each with a database of their own, an allowlist, a daily coach cap per person and their own featured activities (revision 4 brought instant replies with live steps, the activities card, the calendar, 33 activities and the zabaione-ball icon) |
 | **Repository** | <https://github.com/yanbin-pan/fitnessAI> (public) |
 | **Deploys to** | <https://github.com/yanbin-pan/home-cluster> — k3s on four Raspberry Pi 4s |
