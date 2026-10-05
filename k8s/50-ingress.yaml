@@ -49,14 +49,15 @@ spec:
 # one. Cloudflare Access covers both hostnames (home-cluster
 # terraform/cloudflare/access.tf), so nobody reaches it without signing in. Traefik
 # sees the URL as http:// because TLS ends at Cloudflare, hence https?. A URL that
-# didn't match would fall through to the app, so the pattern ignores case and a port.
+# didn't match would fall through to the app, so the pattern ignores case and
+# whatever the Host carries between the name and the path (a port, a trailing dot).
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: to-zabaione
 spec:
   redirectRegex:
-    regex: '(?i)^https?://fitness\.minipi\.net(?::\d+)?/(.*)'
+    regex: '(?i)^https?://fitness\.minipi\.net[^/]*/(.*)'
     replacement: 'https://zabaione.minipi.net/${1}'
     permanent: true
 ---

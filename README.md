@@ -246,11 +246,12 @@ copy of the app, which shows "Signed out"; tapping the banner goes on to the new
 address. Delete that icon and add the app again from `zabaione.minipi.net`.
 
 The home-screen icon is the zabaione ball. iOS keeps the icon it saw when the
-app was added, so after an icon change remove fitnessAI from the home screen
-and add it again; your data lives on the server and is not touched.
+app was added, so after an icon change remove the app (Zabaione, or fitnessAI on
+an icon added before the rename) from the home screen and add it again; your data
+lives on the server and is not touched.
 
 ## Known issues
 
 - The Access re-login test from milestone 1 (Cloudflare Zero Trust → Access →
-  Applications → fitnessAI → Revoke existing tokens, then reopen the installed
+  Applications → Zabaione → Revoke existing tokens, then reopen the installed
   app) has not been run on the iPhone yet.

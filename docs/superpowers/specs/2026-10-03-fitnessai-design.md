@@ -1110,8 +1110,10 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
 - **`verify.yaml`** (every branch and pull request; reused by `ci.yaml`):
   - type-check, lint, server and web tests, production build;
   - `kustomize build k8s` with assertions: rate-limit middlewares present and keyed on
-    `Cf-Connecting-Ip`, required environment variables set, `replicas: 1`,
-    `strategy: Recreate`;
+    `Cf-Connecting-Ip`; the app served only at `zabaione.minipi.net`, and
+    `fitness.minipi.net` one Ingress that only redirects there, permanently and keeping
+    the path (the redirect's pattern is tried on sample URLs); required environment
+    variables set, `replicas: 1`, `strategy: Recreate`;
   - SOPS and frontend-secret checks;
   - an image boot test: build natively, run with throwaway Access settings, and expect
     `GET /api/health` to return `{ok:true}`.
@@ -1130,7 +1132,7 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
   `prometheus.io/scrape: "true"` and `prometheus.io/port: "9464"`.
 - Service; Ingress for `zabaione.minipi.net`, and one for `fitness.minipi.net` whose only
   middleware is the permanent redirect to it; Traefik rate-limit middlewares (general for
-  `/api`, stricter for `/api/messages` and `/api/ingest`).
+  every path, stricter for `/api/messages` and, from milestone 4, `/api/ingest`).
 - Secret `fitnessai-secrets` (SOPS-encrypted): `ANTHROPIC_API_KEY`, `OWNER_EMAIL` and
   `ALLOWED_EMAILS`.
 - Environment: `PORT`, `METRICS_PORT`, `DATA_DIR`, `NODE_ENV`, `ACCESS_TEAM_DOMAIN`,
@@ -1144,7 +1146,9 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
    - `clusters/home/fitnessai.yaml`: a `GitRepository` (public HTTPS, 1-minute interval)
      and a `Kustomization` (`path: ./k8s`, `dependsOn: infrastructure`, SOPS decryption
      through `sops-age`, `wait: true`, `timeout: 10m`), following `tea-cabinet.yaml`.
-   - Terraform: the Access application for `zabaione.minipi.net` (§13).
+   - Terraform: the Access application for `fitness.minipi.net` (§13). Revision 6 renamed
+     it Zabaione, with `zabaione.minipi.net` as its domain and the old address kept as a
+     second destination (home-cluster PR #6).
 2. **Milestone 4:** Terraform: the path-scoped Access application for `/api/ingest`, its
    service token and policy, and `Access: Service Tokens → Edit` added to the Cloudflare
    API token's permissions.
