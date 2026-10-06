@@ -202,6 +202,44 @@ function replaceAt<T>(list: T[], index: number, value: T): T[] {
   return list.map((item, i) => (i === index ? value : item));
 }
 
+/** The items of an entry or a regular, edited in place: a row each, and a button to add either kind. */
+export function ItemsEditor({
+  foods, exercises, featured, onFoods, onExercises,
+}: {
+  foods: FoodItemInput[];
+  exercises: ExerciseItemInput[];
+  featured: readonly Activity[];
+  onFoods: (foods: FoodItemInput[]) => void;
+  onExercises: (exercises: ExerciseItemInput[]) => void;
+}) {
+  const t = useT();
+  return (
+    <>
+      {foods.map((food, i) => (
+        <FoodRow key={`f${i}`} food={food} onChange={(next) => onFoods(replaceAt(foods, i, next))} onRemove={() => onFoods(foods.filter((_, j) => j !== i))} />
+      ))}
+      {exercises.map((item, i) => (
+        <ExerciseRow
+          key={`x${i}`}
+          item={item}
+          number={i + 1}
+          featured={featured}
+          onChange={(next) => onExercises(replaceAt(exercises, i, next))}
+          onRemove={() => onExercises(exercises.filter((_, j) => j !== i))}
+        />
+      ))}
+      <div className="mt-3 flex gap-3">
+        <button type="button" onClick={() => onFoods([...foods, blankFood()])} className={`${quietButton} text-sm text-accent-ink`}>
+          {t.editor.addFood}
+        </button>
+        <button type="button" onClick={() => onExercises([...exercises, blankExercise()])} className={`${quietButton} text-sm text-accent-ink`}>
+          {t.editor.addExercise}
+        </button>
+      </div>
+    </>
+  );
+}
+
 /** Why a save or delete failed. Only a refusal by the server is about what was typed. */
 function failureText(error: unknown, deleting: boolean, t: Messages): string {
   if (error instanceof ApiError) {
@@ -262,27 +300,7 @@ export function EntryEditor({ date, entry, featured, onClose }: { date: string; 
         className="raised max-h-[90dvh] w-full overflow-y-auto rounded-t-3xl p-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)] sm:mx-auto sm:max-w-xl sm:rounded-3xl"
       >
         <h2 className="text-lg font-semibold">{entry ? t.editor.edit : t.editor.add}</h2>
-        {foods.map((food, i) => (
-          <FoodRow key={`f${i}`} food={food} onChange={(next) => setFoods(replaceAt(foods, i, next))} onRemove={() => setFoods(foods.filter((_, j) => j !== i))} />
-        ))}
-        {exercises.map((item, i) => (
-          <ExerciseRow
-            key={`x${i}`}
-            item={item}
-            number={i + 1}
-            featured={featured}
-            onChange={(next) => setExercises(replaceAt(exercises, i, next))}
-            onRemove={() => setExercises(exercises.filter((_, j) => j !== i))}
-          />
-        ))}
-        <div className="mt-3 flex gap-3">
-          <button type="button" onClick={() => setFoods([...foods, blankFood()])} className={`${quietButton} text-sm text-accent-ink`}>
-            {t.editor.addFood}
-          </button>
-          <button type="button" onClick={() => setExercises([...exercises, blankExercise()])} className={`${quietButton} text-sm text-accent-ink`}>
-            {t.editor.addExercise}
-          </button>
-        </div>
+        <ItemsEditor foods={foods} exercises={exercises} featured={featured} onFoods={setFoods} onExercises={setExercises} />
         {(save.isError || remove.isError) && (
           <p role="alert" className="mt-2 text-sm text-danger">
             {failureText(remove.isError ? remove.error : save.error, remove.isError, t)}

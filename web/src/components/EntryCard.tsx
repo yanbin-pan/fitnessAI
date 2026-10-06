@@ -39,6 +39,12 @@ export function EntryCard({ entry, onEdit }: { entry: Entry; onEdit?: (entry: En
             {t.macros.proteinShort} {grams("protein_g")} · {t.macros.carbsShort} {grams("carbs_g")} · {t.macros.fatShort} {grams("fat_g")}
           </span>
         )}
+        {entry.source === "regular" && (
+          <span className="mt-0.5 flex items-center gap-1 text-xs text-muted">
+            <Icon name="repeat" size={14} />
+            {t.entry.fromRegular}
+          </span>
+        )}
         {entry.source === "photo" && (
           <span className="mt-0.5 flex items-center gap-1 text-xs text-muted">
             <Icon name="photo_camera" size={14} />

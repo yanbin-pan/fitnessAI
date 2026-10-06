@@ -7,6 +7,8 @@ import { addDays, daysBetween } from "../shared.ts";
 import type { Activity, DaySummary, DayView, Entry, MacroTargets, Profile, Totals } from "../shared.ts";
 import { adjustTargets, baselineTargets } from "../targets/targets.ts";
 import type { WorkoutSummary } from "../targets/targets.ts";
+import { analyseRegulars, suggestRegulars } from "../regulars/regulars.ts";
+import { localTime } from "../time.ts";
 import { featuredActivities } from "./featured.ts";
 
 export type DaySnapshot = typeof days.$inferSelect;
@@ -114,7 +116,20 @@ export function buildDayView(sql: Sql, profile: Profile, date: string, today: st
     linked_entries: linked,
     messages,
     featured: featuredActivities(sql, date, starter),
+    suggestions: date === today ? suggestionsNow(sql, today, profile.timezone, nowIso) : [],
   };
+}
+
+/** Today's tap-to-log regulars (2026-10-06 design §2.2), for the minute the view is built. */
+function suggestionsNow(sql: Sql, today: string, timeZone: string, nowIso: string) {
+  const [h, m] = localTime(new Date(nowIso), timeZone).split(":").map(Number);
+  return suggestRegulars(analyseRegulars(sql, today, timeZone), h * 60 + m);
+}
+
+/** A day's adjusted targets (spec §7): its frozen snapshot, or today's profile for a day never opened, plus its workouts. */
+export function adjustedTargets(sql: Sql, profile: Profile, date: string, list: Entry[], nowIso: string): MacroTargets {
+  const snapshot = getDay(sql, date) ?? snapshotValues(profile, date, nowIso);
+  return adjustTargets(baseOf(snapshot), snapshot.add_back_pct, snapshot.weight_kg_used, summarizeWorkouts(list)).adjusted;
 }
 
 /** The calendar's days (spec §12): each day in [from, to] with food logged, its eaten kcal and its adjusted target. */

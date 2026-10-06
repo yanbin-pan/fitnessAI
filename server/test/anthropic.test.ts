@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { anthropicClient, buildRequest, toAiError } from "../src/ai/anthropic.ts";
+import { anthropicClient, buildRequest, buildStructuredRequest, toAiError } from "../src/ai/anthropic.ts";
 import { AiError } from "../src/ai/client.ts";
 import type { AiRequest } from "../src/ai/client.ts";
 
@@ -30,6 +30,22 @@ describe("buildRequest", () => {
       output_config: { effort: "medium" },
       cache_control: { type: "ephemeral" },
       system: [{ type: "text", text: "You are a coach.", cache_control: { type: "ephemeral" } }],
+    });
+  });
+});
+
+describe("buildStructuredRequest", () => {
+  it("asks for JSON matching the schema, at high effort, with thinking and fallbacks", () => {
+    const schema = { type: "object", properties: { a: { type: "string" } }, required: ["a"], additionalProperties: false };
+    expect(buildStructuredRequest("claude-opus-5-5", { system: "Coach.", prompt: "Numbers.", schema })).toEqual({
+      model: "claude-opus-5-5",
+      max_tokens: 16000,
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      thinking: { type: "adaptive" },
+      output_config: { effort: "high", format: { type: "json_schema", schema } },
+      system: "Coach.",
+      messages: [{ role: "user", content: "Numbers." }],
     });
   });
 });

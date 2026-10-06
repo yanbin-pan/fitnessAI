@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent, ClipboardEvent, FormEvent } from "react";
 import { ApiError, api } from "../api.ts";
@@ -11,7 +11,8 @@ import { Icon } from "../icons/Icon.tsx";
 import { preparePhoto } from "../photos/prepare.ts";
 import { storeDay } from "../queries.ts";
 import { MAX_PHOTOS_PER_MESSAGE } from "../shared.ts";
-import type { MessageInput, PhotoUpload } from "../shared.ts";
+import type { EntryResult, MessageInput, PhotoUpload, Regular } from "../shared.ts";
+import { sportOf } from "./SportBadge.tsx";
 
 interface Attachment {
   key: string;
@@ -59,8 +60,62 @@ export async function clipboardImages(): Promise<File[]> {
   return files;
 }
 
+/** Today's regulars, due around now (2026-10-06 design §2.2): one tap logs one, without a word to the coach. */
+function RegularChips({ suggestions }: { suggestions: Regular[] }) {
+  const client = useQueryClient();
+  const t = useT();
+  // The id belongs to the tap, not the request: if the answer is lost, tapping again sends the same id and logs it once.
+  const ids = useRef(new Map<string, string>());
+  const log = useMutation({
+    mutationFn: (regular: Regular) => {
+      const id = ids.current.get(regular.key) ?? crypto.randomUUID();
+      ids.current.set(regular.key, id);
+      return api<EntryResult>(`/api/regulars/${regular.key}/log`, { json: { id } });
+    },
+    onSuccess: (result, regular) => {
+      ids.current.delete(regular.key);
+      storeDay(client, result.day);
+      void client.invalidateQueries({ queryKey: ["regulars"] });
+    },
+  });
+  if (suggestions.length === 0) return null;
+  return (
+    <div className="mb-1">
+      <ul aria-label={t.regulars.chips} className="flex gap-2 overflow-x-auto px-1 pt-1 pb-2">
+        {suggestions.map((regular) => {
+          const kcal = `${Math.round(regular.kcal)} ${t.units.kcal}`;
+          const icon = regular.kind === "meal" ? "restaurant" : sportOf(regular.exercises[0]?.activity ?? "other").icon;
+          return (
+            <li key={regular.key} className="shrink-0">
+              <button
+                type="button"
+                disabled={log.isPending}
+                aria-label={t.regulars.log(regular.name, kcal)}
+                onClick={() => {
+                  log.reset();
+                  log.mutate(regular);
+                }}
+                className="tap raised-sm flex max-w-64 items-center gap-1.5 rounded-full py-2 pl-2.5 pr-3 text-sm disabled:opacity-50"
+              >
+                <Icon name={icon} size={16} className="shrink-0 text-accent-ink" />
+                <span className="truncate">{regular.name}</span>
+                <span className="shrink-0 text-xs text-muted">{kcal}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {log.isError && (
+        <p role="alert" className="px-2 pb-1 text-sm text-danger">
+          {t.regulars.logFailed}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** Talks to the coach about today: text — voice works through the keyboard's microphone — and up to four photos. */
-export function Composer() {
+export function Composer({ suggestions = [] }: { suggestions?: Regular[] }) {
   const client = useQueryClient();
   const t = useT();
   const [text, setText] = useState("");
@@ -284,6 +339,7 @@ export function Composer() {
   return (
     <form ref={form} onSubmit={(event) => void submit(event)} className="fixed inset-x-0 bottom-[calc(var(--tabbar-h)_+_env(safe-area-inset-bottom))] z-10 bg-base px-3 pt-2 pb-2">
       <div className="raised mx-auto max-w-xl rounded-3xl p-2">
+        <RegularChips suggestions={suggestions} />
         {attachments.length > 0 && (
           <ul aria-label={t.composer.attached} className="mb-2 flex gap-2 px-1 pt-1.5">
             {attachments.map((a, index) => (

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "./api.ts";
 import { isLive } from "./coach/live.ts";
-import type { DaySummaries, DayView, ProfileView } from "./shared.ts";
+import type { DaySummaries, DayView, InsightsView, ProfileView, RegularsView } from "./shared.ts";
 
 export const dayKey = (date: string) => ["day", date] as const;
 
@@ -46,4 +46,18 @@ export async function loadProfile(): Promise<ProfileView | null> {
 /** The profile, shared by the settings screen and the app's language. */
 export function useProfile() {
   return useQuery({ queryKey: ["profile"], queryFn: loadProfile });
+}
+
+/** Everything found to recur in the log, for the Regulars tab (2026-10-06 design §2.3). */
+export function useRegulars() {
+  return useQuery({ queryKey: ["regulars"], queryFn: () => api<RegularsView>("/api/regulars") });
+}
+
+/** The weekly analysis (2026-10-06 design §3.4). While it is being written, ask again every 10 seconds. */
+export function useInsights() {
+  return useQuery({
+    queryKey: ["insights"],
+    queryFn: () => api<InsightsView>("/api/insights"),
+    refetchInterval: (query) => (query.state.data?.status === "pending" ? 10_000 : false),
+  });
 }
