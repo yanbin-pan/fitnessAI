@@ -71,7 +71,7 @@ export const fr: Messages = {
     removed: "Entrée supprimée",
     loggedTo: (day) => `Enregistré pour\u202f: ${day}`,
     undo: "Annuler",
-    kept: "Les conversations sont conservées 48 heures.",
+    kept: "Les conversations sont conservées pour aujourd’hui et les 3 jours précédents.",
     emptyToday: "Rien d’enregistré pour l’instant. Dites à Zabaione ce que vous avez mangé ou fait, ou envoyez une photo.",
     emptyDay: "Rien d’enregistré ce jour-là.",
   },

@@ -25,8 +25,6 @@ export interface Config {
   anthropic: { apiKey: string | null; model: string; effort: Effort };
   coachBudgetMs: number;
   snapshotKeep: number;
-  /** How long conversations and photos are kept (spec §6.6). */
-  retentionHours: number;
   /** Model calls a day for the owner (AI_DAILY_CALL_CAP) and for each guest (GUEST_DAILY_CALL_CAP) (2.2 §6). */
   aiDailyCallCap: number;
   guestDailyCallCap: number;
@@ -69,9 +67,6 @@ function emailList(env: Env, name: string): string[] {
   }
   return emails;
 }
-
-/** A year. A longer retention window is refused: past this, the cutoff date can overflow what a Date holds. */
-const MAX_RETENTION_HOURS = 24 * 365;
 
 export function loadConfig(env: Env): Config {
   // Only an explicit "development" or "test" counts, so a container that forgets
@@ -121,7 +116,6 @@ export function loadConfig(env: Env): Config {
     },
     coachBudgetMs: positiveInt(env, "COACH_BUDGET_MS", 90_000),
     snapshotKeep: positiveInt(env, "SNAPSHOT_KEEP", 7),
-    retentionHours: positiveInt(env, "RETENTION_HOURS", 48, MAX_RETENTION_HOURS),
     aiDailyCallCap: positiveInt(env, "AI_DAILY_CALL_CAP", 200),
     guestDailyCallCap: positiveInt(env, "GUEST_DAILY_CALL_CAP", 60),
   };

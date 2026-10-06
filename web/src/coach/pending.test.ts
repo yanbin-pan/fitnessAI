@@ -18,23 +18,34 @@ describe("the pending message", () => {
   it("goes into today's feed once, however often it is added", () => {
     const client = new QueryClient();
     client.setQueryData(dayKey("today"), dayView({ messages: [message({ id: "old" })] }));
-    expect(addPending(client, input)).toBe(true);
-    expect(addPending(client, input)).toBe(false); // already there, whoever put it there
+    expect(addPending(client, input, "2026-10-03")).toBe(true);
+    expect(addPending(client, input, "2026-10-03")).toBe(false); // already there, whoever put it there
     expect(idsToday(client)).toEqual(["old", input.id]);
   });
 
   it("goes nowhere while today's day isn't loaded, and says so", () => {
     const client = new QueryClient();
-    expect(addPending(client, input)).toBe(false);
+    expect(addPending(client, input, "2026-10-03")).toBe(false);
     expect(idsToday(client)).toBeUndefined();
   });
 
   it("comes out again by its id, leaving the rest", () => {
     const client = new QueryClient();
     client.setQueryData(dayKey("today"), dayView({ messages: [message({ id: "old" })] }));
-    addPending(client, input);
-    removePending(client, input.id);
+    addPending(client, input, "2026-10-03");
+    removePending(client, input.id, "2026-10-03");
     expect(idsToday(client)).toEqual(["old"]);
+  });
+
+  it("goes into the feed of the earlier day it was written on, not today's", () => {
+    const client = new QueryClient();
+    client.setQueryData(dayKey("today"), dayView({ messages: [] }));
+    client.setQueryData(dayKey("2026-10-01"), dayView({ date: "2026-10-01", messages: [] }));
+    expect(addPending(client, input, "2026-10-01")).toBe(true);
+    expect(client.getQueryData<DayView>(dayKey("2026-10-01"))?.messages.map((m) => m.id)).toEqual([input.id]);
+    expect(idsToday(client)).toEqual([]);
+    removePending(client, input.id, "2026-10-01");
+    expect(client.getQueryData<DayView>(dayKey("2026-10-01"))?.messages).toEqual([]);
   });
 
   it("is what a Retry makes of a failed message, on the day being viewed and nothing else", () => {

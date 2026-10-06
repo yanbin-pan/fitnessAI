@@ -9,7 +9,7 @@ import { getMessage, getReply, insertUserMessage, setMessageStatus, toChatMessag
 import { personLabels, recordCoach } from "../metrics.ts";
 import { claimPhotos } from "../photos/photos.ts";
 import { getProfile } from "../profile/profile.ts";
-import { MAX_BACKDATE_DAYS, MessageInput, daysBetween } from "../shared.ts";
+import { MessageInput, chatOpen } from "../shared.ts";
 import type { DayView, MessageResult } from "../shared.ts";
 import { localDate, todayIn } from "../time.ts";
 import { parseBody } from "./http.ts";
@@ -116,10 +116,11 @@ export function registerMessageRoutes(app: FastifyInstance, appDeps: AppDeps): v
     const nowIso = now.toISOString();
     const today = todayIn(profile.timezone, now);
     const sentAt = new Date(input.sent_at);
-    // The day is when it was sent, so a message typed at 23:55 stays on its day (spec §7.5).
-    const date = localDate(sentAt, profile.timezone);
+    // The day open in the app, or else the day it was sent, so a message typed at 23:55 stays on its day (spec §7.5).
+    const date = input.date ?? localDate(sentAt, profile.timezone);
     if (date > today) return reply.code(400).send({ error: "future_date" });
-    if (daysBetween(date, today) > MAX_BACKDATE_DAYS) return reply.code(400).send({ error: "too_old" });
+    // Only the days that keep their conversation take a message (spec §6.6).
+    if (!chatOpen(date, today)) return reply.code(400).send({ error: "too_old" });
 
     // The message claims its photos in the same transaction, so a refusal stores nothing.
     const claim = deps.db.transaction((tx) => {

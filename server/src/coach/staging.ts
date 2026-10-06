@@ -6,7 +6,7 @@ import type { ExerciseItemData, FoodItemData, NewEntry } from "../log/entries.ts
 import { MAX_BACKDATE_DAYS, TIME_HHMM, daysBetween, isIsoDate } from "../shared.ts";
 import type { EntrySource, Profile } from "../shared.ts";
 import { exerciseKcal } from "../targets/targets.ts";
-import { zonedTimeToInstant } from "../time.ts";
+import { localDate, zonedTimeToInstant } from "../time.ts";
 import { LogItemsInput, UpdateEntryInput, amountIssues } from "./tools.ts";
 import type { ExerciseToolItem, FoodToolItem } from "./tools.ts";
 
@@ -28,7 +28,7 @@ export interface ToolContext {
   messageId: string;
   /** `photo` when the message had photos, otherwise `coach` (spec §5). */
   source: EntrySource;
-  /** The day the message belongs to. */
+  /** The day the message belongs to: the day open in the app. A chat filling in an earlier day changes that day only. */
   messageDate: string;
   sentAt: Date;
   today: string;
@@ -67,6 +67,23 @@ function summary(id: string, date: string, foods: FoodItemData[], exercises: Exe
   };
 }
 
+/**
+ * Whether a message fills in an earlier day: sent on a later day than the one it belongs to, because that day was open
+ * in the app (spec §6.6). A message typed at 23:55 that arrives after midnight is not: it was sent on its own day.
+ */
+export function fillsInPastDay(messageDate: string, sentAt: Date, timeZone: string): boolean {
+  return localDate(sentAt, timeZone) > messageDate;
+}
+
+/** A chat on an earlier day fills in that day and nothing else. */
+function backfilling(ctx: ToolContext): boolean {
+  return fillsInPastDay(ctx.messageDate, ctx.sentAt, ctx.profile.timezone);
+}
+
+function backfillOnly(ctx: ToolContext): string {
+  return `this chat is for ${ctx.messageDate}, so only that day can be logged or changed here`;
+}
+
 function logItems(raw: unknown, ctx: ToolContext): ToolOutcome {
   const parsed = LogItemsInput.safeParse(raw);
   if (!parsed.success) return zodFailure(parsed.error);
@@ -75,6 +92,7 @@ function logItems(raw: unknown, ctx: ToolContext): ToolOutcome {
   if (!isIsoDate(date)) return fail(`date must be YYYY-MM-DD, got "${date}"`);
   if (date > ctx.today) return fail("date is in the future");
   if (daysBetween(date, ctx.today) > MAX_BACKDATE_DAYS) return fail(`date is more than ${MAX_BACKDATE_DAYS} days ago`);
+  if (backfilling(ctx) && date !== ctx.messageDate) return fail(backfillOnly(ctx));
   if (input.time !== null && !TIME_HHMM.test(input.time)) return fail(`time must be HH:MM, got "${input.time}"`);
   const issues = amountIssues(input);
   if (issues.length > 0) return fail(issues.join("; "));
@@ -82,7 +100,8 @@ function logItems(raw: unknown, ctx: ToolContext): ToolOutcome {
   const timeZone = ctx.profile.timezone;
   const loggedAt =
     input.time !== null ? zonedTimeToInstant(date, input.time, timeZone)
-    : date === ctx.messageDate ? ctx.sentAt
+    // A day being filled in was not sent on, so its untimed items go to midday like any other day's.
+    : date === ctx.messageDate && !backfilling(ctx) ? ctx.sentAt
     : zonedTimeToInstant(date, "12:00", timeZone);
   const weight = ctx.weightKg(date);
   const entry: NewEntry = {
@@ -115,6 +134,7 @@ function updateEntry(raw: unknown, ctx: ToolContext): ToolOutcome {
 
   const existing = getEntry(ctx.sql, input.entry_id);
   if (!existing) return fail(`there is no entry with id ${input.entry_id}`);
+  if (backfilling(ctx) && existing.date !== ctx.messageDate) return fail(backfillOnly(ctx));
   if (daysBetween(existing.date, ctx.today) > MAX_BACKDATE_DAYS) {
     return fail(`entries older than ${MAX_BACKDATE_DAYS} days can't be changed here`);
   }

@@ -71,17 +71,17 @@ export function startNightlySnapshot(opts: {
   });
 }
 
-/** Deletes everyone's expired conversations and photos at startup and then hourly, at minute 7 (spec §6.6). */
+/** Deletes the conversations and photos of everyone's days that left the chat window, at startup and then hourly, at minute 7 (spec §6.6). */
 export function startRetention(opts: {
   people: People;
-  hours: number;
   log: FastifyBaseLogger;
   now?: () => Date;
 }): Cron {
   const now = opts.now ?? (() => new Date());
   const run = () =>
     forEachPerson(opts.people, opts.log, "retention purge failed", (store) => {
-      const counts = purgeExpired(store.db, store.photoDir, now(), opts.hours);
+      // Without a profile there is no conversation yet, only perhaps a stray upload.
+      const counts = purgeExpired(store.db, store.photoDir, now(), getProfile(store.db)?.timezone ?? "UTC");
       // Counts only: never what was deleted.
       if (Object.values(counts).some((n) => n > 0)) opts.log.info({ person: shortKey(store.key), ...counts }, "expired conversations deleted");
     });

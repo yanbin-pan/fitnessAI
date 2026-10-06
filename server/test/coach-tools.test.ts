@@ -247,6 +247,32 @@ describe("staging guarantees", () => {
     expect(ctx.staging.creates[0]).toMatchObject({ date: "2026-10-02", logged_at: "2026-10-02T22:55:00.000Z" });
   });
 
+  it("fills in only the day open in the app when the chat is on an earlier day", () => {
+    // Sent on the 3rd with the 1st open: untimed items go to midday on the 1st, a stated time is kept.
+    const ctx = context({ messageDate: "2026-10-01" });
+    executeTool("log_items", logItemsInput(), ctx);
+    executeTool("log_items", logItemsInput({ time: "08:15" }), ctx);
+    expect(ctx.staging.creates.map((e) => [e.date, e.logged_at])).toEqual([
+      ["2026-10-01", "2026-10-01T11:00:00.000Z"],
+      ["2026-10-01", "2026-10-01T07:15:00.000Z"],
+    ]);
+    for (const date of ["2026-09-30", "2026-10-02", "2026-10-03"]) {
+      expect(executeTool("log_items", logItemsInput({ date }), ctx)).toMatchObject({ isError: true, content: expect.stringContaining("2026-10-01") });
+    }
+    expect(ctx.staging.creates).toHaveLength(2);
+  });
+
+  it("changes only the open day's entries from a chat on an earlier day", () => {
+    db.db.transaction((tx) => {
+      insertEntry(tx, sampleEntry({ id: "on-the-1st", date: "2026-10-01" }), NOW_ISO);
+      insertEntry(tx, sampleEntry({ id: "on-the-2nd", date: "2026-10-02" }), NOW_ISO);
+    });
+    const ctx = context({ messageDate: "2026-10-01" });
+    expect(executeTool("update_entry", { entry_id: "on-the-1st", foods: [TOOL_EGGS], exercises: [] }, ctx).isError).toBe(false);
+    expect(executeTool("update_entry", { entry_id: "on-the-2nd", foods: [TOOL_EGGS], exercises: [] }, ctx).isError).toBe(true);
+    expect([...ctx.staging.updates.keys()]).toEqual(["on-the-1st"]);
+  });
+
   it("returns an error, not an exception, for an impossible date", () => {
     for (const date of ["2026-02-30", "2026-1-3"]) {
       expect(executeTool("log_items", logItemsInput({ date }), context()).isError).toBe(true);

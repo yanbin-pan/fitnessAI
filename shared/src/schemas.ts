@@ -127,6 +127,8 @@ export const MessageInput = z
   .object({
     id: z.uuid(),
     sent_at: z.iso.datetime(),
+    /** The day open in the app, which the message belongs to. Without it, the day it was sent. */
+    date: IsoDate.optional(),
     text: z.string().trim().max(4000).default(""),
     photo_ids: z.array(PhotoId).max(MAX_PHOTOS_PER_MESSAGE).default([]),
   })

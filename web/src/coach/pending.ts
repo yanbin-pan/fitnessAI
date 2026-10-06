@@ -10,17 +10,23 @@ export function pendingMessage(input: MessageInput, date: string): ChatMessage {
   };
 }
 
-/** Puts a message into today's feed before the server has it. False when that left the feed as it was: the message is in it already, or today isn't loaded. */
-export function addPending(client: QueryClient, input: MessageInput): boolean {
-  const view = client.getQueryData<DayView>(dayKey("today"));
+/** The cached view of a day: under "today" while that alias holds it, which is what the Today screen shows, else under its date. */
+function cachedDay(client: QueryClient, date: string): DayView | undefined {
+  const alias = client.getQueryData<DayView>(dayKey("today"));
+  return alias?.date === date ? alias : client.getQueryData<DayView>(dayKey(date));
+}
+
+/** Puts a message into its day's feed before the server has it. False when that left the feed as it was: the message is in it already, or the day isn't loaded. */
+export function addPending(client: QueryClient, input: MessageInput, date: string): boolean {
+  const view = cachedDay(client, date);
   if (!view || view.messages.some((m) => m.id === input.id)) return false;
   storeDay(client, { ...view, messages: [...view.messages, pendingMessage(input, view.date)] });
   return true;
 }
 
 /** Takes it out again when it never reached the server. */
-export function removePending(client: QueryClient, id: string): void {
-  const view = client.getQueryData<DayView>(dayKey("today"));
+export function removePending(client: QueryClient, id: string, date: string): void {
+  const view = cachedDay(client, date);
   if (!view) return;
   storeDay(client, { ...view, messages: view.messages.filter((m) => m.id !== id) });
 }

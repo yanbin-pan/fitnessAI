@@ -164,7 +164,7 @@ describe("GET /api/photos/:id", () => {
     const res = await ctx.app.inject({ method: "GET", url: `/api/photos/${id}`, headers: ctx.headers });
     expect(res.statusCode).toBe(200);
     expect(res.headers["content-type"]).toBe("image/jpeg");
-    expect(res.headers["cache-control"]).toBe("private, max-age=172800, immutable");
+    expect(res.headers["cache-control"]).toBe("private, max-age=345600, immutable");
     expect(res.headers["x-content-type-options"]).toBe("nosniff");
     expect(res.rawPayload.equals(bytes)).toBe(true);
   });

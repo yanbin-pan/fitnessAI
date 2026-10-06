@@ -97,33 +97,38 @@ describe("Feed", () => {
     expect(screen.getByText("P 10 · C 50 · F 6")).toBeInTheDocument();
   });
 
-  it("explains that an earlier day's conversation has gone", () => {
-    const past = dayView({ date: "2026-10-01", today: "2026-10-03", entries: [entry({ date: "2026-10-01" })] });
+  it("explains that a day before the chat window has no conversation", () => {
+    const past = dayView({ date: "2026-09-29", today: "2026-10-03", entries: [entry({ date: "2026-09-29" })] });
     const { rerender } = render(<Feed view={past} logOnly={false} onRetry={() => {}} />);
-    expect(screen.getByText("Conversations are kept for 48 hours.")).toBeInTheDocument();
+    expect(screen.getByText("Chats are kept for today and the 3 days before.")).toBeInTheDocument();
     rerender(<Feed view={dayView({ entries: [entry()] })} logOnly={false} onRetry={() => {}} />);
-    expect(screen.queryByText("Conversations are kept for 48 hours.")).toBeNull();
+    expect(screen.queryByText("Chats are kept for today and the 3 days before.")).toBeNull();
+    // A day inside the window keeps its chat, even one with no messages yet.
+    rerender(<Feed view={dayView({ date: "2026-09-30", today: "2026-10-03", entries: [entry({ date: "2026-09-30" })] })} logOnly={false} onRetry={() => {}} />);
+    expect(screen.queryByText("Chats are kept for today and the 3 days before.")).toBeNull();
   });
 
-  it("keeps quiet about the 48 hours while the day still has its conversation, and in Log only", () => {
+  it("keeps quiet about the chat window while the day still has its conversation, and in Log only", () => {
     const earlier = { date: "2026-10-01", today: "2026-10-03" };
     const logged = entry({ date: "2026-10-01" });
     const { rerender } = render(<Feed view={dayView({ ...earlier, entries: [logged], messages: [message({ date: "2026-10-01" })] })} logOnly={false} onRetry={() => {}} />);
-    expect(screen.queryByText("Conversations are kept for 48 hours.")).toBeNull();
+    expect(screen.queryByText("Chats are kept for today and the 3 days before.")).toBeNull();
     rerender(<Feed view={dayView({ ...earlier, entries: [logged] })} logOnly={true} onRetry={() => {}} />);
-    expect(screen.queryByText("Conversations are kept for 48 hours.")).toBeNull();
+    expect(screen.queryByText("Chats are kept for today and the 3 days before.")).toBeNull();
   });
 
   it("invites a message or a photo when today is empty", () => {
     render(<Feed view={dayView()} logOnly={false} onRetry={() => {}} />);
     expect(screen.getByText("Nothing logged yet. Tell Zabaione what you ate or did, or send a photo.")).toBeInTheDocument();
-    expect(screen.queryByText("Conversations are kept for 48 hours.")).toBeNull();
+    expect(screen.queryByText("Chats are kept for today and the 3 days before.")).toBeNull();
   });
 
-  it("explains an empty earlier day too", () => {
-    render(<Feed view={dayView({ date: "2026-10-01", today: "2026-10-03" })} logOnly={false} onRetry={() => {}} />);
+  it("explains an empty day before the window too, and invites a chat on an empty one inside it", () => {
+    const { rerender } = render(<Feed view={dayView({ date: "2026-09-29", today: "2026-10-03" })} logOnly={false} onRetry={() => {}} />);
     expect(screen.getByText("Nothing logged this day.")).toBeInTheDocument();
-    expect(screen.getByText("Conversations are kept for 48 hours.")).toBeInTheDocument();
+    expect(screen.getByText("Chats are kept for today and the 3 days before.")).toBeInTheDocument();
+    rerender(<Feed view={dayView({ date: "2026-10-01", today: "2026-10-03" })} logOnly={false} onRetry={() => {}} />);
+    expect(screen.getByText(/Tell Zabaione what you ate/)).toBeInTheDocument();
   });
 
   it("gives food a meal's icon and macros, and an exercise only its sport", () => {

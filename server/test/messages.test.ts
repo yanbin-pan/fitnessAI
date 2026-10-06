@@ -465,13 +465,13 @@ describe("the message's day is the local day it was sent (spec 7.5)", () => {
     expect(res.json().day.entries[0]).toMatchObject({ date: "2026-10-02", logged_at: "2026-10-02T22:55:00.000Z" });
   });
 
-  it("uses the profile timezone, not UTC, and allows seven days back but not eight", async () => {
+  it("uses the profile timezone, not UTC, and allows the chat window's three days back but not four", async () => {
     const { app } = await appWith([textReply("a"), textReply("b")]);
     // 23:30Z on 2 Oct is 00:30 BST on 3 Oct.
     expect((await send(app, "x", randomUUID(), "2026-10-02T23:30:00.000Z")).json().user.date).toBe("2026-10-03");
-    // 00:30 BST on 26 Sep is seven days back; 23:59 BST on 25 Sep is eight.
-    expect((await send(app, "x", randomUUID(), "2026-09-25T23:30:00.000Z")).statusCode).toBe(201);
-    expect((await send(app, "x", randomUUID(), "2026-09-25T22:59:00.000Z")).json()).toEqual({ error: "too_old" });
+    // 00:30 BST on 30 Sep is three days back; 23:59 BST on 29 Sep is four.
+    expect((await send(app, "x", randomUUID(), "2026-09-29T23:30:00.000Z")).statusCode).toBe(201);
+    expect((await send(app, "x", randomUUID(), "2026-09-29T22:59:00.000Z")).json()).toEqual({ error: "too_old" });
   });
 });
 
@@ -508,5 +508,39 @@ describe("a back-dated coach entry", () => {
     expect(day.linked_entries).toHaveLength(1);
     expect(day.linked_entries[0]).toMatchObject({ date: "2026-10-02", source: "coach", message_id: res.json().user.id });
     expect(res.json().reply.cards).toEqual([{ type: "entry", id: day.linked_entries[0].id }]);
+  });
+});
+
+describe("chatting on an earlier day (spec §6.6)", () => {
+  /** The context block that opens the request's last user turn. */
+  const contextOf = (request: { messages: { content: unknown }[] }) => {
+    const [first] = request.messages.at(-1)?.content as { text: string }[];
+    return JSON.parse(first.text.slice(first.text.indexOf("{"))) as Record<string, unknown>;
+  };
+  const sendOn = (app: TestApp, date: string, text = "2 scrambled eggs") =>
+    app.app.inject({ method: "POST", url: "/api/messages", headers: app.headers, payload: { id: randomUUID(), sent_at: "2026-10-03T11:58:00.000Z", date, text } });
+
+  it("puts the message and what the coach logs on the day open in the app, with that day in the coach's context", async () => {
+    const { app, ai } = await appWith([toolCall([{ name: "log_items", input: logItemsInput() }]), textReply("Logged.")]);
+    const res = await sendOn(app, "2026-09-30");
+    expect(res.statusCode).toBe(201);
+    expect(res.json().user).toMatchObject({ date: "2026-09-30", status: "done" });
+    expect(res.json().day).toMatchObject({ date: "2026-09-30", today: "2026-10-03" });
+    // Untimed, so midday on that day (BST), not the moment it was sent.
+    expect(res.json().day.entries).toEqual([expect.objectContaining({ date: "2026-09-30", logged_at: "2026-09-30T11:00:00.000Z" })]);
+    const context = contextOf(ai!.requests[0]);
+    expect(context).toMatchObject({ message_date: "2026-09-30", filling_in_past_day: true });
+  });
+
+  it("says nothing of a past day in an ordinary message's context", async () => {
+    const { app, ai } = await appWith([textReply("Hi.")]);
+    expect((await sendOn(app, "2026-10-03", "hello")).statusCode).toBe(201);
+    expect(contextOf(ai!.requests[0])).not.toHaveProperty("filling_in_past_day");
+  });
+
+  it("refuses a day before the chat window and a day still to come", async () => {
+    const { app } = await appWith([]);
+    expect((await sendOn(app, "2026-09-29")).json()).toEqual({ error: "too_old" });
+    expect((await sendOn(app, "2026-10-04")).json()).toEqual({ error: "future_date" });
   });
 });

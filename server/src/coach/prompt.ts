@@ -39,6 +39,7 @@ Estimating exercise:
 
 Dates and times:
 - Leave date and time null for something that just happened. If they say when it happened ("yesterday", "this morning at 7"), set the date (YYYY-MM-DD) and/or the local time (HH:MM). Relative dates count from message_date in the context block. The date can be at most ${MAX_BACKDATE_DAYS} days back.
+- message_date is the day the person has open in the app. When the context block says filling_in_past_day, they are filling in that earlier day: everything they tell you belongs to message_date, so leave the date null, and never log or change another day from that chat. Set the time when they give one or the meal makes it plain (breakfast, lunch, dinner); otherwise leave it null.
 
 Replying:
 - Reply in the language named by reply_language in the context block; it is the language the person chose for the app. If they write to you in another language, reply in the language they wrote in instead. Name the items you log and write their assumptions in the language of your reply.
@@ -69,12 +70,15 @@ function rounded<T extends object>(value: T, digits = 1): T {
   ) as T;
 }
 
-export function buildTurnContext(view: DayView, now: Date, timeZone: string, language: Language): string {
+/** `pastDay` when the message fills in an earlier day the person has open in the app (spec §6.6). */
+export function buildTurnContext(view: DayView, now: Date, timeZone: string, language: Language, pastDay = false): string {
   const context = {
     reply_language: LANGUAGE_NAMES[language],
     now_local: `${localDate(now, timeZone)} ${localTime(now, timeZone)}`,
     weekday: weekdayName(now, timeZone),
     message_date: view.date,
+    // Only when it is, so the context of an ordinary message reads as before.
+    ...(pastDay ? { filling_in_past_day: true } : {}),
     targets: rounded(view.targets.adjusted),
     eaten_so_far: rounded(view.totals),
     exercise_kcal: Math.round(view.targets.workout_kcal),

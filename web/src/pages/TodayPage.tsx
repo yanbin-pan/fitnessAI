@@ -17,7 +17,7 @@ import { Toggle, quietButton } from "../components/ui.tsx";
 import { useT } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
 import { storeDay, useDay } from "../queries.ts";
-import { MAX_BACKDATE_DAYS, daysBetween } from "../shared.ts";
+import { MAX_BACKDATE_DAYS, chatOpen, daysBetween } from "../shared.ts";
 import type { DeleteResult, Entry } from "../shared.ts";
 
 function actionError(error: unknown, t: Messages): string {
@@ -150,8 +150,8 @@ export function TodayPage() {
           </button>
         </div>
       )}
-      {/* An older server sends no suggestions. */}
-      {view.date === view.today && <Composer suggestions={view.suggestions ?? []} />}
+      {/* Each day open to chat gets its own composer, so a draft never moves to another day. An older server sends no suggestions. */}
+      {chatOpen(view.date, view.today) && <Composer key={view.date} date={view.date} suggestions={view.suggestions ?? []} />}
       {editing?.date === view.date && (
         <EntryEditor
           date={view.date}

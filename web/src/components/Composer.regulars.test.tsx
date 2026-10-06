@@ -7,13 +7,13 @@ import { Composer } from "./Composer.tsx";
 
 describe("Composer: regulars", () => {
   it("shows nothing when there is no regular due", () => {
-    renderWithProviders(<Composer suggestions={[]} />);
+    renderWithProviders(<Composer date="2026-10-03" suggestions={[]} />);
     expect(screen.queryByRole("list", { name: "Your regulars" })).toBeNull();
   });
 
   it("logs a regular with one tap, without a message to the coach", async () => {
     const fetch = mockFetch(() => jsonResponse({ entry: entry(), day: dayView() }, 201));
-    const { client } = renderWithProviders(<Composer suggestions={[regular(), regular({ key: "fedcba9876543210", name: "Tennis", kind: "activity", kcal: 480 })]} />);
+    const { client } = renderWithProviders(<Composer date="2026-10-03" suggestions={[regular(), regular({ key: "fedcba9876543210", name: "Tennis", kind: "activity", kcal: 480 })]} />);
     expect(screen.getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Porridge300 kcal", "Tennis480 kcal"]);
     await userEvent.click(screen.getByRole("button", { name: "Log Porridge, 300 kcal" }));
     await waitFor(() => expect(client.getQueryData(["day", "2026-10-03"])).toBeDefined());
@@ -30,7 +30,7 @@ describe("Composer: regulars", () => {
       if (calls === 1) throw new TypeError("Failed to fetch");
       return jsonResponse({ entry: entry(), day: dayView() });
     });
-    renderWithProviders(<Composer suggestions={[regular()]} />);
+    renderWithProviders(<Composer date="2026-10-03" suggestions={[regular()]} />);
     const chip = screen.getByRole("button", { name: "Log Porridge, 300 kcal" });
     await userEvent.click(chip);
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't log that. Try again.");

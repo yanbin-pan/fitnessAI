@@ -9,7 +9,8 @@ sugars, salt, fluids, alcohol and food groups. Workouts get active calories,
 muscles and one of 33 activities — from tennis, gym, wakeboarding and
 kitesurfing to street photography, cycling and boxing — shown as a matte badge.
 Daily targets come from your profile (Mifflin-St Jeor) and grow with part of
-your exercise calories. The conversation lasts 48 hours; what you logged stays.
+your exercise calories. You can chat about today and the 3 days before it, and those days keep their
+conversation; older days keep only what you logged.
 
 The app speaks English, Italian, Chinese (Simplified), Lithuanian, French, German
 and Spanish: pick one in Settings. It is saved with the profile, so every phone
@@ -82,7 +83,6 @@ npm run icons --workspace web  # after changing web/public/logo.svg
 | `DATA_DIR` | `./.data` | Everyone's databases, photos and snapshots |
 | `PORT` / `METRICS_PORT` | `8080` / `9464` | App and Prometheus ports |
 | `COACH_BUDGET_MS` | `90000` | Time one coach message may take |
-| `RETENTION_HOURS` | `48` | How long conversations and photos are kept (at most 8760) |
 | `SNAPSHOT_KEEP` | `7` | Nightly snapshots kept per person |
 | `DEV_AUTH_EMAIL` | unset | Development only (`NODE_ENV=development`): skips Access |
 
@@ -163,7 +163,7 @@ calls — by a short id, never by name or email.
 
 ```
 /data/users/<key>/db/fitness.db   a person's live database — never backed up (CACHEDIR.TAG)
-/data/users/<key>/photos/         their photos, deleted after 48 hours — never backed up (CACHEDIR.TAG)
+/data/users/<key>/photos/         their photos, deleted once their day leaves the chat window — never backed up (CACHEDIR.TAG)
 /data/users/<key>/snapshots/      what the backups keep
 ```
 
@@ -173,7 +173,8 @@ email before hashing it, so do the same:
 sha256 of `OWNER_EMAIL`.
 
 - Every hour the app deletes every person's messages, the coach's replies and
-  photos once they are 48 hours old, and the coach's raw history for a day once
+  photos once their day is more than 3 days before today in that person's
+  timezone (`CHAT_WINDOW_DAYS`), and the coach's raw history for a day once
   that day has no messages left. Entries keep every number. A message the coach
   is still working on is left until it finishes.
 - At 03:00 in the owner's timezone the app writes every person's
@@ -225,7 +226,7 @@ kubectl -n fitnessai scale deploy/fitnessai --replicas=1
 ```
 
 Guests' folders stay in `users/`, untouched; milestone 2.1 ignores them, so while it
-serves they get no 48-hour clean-up and no snapshots.
+serves they get no conversation clean-up and no snapshots.
 
 **Rolling back to milestone 1.** Milestone 1 reads `/data/fitness.db`; milestone 2 moved it
 into `db/`. Roll back to milestone 2 first — milestone 2.2 to 2.1 (above), then 2.1 to 2,

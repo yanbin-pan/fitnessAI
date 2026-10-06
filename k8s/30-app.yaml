@@ -82,8 +82,6 @@ spec:
               value: medium
             - name: SNAPSHOT_KEEP
               value: "7"
-            - name: RETENTION_HOURS
-              value: "48"
           volumeMounts:
             - name: data
               mountPath: /data

@@ -36,7 +36,7 @@ describe("Composer: pasting a screenshot", () => {
 
   it("attaches it like a photo from the camera button, uploads it and sends it", async () => {
     const fetchMock = mockFetch((url) => (url === "/api/photos" ? uploaded("a".repeat(32)) : stored()));
-    renderWithProviders(<Composer />);
+    renderWithProviders(<Composer date="2026-10-03" />);
     expect(paste(clipboard({ files: [screenshot()] }))).toBe(false);
     expect(await screen.findByRole("img", { name: "Photo 1" })).toBeInTheDocument();
     expect(screen.getByLabelText("Message Zabaione")).toHaveValue("");
@@ -49,7 +49,7 @@ describe("Composer: pasting a screenshot", () => {
 
   it("leaves a paste of plain text alone", () => {
     mockFetch(() => stored());
-    renderWithProviders(<Composer />);
+    renderWithProviders(<Composer date="2026-10-03" />);
     expect(paste(clipboard({ text: "2 eggs" }))).toBe(true);
     expect(screen.queryByRole("img")).toBeNull();
     expect(preparePhoto).not.toHaveBeenCalled();
@@ -57,7 +57,7 @@ describe("Composer: pasting a screenshot", () => {
 
   it("attaches the image and still lets copied words paste", async () => {
     mockFetch((url) => (url === "/api/photos" ? uploaded("b".repeat(32)) : stored()));
-    renderWithProviders(<Composer />);
+    renderWithProviders(<Composer date="2026-10-03" />);
     expect(paste(clipboard({ files: [screenshot()], text: "Margherita pizza" }))).toBe(true);
     expect(await screen.findByRole("img", { name: "Photo 1" })).toBeInTheDocument();
   });
@@ -65,7 +65,7 @@ describe("Composer: pasting a screenshot", () => {
   it("keeps to the photo limit and says so", async () => {
     let next = 0;
     mockFetch((url) => (url === "/api/photos" ? uploaded(String(++next).repeat(32)) : stored()));
-    renderWithProviders(<Composer />);
+    renderWithProviders(<Composer date="2026-10-03" />);
     paste(clipboard({ files: ["1", "2", "3", "4", "5"].map((n) => screenshot(`${n}.png`)) }));
     expect(await screen.findByText("Up to 4 photos per message.")).toBeInTheDocument();
     expect(screen.getAllByRole("img")).toHaveLength(4);
@@ -84,7 +84,7 @@ describe("Composer: a paste that keeps the image back (iOS Safari)", () => {
   it("asks the clipboard for the image and attaches it", async () => {
     readClipboard(async () => [clipboardItem("image/png")]);
     mockFetch((url) => (url === "/api/photos" ? uploaded("c".repeat(32)) : stored()));
-    renderWithProviders(<Composer />);
+    renderWithProviders(<Composer date="2026-10-03" />);
     // The paste lists an image but hands over no file.
     expect(paste({ items: [], files: [], types: ["image/png"] } as unknown as DataTransfer)).toBe(false);
     expect(navigator.clipboard.read).toHaveBeenCalledOnce();
@@ -97,7 +97,7 @@ describe("Composer: a paste that keeps the image back (iOS Safari)", () => {
       throw new DOMException("Not allowed", "NotAllowedError");
     });
     mockFetch(() => stored());
-    renderWithProviders(<Composer />);
+    renderWithProviders(<Composer date="2026-10-03" />);
     paste({ items: [], files: [], types: [] } as unknown as DataTransfer);
     expect(await screen.findByText(/Attach it with the camera button instead/)).toBeInTheDocument();
     expect(screen.queryByRole("img")).toBeNull();
@@ -106,7 +106,7 @@ describe("Composer: a paste that keeps the image back (iOS Safari)", () => {
   it("never asks the clipboard about a paste of text", () => {
     readClipboard(async () => []);
     mockFetch(() => stored());
-    renderWithProviders(<Composer />);
+    renderWithProviders(<Composer date="2026-10-03" />);
     expect(paste(clipboard({ text: "toast" }))).toBe(true);
     expect(navigator.clipboard.read).not.toHaveBeenCalled();
   });

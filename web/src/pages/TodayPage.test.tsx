@@ -70,12 +70,19 @@ describe("TodayPage", () => {
     expect(screen.getByRole("main")).toHaveClass("pb-[calc(var(--composer-h,8rem)_+_var(--tabbar-h)_+_env(safe-area-inset-bottom)_+_1rem)]");
   });
 
-  it("shows a past day without a composer", async () => {
-    const fetchMock = mockFetch(() => jsonResponse(dayView({ date: "2026-10-02" })));
-    renderDay("/day/2026-10-02");
-    expect(await screen.findByText("Yesterday")).toBeInTheDocument();
+  it("keeps the composer on the three days before today", async () => {
+    const fetchMock = mockFetch(() => jsonResponse(dayView({ date: "2026-09-30" })));
+    renderDay("/day/2026-09-30");
+    expect(await screen.findByLabelText("Message Zabaione")).toBeInTheDocument();
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/days/2026-09-30");
+  });
+
+  it("shows a day before the chat window without a composer", async () => {
+    const fetchMock = mockFetch(() => jsonResponse(dayView({ date: "2026-09-29" })));
+    renderDay("/day/2026-09-29");
+    expect(await screen.findByText("+ Add manually")).toBeInTheDocument();
     expect(screen.queryByLabelText("Message Zabaione")).not.toBeInTheDocument();
-    expect(fetchMock.mock.calls[0][0]).toBe("/api/days/2026-10-02");
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/days/2026-09-29");
   });
 
   it("Undo deletes what the reply's own message logged, never the older entry it corrected, and shows the server's day", async () => {

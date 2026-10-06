@@ -15,7 +15,7 @@ function DayOnScreen() {
 describe("Composer", () => {
   it("sends the text with a fresh id and timestamp, then clears the box", async () => {
     const fetchMock = mockFetch(() => jsonResponse({ user: message(), reply: null, day: dayView() }, 201));
-    renderWithProviders(<Composer />);
+    renderWithProviders(<Composer date="2026-10-03" />);
     await userEvent.type(screen.getByLabelText("Message Zabaione"), "2 eggs on toast");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
     await waitFor(() => expect(screen.getByLabelText("Message Zabaione")).toHaveValue(""));
@@ -23,12 +23,14 @@ describe("Composer", () => {
     expect(url).toBe("/api/messages");
     const body = JSON.parse(String(init?.body));
     expect(body.text).toBe("2 eggs on toast");
+    // The day open in the app, which the message and what it logs belong to.
+    expect(body.date).toBe("2026-10-03");
     expect(body.id).toMatch(/^[0-9a-f-]{36}$/);
     expect(Number.isNaN(Date.parse(body.sent_at))).toBe(false);
   });
 
   it("sits on the page colour, so the feed never shows between it and the tab bar", () => {
-    renderWithProviders(<Composer />);
+    renderWithProviders(<Composer date="2026-10-03" />);
     expect(screen.getByLabelText("Message Zabaione").closest("form")).toHaveClass("bg-base", "pt-2", "pb-2");
   });
 
@@ -36,7 +38,7 @@ describe("Composer", () => {
     mockFetch(() => {
       throw new TypeError("Failed to fetch");
     });
-    renderWithProviders(<Composer />);
+    renderWithProviders(<Composer date="2026-10-03" />);
     await userEvent.type(screen.getByLabelText("Message Zabaione"), "banana");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("offline");
@@ -49,7 +51,7 @@ describe("Composer", () => {
       return jsonResponse(dayView());
     });
     const dayLoads = () => fetchMock.mock.calls.filter(([url]) => url === "/api/days/today").length;
-    renderWithProviders(<><DayOnScreen /><Composer /></>);
+    renderWithProviders(<><DayOnScreen /><Composer date="2026-10-03" /></>);
     await waitFor(() => expect(dayLoads()).toBe(1));
     await userEvent.type(screen.getByLabelText("Message Zabaione"), "banana");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
