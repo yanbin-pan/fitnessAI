@@ -83,7 +83,7 @@ export const en = {
     removed: "Entry removed",
     loggedTo: (day: string) => `Logged to ${day}`,
     undo: "Undo",
-    kept: "Conversations are kept for 48 hours.",
+    kept: "Chats are kept for today and the 3 days before.",
     emptyToday: "Nothing logged yet. Tell Zabaione what you ate or did, or send a photo.",
     emptyDay: "Nothing logged this day.",
   },

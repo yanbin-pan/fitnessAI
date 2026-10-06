@@ -43,7 +43,7 @@ export function registerPhotoRoutes(app: FastifyInstance, appDeps: AppDeps): voi
       if (!photo || !bytes) return reply.code(404).send({ error: "not_found" });
       return reply
         .header("content-type", photo.media_type)
-        .header("cache-control", "private, max-age=172800, immutable")
+        .header("cache-control", "private, max-age=345600, immutable")
         .header("x-content-type-options", "nosniff")
         .send(bytes);
     });

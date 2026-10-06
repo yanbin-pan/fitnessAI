@@ -157,7 +157,8 @@ describe("the coach's daily cap (2.2 §6)", () => {
     const { app, guest } = await appWith([textReply("Noted.")]);
     await send(app, guest);
     const store = app.storeOf(FRIEND);
-    purgeExpired(store.db, store.photoDir, new Date("2026-10-06T12:00:00.000Z"), 48);
+    // The 3rd has left the chat window by the 7th.
+    purgeExpired(store.db, store.photoDir, new Date("2026-10-07T12:00:00.000Z"), "Europe/London");
     expect((await app.app.inject({ method: "GET", url: "/api/days/2026-10-03", headers: guest })).json().messages).toEqual([]);
     expect(store.db.select().from(aiUsage).all()).toHaveLength(1);
   });

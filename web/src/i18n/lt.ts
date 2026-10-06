@@ -69,7 +69,7 @@ export const lt: Messages = {
     removed: "Įrašas pašalintas",
     loggedTo: (day) => `Įrašyta į: ${day}`,
     undo: "Atšaukti",
-    kept: "Pokalbiai saugomi 48 valandas.",
+    kept: "Pokalbiai saugomi šiandien ir 3 ankstesnes dienas.",
     emptyToday: "Dar nieko neįrašyta. Zabaione laukia: parašykite, ką valgėte ar veikėte, arba atsiųskite nuotrauką.",
     emptyDay: "Šią dieną nieko neįrašyta.",
   },

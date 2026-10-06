@@ -16,7 +16,7 @@ describe("Composer resend", () => {
       if (attempts === 1) throw new TypeError("Failed to fetch"); // the server may have processed it all the same
       return stored();
     });
-    renderWithProviders(<Composer />);
+    renderWithProviders(<Composer date="2026-10-03" />);
     const box = screen.getByLabelText("Message Zabaione");
     await userEvent.type(box, "2 eggs on toast");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
@@ -35,7 +35,7 @@ describe("Composer resend", () => {
       if (attempts === 1) throw new TypeError("Failed to fetch");
       return stored();
     });
-    renderWithProviders(<Composer />);
+    renderWithProviders(<Composer date="2026-10-03" />);
     const box = screen.getByLabelText("Message Zabaione");
     await userEvent.type(box, "2 eggs");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
@@ -50,7 +50,7 @@ describe("Composer resend", () => {
 
   it("uses a new id for the next message once one has gone through", async () => {
     const fetchMock = mockFetch(() => stored());
-    renderWithProviders(<Composer />);
+    renderWithProviders(<Composer date="2026-10-03" />);
     const box = screen.getByLabelText("Message Zabaione");
     for (let round = 0; round < 2; round += 1) {
       await userEvent.type(box, "banana");

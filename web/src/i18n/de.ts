@@ -69,7 +69,7 @@ export const de: Messages = {
     removed: "Eintrag entfernt",
     loggedTo: (day) => `Eingetragen für: ${day}`,
     undo: "Rückgängig",
-    kept: "Unterhaltungen werden 48 Stunden aufbewahrt.",
+    kept: "Chats bleiben für heute und die 3 Tage davor erhalten.",
     emptyToday: "Noch nichts eingetragen. Erzähl Zabaione, was du gegessen oder gemacht hast, oder schick ein Foto.",
     emptyDay: "An diesem Tag wurde nichts eingetragen.",
   },

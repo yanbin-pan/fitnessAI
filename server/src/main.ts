@@ -60,7 +60,7 @@ for (const key of people.keys()) {
 people.stopWaitingForLocks();
 
 const job = startNightlySnapshot({ people, keep: config.snapshotKeep, timeZone: getProfile(owner.db)?.timezone ?? "Europe/London", log: app.log });
-const retention = startRetention({ people, hours: config.retentionHours, log: app.log });
+const retention = startRetention({ people, log: app.log });
 const insightsJob = startInsights({
   people, ai, ownerKey, callCaps: { owner: config.aiDailyCallCap, guest: config.guestDailyCallCap }, log: app.log,
 });

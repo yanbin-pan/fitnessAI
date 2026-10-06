@@ -301,8 +301,8 @@ and ticking again removes it.
 **`drafts`** — `id`, `message_id`, `date`, `kind` (`entry` / `goal_plan` / `habits`),
 `payload` (JSON), `committed_ref` (the created entry or goal; nullable), `created_at`.
 
-**`messages`** — the conversation as the person sees it. Deleted 48 hours after it was
-created (§6.6).
+**`messages`** — the conversation as the person sees it. Deleted once its day leaves the
+chat window (§6.6).
 
 | Column | Notes |
 |---|---|
@@ -654,7 +654,7 @@ one response at the end:
   the person's folder (`/data/users/<key>/photos/`), and returns the id, size and
   dimensions.
 - **Serving:** only through the authenticated API at `/api/photos/:id`, with
-  `Cache-Control: private, max-age=172800, immutable` and `X-Content-Type-Options: nosniff`.
+  `Cache-Control: private, max-age=345600, immutable` and `X-Content-Type-Options: nosniff`.
 - **To the coach:** the photos go first, as image blocks, then the text (§6.3). The stored
   turn keeps a reference block per photo, and every replay rebuilds the identical image
   block from the file, so the day's prompt cache and thinking stay valid. If the file is
@@ -664,20 +664,28 @@ one response at the end:
 
 ### 6.6 Retention
 
-- **Every hour** (and once at startup) the `retention` job deletes, by `created_at` older
-  than `RETENTION_HOURS` (default 48, at most 8760): messages of every role, with their
-  photos (rows and files); photos never claimed by a message; and, after an hour, files in
-  `photos/` that have no row. A coach reply goes with its question, even when it is a few
-  seconds younger. A message the coach is still working on is left until it finishes. The
-  job runs for every person's database in turn (milestone 2.2).
-- A day's coach thread and turns are deleted once none of that day's messages remain, so a
-  failed message keeps its thread for Retry until it expires itself, and the coach's raw
-  history of a day lasts until the day's last message expires: at most about 72 hours for
-  the day's first words.
+- **The chat window:** today and the `CHAT_WINDOW_DAYS` (3) days before it, in the person's
+  timezone, have the full experience: the composer, the coach and their conversation and
+  photos. The window moves on each midnight, so it always covers four days; an older day
+  keeps its logbook only (entries can still be added by hand or edited, §7.5).
+- **Chatting on an earlier day** fills that day in: the app sends the day it has open with
+  the message (`date`), and the server takes it while the day is inside the window
+  (`too_old` otherwise). The coach's context block says `filling_in_past_day`, and it may
+  log or change that day only; an untimed item goes to midday unless the meal makes the
+  time plain. A message typed at 23:55 that arrives after midnight is still an ordinary
+  message of its own day.
+- **Every hour** (and once at startup) the `retention` job deletes, for every day before the
+  window in the person's timezone: messages of every role, with their photos (rows and
+  files); photos never claimed by a message since before the window's first day began;
+  and, after an hour, files in `photos/` that have no row. A coach reply goes with its
+  question. A message the coach is still working on is left until it finishes. The job
+  runs for every person's database in turn (milestone 2.2).
+- A day's coach thread and turns are deleted once none of that day's messages remain, so
+  the coach's raw history of a day lasts exactly as long as its conversation.
 - **Kept:** entries and their items with every number, day snapshots, the profile and
   `ai_usage`. Deleting a message clears `entries.message_id`; the entry keeps its `source`.
-- **On screen:** a day whose conversation has gone shows its logbook only, with the note
-  "Conversations are kept for 48 hours".
+- **On screen:** a day before the window shows its logbook only, with the note "Chats are
+  kept for today and the 3 days before".
 - **Nowhere else:** deleted rows are overwritten (`secure_delete`), and neither
   conversations nor photos reach a snapshot or a backup (§14.4).
 
@@ -857,9 +865,9 @@ Tabs: **Today · Trends · Goals · Body · Settings**.
 - **Today:**
   - **The day bar** (the only part pinned while the feed scrolls): ‹ and › either side of
     the day's name ("Today", "Yesterday", or the date) with a second line beneath — the
-    date in words for today and yesterday ("Sun 4 Oct"), the year for older days — centred, and a **calendar button** in the top right corner. Past days show their
-    thread read-only while it lasts (48 hours, §6.6), then their logbook only; their
-    entries can always be edited. This replaces a separate History screen.
+    date in words for today and yesterday ("Sun 4 Oct"), the year for older days — centred, and a **calendar button** in the top right corner. The three days before
+    today keep their thread and composer (the chat window, §6.6), then show their
+    logbook only; their entries can always be edited. This replaces a separate History screen.
   - **The calendar** drops down from under the day bar over a dimmed page, open at the
     month being viewed: Monday first, ‹ › for the month (never past the current one),
     future days greyed out and disabled. Today has an accent ring; the day being viewed is
@@ -1088,9 +1096,8 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
     their type is checked from the file's first bytes and they're served with `nosniff`.
   - Logs record request metadata only — never message text, photos, goals, health values
     or an email; a job names a person by the first 8 characters of their key.
-- **Retention:** conversations and photos exist only in the live app: messages and photos
-  for 48 hours, and the coach's raw history of a day until that day's last message expires
-  (§6.6). Deleted rows are overwritten (`secure_delete`), snapshots leave conversations out,
+- **Retention:** conversations and photos exist only in the live app: messages, photos and
+  the coach's raw history of a day while that day is inside the chat window (§6.6). Deleted rows are overwritten (`secure_delete`), snapshots leave conversations out,
   and restic skips the live database and the photos (§14.4). Photos lose their EXIF
   metadata, location included, on the phone before upload.
 - **Prompt injection** (for example, text inside a photo): the coach's tools only touch the
@@ -1138,7 +1145,7 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
 - Environment: `PORT`, `METRICS_PORT`, `DATA_DIR`, `NODE_ENV`, `ACCESS_TEAM_DOMAIN`,
   `ACCESS_AUD`, `ACCESS_INGEST_AUD`, `ACCESS_INGEST_CLIENT_ID`, `OWNER_EMAIL`,
   `ALLOWED_EMAILS`, `ANTHROPIC_MODEL`, `ANTHROPIC_EFFORT`, `AI_DAILY_CALL_CAP`,
-  `GUEST_DAILY_CALL_CAP`, `RETENTION_HOURS`, `SNAPSHOT_KEEP`.
+  `GUEST_DAILY_CALL_CAP`, `SNAPSHOT_KEEP`.
 
 ### 14.3 Changes in home-cluster (two pull requests)
 

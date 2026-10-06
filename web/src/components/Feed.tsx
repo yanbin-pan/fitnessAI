@@ -3,6 +3,7 @@ import { useStep } from "../coach/live.ts";
 import { dayLabel, failureText } from "../format.ts";
 import { useT } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
+import { chatOpen } from "../shared.ts";
 import type { ChatMessage, DayView, Entry } from "../shared.ts";
 import { EntryCard } from "./EntryCard.tsx";
 import { quietButton } from "./ui.tsx";
@@ -150,16 +151,17 @@ export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying }: FeedP
   // A card can point at an entry dated another day (back-dated), which travels in linked_entries.
   // (An older server does not send the field yet.)
   const entries = new Map([...view.entries, ...(view.linked_entries ?? [])].map((e) => [e.id, e]));
-  // Conversations last 48 hours (spec §6.6): say so on an earlier day that has none left.
+  // Only today and the CHAT_WINDOW_DAYS before it keep their conversation (spec §6.6): say so on an older day.
+  const open = chatOpen(view.date, view.today);
   const note =
-    !logOnly && view.date < view.today && view.messages.length === 0 ? (
+    !logOnly && !open && view.date < view.today ? (
       <p className="px-4 pb-4 text-center text-xs text-muted">{t.feed.kept}</p>
     ) : null;
   if (items.length === 0) {
     return (
       <>
         <p className="px-4 py-10 text-center text-sm text-muted">
-          {view.date === view.today ? t.feed.emptyToday : t.feed.emptyDay}
+          {open ? t.feed.emptyToday : t.feed.emptyDay}
         </p>
         {note}
       </>

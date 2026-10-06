@@ -69,7 +69,7 @@ export const zh: Messages = {
     removed: "记录已删除",
     loggedTo: (day) => `已记录到${day}`,
     undo: "撤销",
-    kept: "对话保留 48 小时。",
+    kept: "对话保留今天及之前 3 天。",
     emptyToday: "还没有记录。告诉 Zabaione 你吃了什么或做了什么运动，或者发一张照片。",
     emptyDay: "这一天没有记录。",
   },

@@ -17,6 +17,10 @@ import { fakeJpeg } from "./images.ts";
 import { NOW, openTestDb, sampleEntry, sampleFood, tempDir, testPeople, unlistable } from "./helpers.ts";
 
 const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3_600_000).toISOString();
+const TZ = "UTC";
+// NOW is midday on the 3rd: the 3rd and the three days before it keep their chat, so the 30th is the oldest open day.
+const OPEN = "2026-09-30";
+const GONE = "2026-09-29";
 
 /** A user message. It starts out finished, because one still pending is being processed and never expires. */
 function message(sql: Sql, id: string, date: string, createdAt: string, status: MessageStatus = "done"): void {
@@ -37,20 +41,20 @@ function thread(sql: Sql, date: string, messageId: string, createdAt: string): v
 }
 
 describe("purgeExpired", () => {
-  it("deletes a message, its reply, its photos and its day's thread after 48 hours; the entry keeps every number", () => {
+  it("deletes the messages, replies, photos and thread of a day that left the chat window; the entry keeps every number", () => {
     const db = openTestDb();
     const dir = tempDir();
-    message(db.db, "old", "2026-10-01", hoursAgo(50));
-    insertReply(db.db, { id: "old-reply", replyTo: "old", date: "2026-10-01", text: "reply to old", cards: [{ type: "entry", id: "e-old" }], nowIso: hoursAgo(50) });
+    message(db.db, "old", GONE, hoursAgo(50));
+    insertReply(db.db, { id: "old-reply", replyTo: "old", date: GONE, text: "reply to old", cards: [{ type: "entry", id: "e-old" }], nowIso: hoursAgo(50) });
     const oldPhoto = photoFor(db.db, dir, hoursAgo(50), "old");
-    insertEntry(db.db, sampleEntry({ id: "e-old", date: "2026-10-01", source: "photo", message_id: "old", foods: [sampleFood({ kcal: 420 })] }), hoursAgo(50));
-    thread(db.db, "2026-10-01", "old", hoursAgo(50));
-    message(db.db, "new", "2026-10-02", hoursAgo(16));
-    const newPhoto = photoFor(db.db, dir, hoursAgo(16), "new");
-    insertEntry(db.db, sampleEntry({ id: "e-new", date: "2026-10-02", source: "coach", message_id: "new" }), hoursAgo(16));
-    thread(db.db, "2026-10-02", "new", hoursAgo(16));
+    insertEntry(db.db, sampleEntry({ id: "e-old", date: GONE, source: "photo", message_id: "old", foods: [sampleFood({ kcal: 420 })] }), hoursAgo(50));
+    thread(db.db, GONE, "old", hoursAgo(50));
+    message(db.db, "new", OPEN, hoursAgo(80));
+    const newPhoto = photoFor(db.db, dir, hoursAgo(80), "new");
+    insertEntry(db.db, sampleEntry({ id: "e-new", date: OPEN, source: "coach", message_id: "new" }), hoursAgo(80));
+    thread(db.db, OPEN, "new", hoursAgo(80));
 
-    expect(purgeExpired(db.db, dir, NOW, 48)).toEqual({ messages: 2, photos: 1, threads: 1, orphanFiles: 0 });
+    expect(purgeExpired(db.db, dir, NOW, TZ)).toEqual({ messages: 2, photos: 1, threads: 1, orphanFiles: 0 });
 
     expect(db.db.select({ id: messages.id }).from(messages).all()).toEqual([{ id: "new" }]);
     expect(db.db.select({ id: photos.id }).from(photos).all()).toEqual([{ id: newPhoto }]);
@@ -58,21 +62,18 @@ describe("purgeExpired", () => {
     expect(fs.existsSync(path.join(dir, `${newPhoto}.jpg`))).toBe(true);
     expect(getEntry(db.db, "e-old")).toMatchObject({ source: "photo", message_id: null, foods: [expect.objectContaining({ kcal: 420 })] });
     expect(getEntry(db.db, "e-new")?.message_id).toBe("new");
-    expect(db.db.select({ date: coachThreads.date }).from(coachThreads).all()).toEqual([{ date: "2026-10-02" }]);
-    expect(new Set(db.db.select({ date: coachTurns.date }).from(coachTurns).all().map((t) => t.date))).toEqual(new Set(["2026-10-02"]));
+    expect(db.db.select({ date: coachThreads.date }).from(coachThreads).all()).toEqual([{ date: OPEN }]);
+    expect(new Set(db.db.select({ date: coachTurns.date }).from(coachTurns).all().map((t) => t.date))).toEqual(new Set([OPEN]));
     db.close();
   });
 
-  it("deletes a reply with its question, though the reply was written after the cutoff", () => {
+  it("deletes a reply with its question, whatever day the reply carries", () => {
     const db = openTestDb();
-    // The coach takes up to about 90 seconds, so a reply is younger than its question.
-    const question = new Date(NOW.getTime() - 48 * 3_600_000 - 30_000).toISOString();
-    const reply = new Date(NOW.getTime() - 48 * 3_600_000 + 30_000).toISOString();
-    message(db.db, "q", "2026-10-01", question);
-    insertReply(db.db, { id: "q-reply", replyTo: "q", date: "2026-10-01", text: "reply to q", cards: [], nowIso: reply });
-    thread(db.db, "2026-10-01", "q", reply);
+    message(db.db, "q", GONE, hoursAgo(90));
+    insertReply(db.db, { id: "q-reply", replyTo: "q", date: OPEN, text: "reply to q", cards: [], nowIso: hoursAgo(90) });
+    thread(db.db, GONE, "q", hoursAgo(90));
 
-    expect(purgeExpired(db.db, tempDir(), NOW, 48)).toEqual({ messages: 2, photos: 0, threads: 1, orphanFiles: 0 });
+    expect(purgeExpired(db.db, tempDir(), NOW, TZ)).toEqual({ messages: 2, photos: 0, threads: 1, orphanFiles: 0 });
 
     expect(db.db.select().from(messages).all()).toEqual([]);
     expect(db.db.select().from(coachThreads).all()).toEqual([]);
@@ -80,13 +81,29 @@ describe("purgeExpired", () => {
     db.close();
   });
 
-  it("keeps a day's thread while any of its messages remain, such as a failed one waiting for Retry", () => {
+  it("goes by the day in the person's timezone, not by age: a day is kept until it is CHAT_WINDOW_DAYS before today", () => {
     const db = openTestDb();
-    message(db.db, "first", "2026-10-01", hoursAgo(50));
-    thread(db.db, "2026-10-01", "first", hoursAgo(50));
-    message(db.db, "failed", "2026-10-01", hoursAgo(47), "failed");
-    purgeExpired(db.db, tempDir(), NOW, 48);
-    expect(db.db.select({ id: messages.id }).from(messages).all()).toEqual([{ id: "failed" }]);
+    // Sent today about a day that is still open, and long ago about one that is too.
+    message(db.db, "backfill", OPEN, hoursAgo(1));
+    message(db.db, "aged", OPEN, hoursAgo(84));
+    // Sent today about a day that is no longer open: it goes at the next run.
+    message(db.db, "late", GONE, hoursAgo(1));
+    expect(purgeExpired(db.db, tempDir(), NOW, TZ).messages).toBe(1);
+    expect(db.db.select({ id: messages.id }).from(messages).all().map((m) => m.id).sort()).toEqual(["aged", "backfill"]);
+    // In Auckland it is already the 4th, so the 30th has left the window there.
+    expect(purgeExpired(db.db, tempDir(), NOW, "Pacific/Auckland").messages).toBe(2);
+    db.close();
+  });
+
+  it("keeps a day's thread while any of its messages remain, such as one the coach is still on", () => {
+    const db = openTestDb();
+    message(db.db, "first", GONE, hoursAgo(50));
+    thread(db.db, GONE, "first", hoursAgo(50));
+    // A failed message goes with its day; Retry is offered only while the day is open.
+    message(db.db, "failed", GONE, hoursAgo(80), "failed");
+    message(db.db, "working", GONE, hoursAgo(1), "pending");
+    purgeExpired(db.db, tempDir(), NOW, TZ);
+    expect(db.db.select({ id: messages.id }).from(messages).all()).toEqual([{ id: "working" }]);
     expect(db.db.select().from(coachThreads).all()).toHaveLength(1);
     expect(db.db.select().from(coachTurns).all()).toHaveLength(2);
     db.close();
@@ -95,12 +112,12 @@ describe("purgeExpired", () => {
   it("spares a message still being processed, such as a Retry in flight, with its photo, entry and day's thread", () => {
     const db = openTestDb();
     const dir = tempDir();
-    message(db.db, "retrying", "2026-10-01", hoursAgo(50), "pending");
+    message(db.db, "retrying", GONE, hoursAgo(50), "pending");
     const photo = photoFor(db.db, dir, hoursAgo(50), "retrying");
-    insertEntry(db.db, sampleEntry({ id: "e-retry", date: "2026-10-01", source: "photo", message_id: "retrying" }), hoursAgo(50));
-    thread(db.db, "2026-10-01", "retrying", hoursAgo(50));
+    insertEntry(db.db, sampleEntry({ id: "e-retry", date: GONE, source: "photo", message_id: "retrying" }), hoursAgo(50));
+    thread(db.db, GONE, "retrying", hoursAgo(50));
 
-    expect(purgeExpired(db.db, dir, NOW, 48)).toEqual({ messages: 0, photos: 0, threads: 0, orphanFiles: 0 });
+    expect(purgeExpired(db.db, dir, NOW, TZ)).toEqual({ messages: 0, photos: 0, threads: 0, orphanFiles: 0 });
 
     expect(db.db.select({ id: messages.id }).from(messages).all()).toEqual([{ id: "retrying" }]);
     expect(db.db.select({ id: photos.id }).from(photos).all()).toEqual([{ id: photo }]);
@@ -111,18 +128,19 @@ describe("purgeExpired", () => {
 
     // Once it has finished, it expires like any other message.
     setMessageStatus(db.db, "retrying", "failed", "timeout");
-    expect(purgeExpired(db.db, dir, NOW, 48)).toEqual({ messages: 1, photos: 1, threads: 1, orphanFiles: 0 });
+    expect(purgeExpired(db.db, dir, NOW, TZ)).toEqual({ messages: 1, photos: 1, threads: 1, orphanFiles: 0 });
     expect(db.db.select().from(messages).all()).toEqual([]);
     expect(getEntry(db.db, "e-retry")?.message_id).toBeNull();
     db.close();
   });
 
-  it("deletes photos that were never sent once they are 48 hours old", () => {
+  it("deletes photos that were never sent once they are older than the oldest open day", () => {
     const db = openTestDb();
     const dir = tempDir();
-    const stale = photoFor(db.db, dir, hoursAgo(49), null);
-    const fresh = photoFor(db.db, dir, hoursAgo(1), null);
-    expect(purgeExpired(db.db, dir, NOW, 48).photos).toBe(1);
+    // Midnight starting the 30th is 84 hours before NOW.
+    const stale = photoFor(db.db, dir, hoursAgo(85), null);
+    const fresh = photoFor(db.db, dir, hoursAgo(83), null);
+    expect(purgeExpired(db.db, dir, NOW, TZ).photos).toBe(1);
     expect(db.db.select({ id: photos.id }).from(photos).all()).toEqual([{ id: fresh }]);
     expect(fs.existsSync(path.join(dir, `${stale}.jpg`))).toBe(false);
     db.close();
@@ -144,7 +162,7 @@ describe("purgeExpired", () => {
     write(`${"b".repeat(32)}.png`, NOW); // orphan, young: an upload may be mid-way
     write(`${known}.jpg.part`, old); // a leftover temporary file: goes
     write("CACHEDIR.TAG", old); // not ours to touch
-    expect(purgeExpired(db.db, dir, NOW, 48).orphanFiles).toBe(2);
+    expect(purgeExpired(db.db, dir, NOW, TZ).orphanFiles).toBe(2);
     expect(fs.readdirSync(dir).sort()).toEqual([`${known}.jpg`, `${"b".repeat(32)}.png`, "CACHEDIR.TAG"].sort());
     db.close();
   });
@@ -159,7 +177,7 @@ describe("purgeExpired", () => {
     const orphan = path.join(dir, `${"a".repeat(32)}.jpg`);
     fs.writeFileSync(orphan, "x");
     fs.utimesSync(orphan, old, old);
-    expect(purgeExpired(db.db, dir, NOW, 48).orphanFiles).toBe(1);
+    expect(purgeExpired(db.db, dir, NOW, TZ).orphanFiles).toBe(1);
     expect(fs.existsSync(orphan)).toBe(false);
     db.close();
   });
@@ -169,10 +187,10 @@ describe("purgeExpired", () => {
     const file = path.join(dir, "fitness.db");
     const live = openDatabase({ file, snapshotDir: null });
     insertUserMessage(live.db, {
-      id: "m1", date: "2026-10-01", text: "zebra-crossing-sandwich", photoIds: [], sentAt: hoursAgo(50), nowIso: hoursAgo(50),
+      id: "m1", date: GONE, text: "zebra-crossing-sandwich", photoIds: [], sentAt: hoursAgo(50), nowIso: hoursAgo(50),
     });
     setMessageStatus(live.db, "m1", "done", null);
-    purgeExpired(live.db, tempDir(), NOW, 48);
+    purgeExpired(live.db, tempDir(), NOW, TZ);
     live.close();
     expect(fs.readFileSync(file).includes("zebra-crossing-sandwich")).toBe(false);
     if (fs.existsSync(`${file}-journal`)) expect(fs.readFileSync(`${file}-journal`).includes("zebra-crossing-sandwich")).toBe(false);
@@ -182,10 +200,10 @@ describe("purgeExpired", () => {
 describe("startRetention", () => {
   it("purges everyone once straight away, then every hour, logging counts by person", async () => {
     const { people, stores } = testPeople("owner@example.com", "friend@example.com");
-    for (const store of stores) message(store.db, "old", "2026-10-01", hoursAgo(50));
+    for (const store of stores) message(store.db, "old", GONE, hoursAgo(50));
     const logged: unknown[] = [];
     const log = { info: (obj: unknown) => logged.push(obj), error: (obj: unknown) => logged.push(obj) } as unknown as FastifyBaseLogger;
-    const job = startRetention({ people, hours: 48, log, now: () => NOW });
+    const job = startRetention({ people, log, now: () => NOW });
     for (const store of stores) expect(store.db.select().from(messages).all()).toEqual([]);
     const keys = stores.map((s) => s.key).sort();
     expect(logged).toEqual(keys.map((key) => ({ person: shortKey(key), messages: 1, photos: 0, threads: 0, orphanFiles: 0 })));
@@ -200,7 +218,7 @@ describe("startRetention", () => {
 
   it("logs one person's failed purge, goes on to the next, and the job can still be stopped", () => {
     const { people, stores } = testPeople("owner@example.com", "friend@example.com");
-    for (const store of stores) message(store.db, "old", "2026-10-01", hoursAgo(50));
+    for (const store of stores) message(store.db, "old", GONE, hoursAgo(50));
     const infos: unknown[][] = [];
     const errors: unknown[][] = [];
     const log = {
@@ -209,7 +227,7 @@ describe("startRetention", () => {
     } as unknown as FastifyBaseLogger;
     // The sweep cannot list a photo folder that is not there.
     fs.rmSync(stores[0].photoDir, { recursive: true, force: true });
-    const job = startRetention({ people, hours: 48, log, now: () => NOW });
+    const job = startRetention({ people, log, now: () => NOW });
     expect(errors).toEqual([[{ err: expect.objectContaining({ code: "ENOENT" }), person: shortKey(stores[0].key) }, "retention purge failed"]]);
     expect(stores[1].db.select().from(messages).all()).toEqual([]);
     expect(infos).toEqual([[{ person: shortKey(stores[1].key), messages: 1, photos: 0, threads: 0, orphanFiles: 0 }, "expired conversations deleted"]]);
@@ -224,7 +242,7 @@ describe("startRetention", () => {
     const errors: unknown[][] = [];
     const log = { info: () => {}, error: (...args: unknown[]) => errors.push(args) } as unknown as FastifyBaseLogger;
     // startRetention runs once before it returns, so a throw here would stop the app from starting.
-    const job = startRetention({ people: unlistable(people), hours: 48, log, now: () => NOW });
+    const job = startRetention({ people: unlistable(people), log, now: () => NOW });
     try {
       await expect(job.trigger()).resolves.toBeUndefined();
       // The listing itself failed, not anyone's folder: no person to name.
@@ -251,7 +269,7 @@ describe("startRetention", () => {
         errors.push(args);
       },
     } as unknown as FastifyBaseLogger;
-    const job = startRetention({ people: unlistable(people), hours: 48, log, now: () => NOW });
+    const job = startRetention({ people: unlistable(people), log, now: () => NOW });
     expect(errors).toHaveLength(1); // the startup run's listing failure
     refuse = true;
     try {

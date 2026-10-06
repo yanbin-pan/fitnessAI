@@ -1,6 +1,8 @@
 // Calendar dates are plain YYYY-MM-DD strings. The arithmetic runs in UTC so a
 // clock change can never make a "day" 23 or 25 hours long.
 
+import { CHAT_WINDOW_DAYS } from "./vocab.ts";
+
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DAY_MS = 86_400_000;
 
@@ -26,4 +28,9 @@ export function addDays(date: string, days: number): string {
 /** Whole days from `from` to `to` (negative when `to` is earlier). */
 export function daysBetween(from: string, to: string): number {
   return Math.round((utcMidnight(to) - utcMidnight(from)) / DAY_MS);
+}
+
+/** Whether a day still has its chat (spec §6.6): today or one of the CHAT_WINDOW_DAYS before it. */
+export function chatOpen(date: string, today: string): boolean {
+  return date <= today && daysBetween(date, today) <= CHAT_WINDOW_DAYS;
 }

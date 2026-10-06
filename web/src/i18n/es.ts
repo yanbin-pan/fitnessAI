@@ -69,7 +69,7 @@ export const es: Messages = {
     removed: "Entrada eliminada",
     loggedTo: (day) => `Registrado en: ${day}`,
     undo: "Deshacer",
-    kept: "Las conversaciones se guardan 48 horas.",
+    kept: "Los chats se guardan hoy y los 3 días anteriores.",
     emptyToday: "Aún no hay nada. Cuéntale a Zabaione qué has comido o hecho, o envía una foto.",
     emptyDay: "No hay nada registrado este día.",
   },

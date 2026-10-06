@@ -57,6 +57,12 @@ export type EntrySource = (typeof ENTRY_SOURCES)[number];
 /** How far back the coach may log or change things (spec §7.5). */
 export const MAX_BACKDATE_DAYS = 7;
 
+/**
+ * How many days before today keep the full chat: the coach on that day, and its conversation and photos (spec §6.6).
+ * Today and the three before it; on a rolling basis, an older day keeps only its logbook.
+ */
+export const CHAT_WINDOW_DAYS = 3;
+
 /** How many photos one message can carry (spec §6.5). */
 export const MAX_PHOTOS_PER_MESSAGE = 4;
 

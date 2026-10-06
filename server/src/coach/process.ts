@@ -10,7 +10,7 @@ import { runCoachLoop } from "./loop.ts";
 import type { CoachFailure, LoopStep } from "./loop.ts";
 import { PHOTOS_ONLY_TEXT, hydrateTurns, photoRef } from "./photo-blocks.ts";
 import { buildSystemPrompt, buildTurnContext } from "./prompt.ts";
-import { applyStaging, executeTool, newStaging } from "./staging.ts";
+import { applyStaging, executeTool, fillsInPastDay, newStaging } from "./staging.ts";
 import type { ToolContext } from "./staging.ts";
 import { stepText } from "./steps.ts";
 import { appendTurns, getOrCreateThread, loadTurns } from "./thread.ts";
@@ -85,10 +85,11 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
   const view = buildDayView(deps.db, profile, message.date, today, nowIso, []);
   // What is stored keeps a reference per photo. What Claude receives is rebuilt from it by
   // the same function every later replay uses, so the two can never differ.
+  const sentAt = new Date(message.sent_at ?? message.created_at);
   const storedTurn: AiMessage = {
     role: "user",
     content: [
-      { type: "text", text: buildTurnContext(view, now, profile.timezone, profile.language) },
+      { type: "text", text: buildTurnContext(view, now, profile.timezone, profile.language, fillsInPastDay(message.date, sentAt, profile.timezone)) },
       ...message.photo_ids.map(photoRef),
       { type: "text", text: message.text || PHOTOS_ONLY_TEXT },
     ] as unknown as AiMessage["content"],
@@ -101,7 +102,7 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
     messageId,
     source: message.photo_ids.length > 0 ? "photo" : "coach",
     messageDate: message.date,
-    sentAt: new Date(message.sent_at ?? message.created_at),
+    sentAt,
     today,
     weightKg: (date) => (getDay(deps.db, date) ?? snapshotValues(profile, date, nowIso)).weight_kg_used,
     staging,

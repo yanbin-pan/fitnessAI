@@ -115,7 +115,8 @@ function RegularChips({ suggestions }: { suggestions: Regular[] }) {
 }
 
 /** Talks to the coach about today: text — voice works through the keyboard's microphone — and up to four photos. */
-export function Composer({ suggestions = [] }: { suggestions?: Regular[] }) {
+/** The chat for the day open in the app (`date`): today, or one of the days before it it can still fill in (spec §6.6). */
+export function Composer({ date, suggestions = [] }: { date: string; suggestions?: Regular[] }) {
   const client = useQueryClient();
   const t = useT();
   const [text, setText] = useState("");
@@ -286,7 +287,7 @@ export function Composer({ suggestions = [] }: { suggestions?: Regular[] }) {
     const photoIds = attachments.map((a) => a.photoId).filter((id): id is string => id !== null);
     const key = JSON.stringify([trimmed, photoIds]);
     if (attempt.current?.key !== key) {
-      attempt.current = { key, input: { id: crypto.randomUUID(), sent_at: new Date().toISOString(), text: trimmed, photo_ids: photoIds } };
+      attempt.current = { key, input: { id: crypto.randomUUID(), sent_at: new Date().toISOString(), date, text: trimmed, photo_ids: photoIds } };
     }
     const input = attempt.current.input;
     // What goes back into the composer if the message never reaches the server.
@@ -298,7 +299,7 @@ export function Composer({ suggestions = [] }: { suggestions?: Regular[] }) {
     setPhase("storing");
     startLive(input.id, firstStep(input.photo_ids.length, t));
     // A message the feed has already is the server's own copy, from an earlier try: it is not ours to take out again.
-    const added = addPending(client, input);
+    const added = addPending(client, input, date);
     let stored = false;
     try {
       const result = await streamCoach("/api/messages", input, (step) => {
@@ -323,7 +324,7 @@ export function Composer({ suggestions = [] }: { suggestions?: Regular[] }) {
       } else {
         // It may never have arrived: put it back, so sending again carries the same id (spec §6.3).
         finishLive(input.id);
-        if (added) removePending(client, input.id);
+        if (added) removePending(client, input.id, date);
         setText(sent.text);
         setAttachments(sent.attachments);
         setSendFailure(error);

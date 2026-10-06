@@ -69,7 +69,7 @@ export const it: Messages = {
     removed: "Voce eliminata",
     loggedTo: (day) => `Registrato in: ${day}`,
     undo: "Annulla",
-    kept: "Le conversazioni restano per 48 ore.",
+    kept: "Le chat restano per oggi e i 3 giorni precedenti.",
     emptyToday: "Ancora niente. Di’ a Zabaione cosa hai mangiato o fatto, o manda una foto.",
     emptyDay: "Niente registrato in questo giorno.",
   },
