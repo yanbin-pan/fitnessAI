@@ -8,11 +8,11 @@ import { LANGUAGE_NAMES, isLanguage, useI18n } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
 import { useProfile } from "../queries.ts";
 import { deviceTimeZone, timeZoneGroups } from "../timezones.ts";
-import { ACTIVITY_LEVEL_KEYS, BODY_GOALS, LANGUAGES, PROFILE_RANGES, SEXES, isIsoDate, isTimeZone } from "../shared.ts";
+import { ACTIVITY_LEVEL_KEYS, BODY_GOALS, LANGUAGES, MAX_NAME_LENGTH, PROFILE_RANGES, SEXES, isIsoDate, isTimeZone } from "../shared.ts";
 import type { Language, MacroTargets, Profile, ProfileInput, ProfileView } from "../shared.ts";
 
 const FIELDS = [
-  "sex", "birth_date", "height_cm", "weight_kg", "activity_level", "goal", "goal_rate_kg_week",
+  "name", "sex", "birth_date", "height_cm", "weight_kg", "activity_level", "goal", "goal_rate_kg_week",
   "protein_g_per_kg", "fat_pct", "fibre_g", "add_back_pct", "override_kcal", "override_protein_g",
   "override_carbs_g", "override_fat_g", "override_fibre_g", "timezone",
 ] as const;
@@ -20,7 +20,7 @@ type Field = (typeof FIELDS)[number];
 type Form = Record<Field, string>;
 
 const EMPTY: Form = {
-  sex: "male", birth_date: "", height_cm: "", weight_kg: "", activity_level: "light", goal: "maintain",
+  name: "", sex: "male", birth_date: "", height_cm: "", weight_kg: "", activity_level: "light", goal: "maintain",
   goal_rate_kg_week: "0.5", protein_g_per_kg: "1.8", fat_pct: "30", fibre_g: "30", add_back_pct: "50",
   override_kcal: "", override_protein_g: "", override_carbs_g: "", override_fat_g: "", override_fibre_g: "",
   timezone: "Europe/London",
@@ -30,7 +30,8 @@ function formFrom(profile: Profile): Form {
   const form = { ...EMPTY };
   for (const field of FIELDS) {
     const value = profile[field];
-    form[field] = value === null ? "" : String(value);
+    // An older server sends no name: null and missing both mean a blank field.
+    form[field] = value === null || value === undefined ? "" : String(value);
   }
   return form;
 }
@@ -55,6 +56,7 @@ type Errors = Partial<Record<Field, string>>;
  */
 function validate(form: Form, t: Messages): Errors {
   const errors: Errors = {};
+  if (form.name.trim().length > MAX_NAME_LENGTH) errors.name = t.settings.tooLong(MAX_NAME_LENGTH);
   if (form.birth_date.trim() === "") errors.birth_date = t.settings.required;
   else if (!isIsoDate(form.birth_date)) errors.birth_date = t.settings.badDate;
   for (const [field, [min, max]] of Object.entries(PROFILE_RANGES) as [keyof typeof PROFILE_RANGES, readonly [number, number]][]) {
@@ -109,6 +111,10 @@ function payloadFrom(form: Form, previous: Profile | null, language: Language): 
     override_fibre_g: optional("override_fibre_g"),
     timezone: form.timezone.trim(),
     language,
+    name: form.name.trim() || null,
+    // A new profile was just asked for its name here, and a name given here settles it: Today need not ask.
+    // Otherwise the prompt stays as it was.
+    name_prompt: form.name.trim() || !previous ? "done" : (previous.name_prompt ?? "done"),
   };
 }
 
@@ -334,6 +340,10 @@ export function SettingsPage() {
           )}
         </Section>
         <Section title={t.settings.aboutYou}>
+          <div>
+            <TextField label={t.settings.name} autoComplete="given-name" maxLength={MAX_NAME_LENGTH} {...bind("name")} />
+            <p className="mt-1 text-xs text-muted">{t.settings.nameHint}</p>
+          </div>
           <Segmented
             legend={t.settings.sex}
             value={form.sex}

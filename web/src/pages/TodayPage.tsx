@@ -11,12 +11,14 @@ import { DayNav } from "../components/DayNav.tsx";
 import { EntryEditor } from "../components/EntryEditor.tsx";
 import { NutrientCard } from "../components/NutrientCard.tsx";
 import { Feed } from "../components/Feed.tsx";
+import { NamePrompt } from "../components/NamePrompt.tsx";
 import { SetupPrompt } from "../components/SetupPrompt.tsx";
 import { Summary } from "../components/Summary.tsx";
 import { Toggle, quietButton } from "../components/ui.tsx";
 import { useT } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
-import { storeDay, useDay } from "../queries.ts";
+import { greetingFor } from "../greeting.ts";
+import { storeDay, useDay, useLoadedProfile } from "../queries.ts";
 import { MAX_BACKDATE_DAYS, chatOpen, daysBetween } from "../shared.ts";
 import type { DeleteResult, Entry } from "../shared.ts";
 
@@ -29,6 +31,7 @@ export function TodayPage() {
   const { date = "today" } = useParams();
   const t = useT();
   const day = useDay(date);
+  const profile = useLoadedProfile();
   const client = useQueryClient();
   const [logOnly, setLogOnly] = useState(false);
   // An open editor belongs to the day it was opened on; Back or Forward to another day must not carry it along.
@@ -105,6 +108,10 @@ export function TodayPage() {
     return <main className="mx-auto max-w-xl p-6 text-muted">{day.isError ? t.day.loadFailed : t.common.loading}</main>;
   }
   const view = day.data;
+  const stored = profile.data?.profile ?? null;
+  const isToday = view.date === view.today;
+  // An older server sends no name fields: then there is nothing to ask and the hello has no name.
+  const greeting = isToday ? greetingFor(view, stored?.name ?? null, new Date(), t) : null;
   return (
     // The bottom padding leaves the end of the feed clear of the tab bar and of the composer, whose height changes
     // (photos, notices, a longer message) and is published as --composer-h. A day without a composer uses the fallback.
@@ -115,6 +122,7 @@ export function TodayPage() {
       </div>
       {/* The top padding gives the card's raised highlight room below the solid bar, which would otherwise paint over it. */}
       <div className="px-4 py-3">
+        {isToday && stored?.name_prompt === "show" && <NamePrompt profile={stored} />}
         <Summary view={view} />
         {/* An older server sends no signals. */}
         {view.nutrients && <NutrientCard signals={view.nutrients} />}
@@ -141,6 +149,7 @@ export function TodayPage() {
           retry.reset();
           undo.mutate(ids);
         }}
+        greeting={greeting}
       />
       {/* The server refuses a new entry dated more than MAX_BACKDATE_DAYS back (too_old), so don't offer one there. */}
       {view.date <= view.today && daysBetween(view.date, view.today) <= MAX_BACKDATE_DAYS && (

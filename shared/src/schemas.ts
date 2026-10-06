@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { isIsoDate, isTimeZone } from "./dates.ts";
 import {
-  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, PROFILE_RANGES, SEXES,
+  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, PROFILE_RANGES, SEXES,
 } from "./vocab.ts";
 
 // Request bodies the API accepts. Each schema's parsed output (defaults filled in)
@@ -107,6 +107,10 @@ export const ProfileInput = z.object({
   goal_notes: z.enum(["on", "off"]).default("on"),
   /** The app's language, and the one the coach replies in. */
   language: z.enum(LANGUAGES).default("en"),
+  /** What Zabaione calls the person: a first name or a nickname. Blank is no name. */
+  name: z.string().trim().max(MAX_NAME_LENGTH).nullable().default(null).transform((name) => (name ? name : null)),
+  /** Whether Today still asks for the name: `show` until it is given or declined, then `done`. */
+  name_prompt: z.enum(["show", "done"]).default("show"),
 });
 /** What a client sends: fields with defaults may be omitted. */
 export type ProfileInput = z.input<typeof ProfileInput>;

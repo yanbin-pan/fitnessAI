@@ -48,6 +48,14 @@ export function useProfile() {
   return useQuery({ queryKey: ["profile"], queryFn: loadProfile });
 }
 
+/**
+ * The profile as the app already holds it, without asking the server again: the language provider keeps it loaded
+ * for every screen, so Today reads the same copy and follows its updates.
+ */
+export function useLoadedProfile() {
+  return useQuery({ queryKey: ["profile"], queryFn: loadProfile, enabled: false });
+}
+
 /** Everything found to recur in the log, for the Regulars tab (2026-10-06 design §2.3). */
 export function useRegulars() {
   return useQuery({ queryKey: ["regulars"], queryFn: () => api<RegularsView>("/api/regulars") });

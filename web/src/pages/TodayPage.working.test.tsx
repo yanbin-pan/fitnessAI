@@ -137,7 +137,7 @@ describe("TodayPage, while the coach works (spec §11.1)", () => {
     online = false;
     await user.click(screen.getByRole("button", { name: "Send" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("offline");
-    expect(screen.getByText(/^Nothing logged yet/)).toBeInTheDocument(); // the feed is empty again: the text is back in the box
+    expect(screen.queryByText("2 eggs", { selector: "p" })).toBeNull(); // the feed is empty again: the text is back in the box
     expect(screen.queryByRole("status")).toBeNull();
     expect(box).toHaveValue("2 eggs");
   });
