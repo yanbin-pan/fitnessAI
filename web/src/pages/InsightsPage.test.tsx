@@ -61,7 +61,7 @@ describe("InsightsPage", () => {
   it("shows the numbers alone when the coach is off", async () => {
     mockFetch(() => jsonResponse({ ...ready, status: "off", insight: { ...ready.insight, report: null } }));
     renderWithProviders(<InsightsPage />);
-    expect(await screen.findByText("The coach is switched off, so here are the numbers on their own.")).toBeInTheDocument();
+    expect(await screen.findByText("Zabaione is switched off, so here are the numbers on their own.")).toBeInTheDocument();
     expect(screen.getByRole("meter", { name: "Fibre" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Recovery" })).toBeNull();
   });

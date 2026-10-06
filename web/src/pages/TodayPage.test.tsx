@@ -57,14 +57,14 @@ describe("TodayPage", () => {
   it("opens /day/today from the server and gives only today a composer", async () => {
     const fetchMock = mockFetch(() => jsonResponse(dayView()));
     renderDay("/day/today");
-    expect(await screen.findByLabelText("Message your coach")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Message Zabaione")).toBeInTheDocument();
     expect(fetchMock.mock.calls[0][0]).toBe("/api/days/today");
   });
 
   it("keeps the end of the feed clear of the composer by the height the composer publishes", async () => {
     mockFetch(() => jsonResponse(dayView()));
     renderDay();
-    await screen.findByLabelText("Message your coach");
+    await screen.findByLabelText("Message Zabaione");
     // jsdom applies no CSS, so this pins the contract: the page's bottom padding is made of --composer-h (with a fallback
     // for days that have no composer), the tab bar and the home-indicator inset. The layout itself is checked in a browser.
     expect(screen.getByRole("main")).toHaveClass("pb-[calc(var(--composer-h,8rem)_+_var(--tabbar-h)_+_env(safe-area-inset-bottom)_+_1rem)]");
@@ -74,7 +74,7 @@ describe("TodayPage", () => {
     const fetchMock = mockFetch(() => jsonResponse(dayView({ date: "2026-10-02" })));
     renderDay("/day/2026-10-02");
     expect(await screen.findByText("Yesterday")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Message your coach")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Message Zabaione")).not.toBeInTheDocument();
     expect(fetchMock.mock.calls[0][0]).toBe("/api/days/2026-10-02");
   });
 

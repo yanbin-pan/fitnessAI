@@ -46,11 +46,11 @@ describe("TodayPage, sending (spec §11.1)", () => {
       return jsonResponse(dayView());
     });
     renderWithProviders(<TodayPage />, { route: "/day/today", path: "/day/:date" });
-    await user.type(await screen.findByLabelText("Message your coach"), "2 eggs");
+    await user.type(await screen.findByLabelText("Message Zabaione"), "2 eggs");
     await user.click(screen.getByRole("button", { name: "Send" }));
 
     expect(screen.getByText("2 eggs")).toBeInTheDocument();
-    expect(screen.getByLabelText("Message your coach")).toHaveValue("");
+    expect(screen.getByLabelText("Message Zabaione")).toHaveValue("");
     expect(screen.getByRole("status")).toHaveTextContent("Thinking…");
 
     const id = (posted as MessageInput | null)?.id ?? "";
@@ -75,10 +75,10 @@ describe("TodayPage, sending (spec §11.1)", () => {
       return jsonResponse(dayView());
     });
     renderWithProviders(<TodayPage />, { route: "/day/today", path: "/day/:date" });
-    await user.type(await screen.findByLabelText("Message your coach"), "2 eggs");
+    await user.type(await screen.findByLabelText("Message Zabaione"), "2 eggs");
     await user.click(screen.getByRole("button", { name: "Send" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("offline");
-    expect(screen.getByLabelText("Message your coach")).toHaveValue("2 eggs");
+    expect(screen.getByLabelText("Message Zabaione")).toHaveValue("2 eggs");
     expect(screen.queryByRole("status")).toBeNull();
   });
 
@@ -98,7 +98,7 @@ describe("TodayPage, sending (spec §11.1)", () => {
       return jsonResponse(dayView({ messages: [{ ...pending, status: "done" }, reply] }));
     });
     renderWithProviders(<TodayPage />, { route: "/day/today", path: "/day/:date" });
-    await user.type(await screen.findByLabelText("Message your coach"), "2 eggs");
+    await user.type(await screen.findByLabelText("Message Zabaione"), "2 eggs");
     await user.click(screen.getByRole("button", { name: "Send" }));
     act(() => stream.send("stored", { day: dayView({ messages: [message({ id, text: "2 eggs", status: "pending" })] }) }));
     act(() => stream.end());

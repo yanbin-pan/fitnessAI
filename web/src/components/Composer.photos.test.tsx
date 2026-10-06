@@ -40,7 +40,7 @@ describe("Composer photos", () => {
     let finish: (res: Response) => void = () => {};
     mockFetch((url) => (url === "/api/photos" ? new Promise<Response>((resolve) => (finish = resolve)) : stored()));
     renderWithProviders(<Composer />);
-    await userEvent.type(screen.getByLabelText("Message your coach"), "lunch");
+    await userEvent.type(screen.getByLabelText("Message Zabaione"), "lunch");
     await userEvent.upload(screen.getByLabelText("Add photos"), photoFile());
     expect(await screen.findByRole("status", { name: "Uploading photo 1" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
@@ -128,7 +128,7 @@ describe("Composer photos", () => {
       throw new TypeError("Failed to fetch");
     });
     renderWithProviders(<Composer />);
-    await userEvent.type(screen.getByLabelText("Message your coach"), "lunch");
+    await userEvent.type(screen.getByLabelText("Message Zabaione"), "lunch");
     await userEvent.click(screen.getByRole("button", { name: "Send" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("offline");
     await userEvent.upload(screen.getByLabelText("Add photos"), photoFile());
@@ -146,7 +146,7 @@ describe("Composer photos", () => {
         return stored();
       });
       renderWithProviders(<Composer />);
-      await userEvent.type(screen.getByLabelText("Message your coach"), "lunch");
+      await userEvent.type(screen.getByLabelText("Message Zabaione"), "lunch");
       await userEvent.upload(screen.getByLabelText("Add photos"), photoFile());
       await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
       await userEvent.click(screen.getByRole("button", { name: "Send" }));
@@ -311,7 +311,7 @@ describe("Composer photos", () => {
   ])("drops a photo the server answers %i %s, since a retry can't succeed, and says so", async (status, error) => {
     const fetchMock = mockFetch((url) => (url === "/api/photos" ? jsonResponse({ error }, status) : stored()));
     renderWithProviders(<Composer />);
-    await userEvent.type(screen.getByLabelText("Message your coach"), "lunch");
+    await userEvent.type(screen.getByLabelText("Message Zabaione"), "lunch");
     await userEvent.upload(screen.getByLabelText("Add photos"), photoFile());
     expect(await screen.findByText("That photo can't be sent. Try another.")).toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "Photo 1" })).toBeNull();
@@ -345,10 +345,10 @@ describe("Composer photos", () => {
     expect(screen.queryByRole("img", { name: "Photo 1" })).toBeNull();
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
     expect(screen.getByLabelText("Add photos")).toBeDisabled();
-    expect(screen.getByLabelText("Message your coach")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Message Zabaione")).toHaveAttribute("readonly");
     arrive(stored());
     await waitFor(() => expect(screen.getByLabelText("Add photos")).toBeEnabled());
-    expect(screen.getByLabelText("Message your coach")).not.toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Message Zabaione")).not.toHaveAttribute("readonly");
   });
 
   it("puts the photos back when the message never reached the server", async () => {
@@ -380,7 +380,7 @@ describe("Composer photos", () => {
         return stored();
       });
       renderWithProviders(<Composer />);
-      const box = screen.getByLabelText("Message your coach");
+      const box = screen.getByLabelText("Message Zabaione");
       await userEvent.type(box, "lunch");
       await userEvent.upload(screen.getByLabelText("Add photos"), photoFile());
       await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
