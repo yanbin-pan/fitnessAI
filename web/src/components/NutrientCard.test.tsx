@@ -45,7 +45,7 @@ describe("NutrientCard", () => {
     const { rerender } = render(<NutrientCard signals={{ days: 1, levels: {} }} />);
     expect(screen.getByText("Not enough logged yet to say. A few days of meals and this fills in.")).toBeInTheDocument();
     rerender(<NutrientCard signals={{ days: 4, levels: { salt: "ok", sugars: "ok", saturated_fat: "ok", unsaturated_fat: "ok" } }} />);
-    expect(screen.getByText(/Vitamins and minerals appear once the coach/)).toBeInTheDocument();
+    expect(screen.getByText(/Vitamins and minerals appear once Zabaione/)).toBeInTheDocument();
   });
 });
 

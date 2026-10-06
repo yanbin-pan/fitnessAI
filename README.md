@@ -3,7 +3,7 @@
 A personal food and training logbook with an AI coach, installable on an iPhone
 and running on a home Raspberry Pi cluster.
 
-Tell the coach what you ate or did ("2 scrambled eggs and a coffee"), or send a
+Tell Zabaione what you ate or did ("2 scrambled eggs and a coffee"), or send a
 photo of the plate, and it logs each item with calories, macros, saturated fat,
 sugars, salt, fluids, alcohol and food groups. Workouts get active calories,
 muscles and one of 33 activities — from tennis, gym, wakeboarding and
@@ -13,7 +13,7 @@ your exercise calories. The conversation lasts 48 hours; what you logged stays.
 
 The app speaks English, Italian, Chinese (Simplified), Lithuanian, French, German
 and Spanish: pick one in Settings. It is saved with the profile, so every phone
-follows it, and the coach replies in it too — unless you write to the coach in
+follows it, and Zabaione replies in it too — unless you write to it in
 another language, when it answers in that one. The words live in `web/src/i18n/`,
 one file per language, typed against `en.ts` so a missing string fails the typecheck.
 

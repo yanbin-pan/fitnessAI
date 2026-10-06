@@ -71,7 +71,7 @@ describe("TodayPage, while the coach works (spec §11.1)", () => {
     const stream = controlledStream();
     const sent = server(stream, () => dayView());
     renderToday();
-    const box = await screen.findByLabelText("Message your coach");
+    const box = await screen.findByLabelText("Message Zabaione");
     await user.type(box, "2 eggs");
     await user.click(screen.getByRole("button", { name: "Send" }));
     expect(box).toHaveAttribute("readonly");
@@ -114,7 +114,7 @@ describe("TodayPage, while the coach works (spec §11.1)", () => {
     // A poll now would find no message at all, and take the bubble out of the feed.
     const sent = server(stream, () => dayView());
     renderToday();
-    await user.type(await screen.findByLabelText("Message your coach"), "2 eggs");
+    await user.type(await screen.findByLabelText("Message Zabaione"), "2 eggs");
     await user.click(screen.getByRole("button", { name: "Send" }));
     const pending = message({ id: sent.id, text: "2 eggs", status: "pending" });
     act(() => stream.send("stored", { day: dayView({ messages: [pending] }) }));
@@ -132,7 +132,7 @@ describe("TodayPage, while the coach works (spec §11.1)", () => {
       return jsonResponse(dayView());
     });
     renderToday();
-    const box = await screen.findByLabelText("Message your coach");
+    const box = await screen.findByLabelText("Message Zabaione");
     await user.type(box, "2 eggs");
     online = false;
     await user.click(screen.getByRole("button", { name: "Send" }));
@@ -146,7 +146,7 @@ describe("TodayPage, while the coach works (spec §11.1)", () => {
     const stream = controlledStream();
     const sent = server(stream, (_load, id) => dayView({ messages: id ? [message({ id, text: "2 eggs", status: "pending" })] : [] }));
     renderToday();
-    await user.type(await screen.findByLabelText("Message your coach"), "2 eggs");
+    await user.type(await screen.findByLabelText("Message Zabaione"), "2 eggs");
     await user.click(screen.getByRole("button", { name: "Send" }));
     act(() => stream.send("stored", { day: dayView({ messages: [message({ id: sent.id, text: "2 eggs", status: "pending" })] }) }));
     act(() => stream.send("step", { text: "Logging eggs…" }));
@@ -160,7 +160,7 @@ describe("TodayPage, while the coach works (spec §11.1)", () => {
     const stream = controlledStream();
     const sent = server(stream, (_load, id) => dayView({ messages: id ? [message({ id, text: "2 eggs", status: "pending" })] : [] }));
     renderToday();
-    const box = await screen.findByLabelText("Message your coach");
+    const box = await screen.findByLabelText("Message Zabaione");
     await user.type(box, "2 eggs");
     await user.click(screen.getByRole("button", { name: "Send" }));
     act(() => stream.send("stored", { day: dayView({ messages: [message({ id: sent.id, text: "2 eggs", status: "pending" })] }) }));
@@ -192,7 +192,7 @@ describe("TodayPage, while the coach works (spec §11.1)", () => {
       return jsonResponse(dayView({ messages: [{ ...pending, status: "done" }, reply(id)] }));
     });
     renderToday();
-    await user.type(await screen.findByLabelText("Message your coach"), "2 eggs");
+    await user.type(await screen.findByLabelText("Message Zabaione"), "2 eggs");
     await user.click(screen.getByRole("button", { name: "Send" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("offline");
     await waitFor(() => expect(loads).toBe(2));
@@ -217,7 +217,7 @@ describe("TodayPage, while the coach works (spec §11.1)", () => {
       throw new TypeError("Failed to fetch"); // offline from here on, so nothing could bring a removed copy back
     });
     renderToday();
-    await user.type(await screen.findByLabelText("Message your coach"), "2 eggs");
+    await user.type(await screen.findByLabelText("Message Zabaione"), "2 eggs");
     await user.click(screen.getByRole("button", { name: "Send" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("offline");
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Thinking…")); // the server's copy

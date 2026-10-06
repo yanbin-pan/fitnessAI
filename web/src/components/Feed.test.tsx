@@ -28,7 +28,7 @@ describe("Feed", () => {
     const onRetry = vi.fn();
     const failed = message({ id: "m9", status: "failed", error_code: "timeout" });
     render(<Feed view={dayView({ messages: [failed] })} logOnly={false} onRetry={onRetry} />);
-    expect(screen.getByText(/The coach took too long/)).toBeInTheDocument();
+    expect(screen.getByText(/Zabaione took too long/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(onRetry).toHaveBeenCalledWith("m9");
   });
@@ -116,7 +116,7 @@ describe("Feed", () => {
 
   it("invites a message or a photo when today is empty", () => {
     render(<Feed view={dayView()} logOnly={false} onRetry={() => {}} />);
-    expect(screen.getByText("Nothing logged yet. Tell the coach what you ate or did, or send a photo.")).toBeInTheDocument();
+    expect(screen.getByText("Nothing logged yet. Tell Zabaione what you ate or did, or send a photo.")).toBeInTheDocument();
     expect(screen.queryByText("Conversations are kept for 48 hours.")).toBeNull();
   });
 

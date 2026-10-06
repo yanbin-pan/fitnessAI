@@ -27,7 +27,7 @@ function clipboard({ files = [] as File[], text }: { files?: File[]; text?: stri
 }
 
 /** Pastes into the message box; true when the browser's own paste went ahead. */
-const paste = (data: DataTransfer) => fireEvent.paste(screen.getByLabelText("Message your coach"), { clipboardData: data });
+const paste = (data: DataTransfer) => fireEvent.paste(screen.getByLabelText("Message Zabaione"), { clipboardData: data });
 
 describe("Composer: pasting a screenshot", () => {
   beforeEach(() => {
@@ -39,7 +39,7 @@ describe("Composer: pasting a screenshot", () => {
     renderWithProviders(<Composer />);
     expect(paste(clipboard({ files: [screenshot()] }))).toBe(false);
     expect(await screen.findByRole("img", { name: "Photo 1" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Message your coach")).toHaveValue("");
+    expect(screen.getByLabelText("Message Zabaione")).toHaveValue("");
     await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
     expect(preparePhoto).toHaveBeenCalledOnce();
     await userEvent.click(screen.getByRole("button", { name: "Send" }));

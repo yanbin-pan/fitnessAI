@@ -8,7 +8,7 @@ describe("failureText", () => {
     const texts = codes.map((code) => failureText(code, en));
     expect(texts).not.toContain("Something went wrong.");
     expect(new Set(texts).size).toBe(codes.length);
-    expect(failureText("ai_cap", en)).toBe("Today's coach limit is used up. You can still add things by hand.");
+    expect(failureText("ai_cap", en)).toBe("Zabaione's limit for today is used up. You can still add things by hand.");
     expect(failureText("internal", en)).toBe("Something went wrong.");
   });
 
