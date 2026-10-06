@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { thousands, timeOf } from "../format.ts";
+import { timeOf } from "../format.ts";
 import { useT } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
 import type { Activity, DayView, Entry, ExerciseItem } from "../shared.ts";
@@ -45,7 +45,11 @@ function facts(item: ExerciseItem, t: Messages): string {
     .join(" · ");
 }
 
-/** The day's activity at a glance, under the nutrients (spec §11.1). Only there when something was done. */
+/**
+ * The day's activity at a glance, under the nutrients (spec §11.1): its badges float on the page, without a card of
+ * their own, so a day with one workout shows one badge rather than an empty card. Only there when something was done.
+ * The day's total burned is in the summary's exercise line.
+ */
 export function ActivitiesCard({ view, onEdit }: { view: DayView; onEdit: (entry: Entry) => void }) {
   const t = useT();
   const groups = activityGroups(view);
@@ -53,16 +57,9 @@ export function ActivitiesCard({ view, onEdit }: { view: DayView; onEdit: (entry
   const panelId = useId();
   if (groups.length === 0) return null;
   const open = groups.find((g) => g.key === openKey) ?? null;
-  const total = groups.reduce((sum, g) => sum + g.kcal, 0);
   return (
-    <section aria-label={t.activity.title} className="raised mt-3 rounded-3xl p-4">
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">{t.activity.title}</h2>
-        <span className="text-sm">
-          {thousands(total, t)} {t.units.kcal}
-        </span>
-      </div>
-      <ul className="mt-3 flex flex-wrap justify-around gap-3">
+    <section aria-label={t.activity.title} className="mt-4">
+      <ul className="flex flex-wrap justify-center gap-x-3 gap-y-2">
         {groups.map((group) => {
           const isOpen = group.key === open?.key;
           return (
@@ -75,8 +72,8 @@ export function ActivitiesCard({ view, onEdit }: { view: DayView; onEdit: (entry
                 onClick={() => setOpenKey(isOpen ? null : group.key)}
                 className="flex w-16 flex-col items-center gap-1.5 rounded-2xl py-1"
               >
-                <SportBadge activity={group.activity} size={46} labelled={false} pressed={isOpen} />
-                <span className="text-sm tabular-nums">{Math.round(group.kcal)}</span>
+                <SportBadge activity={group.activity} size={44} labelled={false} pressed={isOpen} />
+                <span className="text-[0.8125rem] tabular-nums text-muted">{Math.round(group.kcal)}</span>
               </button>
             </li>
           );
