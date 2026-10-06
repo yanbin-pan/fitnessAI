@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AiTool } from "../ai/client.ts";
-import { ACTIVITIES, EXERCISE_CATEGORIES, FOOD_GROUPS, MUSCLES, MUSCLE_ROLES } from "../shared.ts";
+import { ACTIVITIES, EXERCISE_CATEGORIES, FOOD_GROUPS, MICROS, MUSCLES, MUSCLE_ROLES } from "../shared.ts";
 
 // The coach's tool inputs (spec §6.1). Strict tool use needs every property
 // required and every object closed, so optional values are nullable instead of
@@ -24,6 +24,10 @@ const FoodToolItem = z.strictObject({
     .array(z.strictObject({ group: z.enum(FOOD_GROUPS), portions: z.number().describe("Portions of the group; fractions are fine") }))
     .describe("Food-group portions; empty when no group applies"),
   assumption: z.string().describe("What you assumed about the portion or recipe; empty if nothing was assumed"),
+  // A list, like groups, rather than eleven fields: log_items is the strict tool, and its grammar has a size limit.
+  micros: z
+    .array(z.strictObject({ nutrient: z.enum(MICROS), amount: z.number().describe("In the unit the nutrient's name ends in") }))
+    .describe("Estimated vitamins and minerals in the portion as eaten, each listed once; leave out any that are negligible"),
 });
 export type FoodToolItem = z.infer<typeof FoodToolItem>;
 
@@ -125,6 +129,10 @@ export function amountIssues(input: { foods: FoodToolItem[]; exercises: Exercise
     food.groups.forEach((g, j) => {
       if (g.portions <= 0) issues.push(`foods.${i}.groups.${j}.portions must be positive`);
     });
+    food.micros.forEach((m, j) => {
+      if (m.amount < 0) issues.push(`foods.${i}.micros.${j}.amount must not be negative`);
+    });
+    if (new Set(food.micros.map((m) => m.nutrient)).size !== food.micros.length) issues.push(`foods.${i}.micros lists a nutrient twice`);
   });
   input.exercises.forEach((item, i) => {
     if (!item.name.trim()) issues.push(`exercises.${i}.name must not be empty`);

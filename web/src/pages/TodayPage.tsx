@@ -9,6 +9,7 @@ import { ActivitiesCard } from "../components/ActivitiesCard.tsx";
 import { Composer } from "../components/Composer.tsx";
 import { DayNav } from "../components/DayNav.tsx";
 import { EntryEditor } from "../components/EntryEditor.tsx";
+import { NutrientCard } from "../components/NutrientCard.tsx";
 import { Feed } from "../components/Feed.tsx";
 import { SetupPrompt } from "../components/SetupPrompt.tsx";
 import { Summary } from "../components/Summary.tsx";
@@ -115,6 +116,8 @@ export function TodayPage() {
       {/* The top padding gives the card's raised highlight room below the solid bar, which would otherwise paint over it. */}
       <div className="px-4 py-3">
         <Summary view={view} />
+        {/* An older server sends no signals. */}
+        {view.nutrients && <NutrientCard signals={view.nutrients} />}
         <ActivitiesCard view={view} onEdit={(entry) => setEditing({ date: view.date, entry })} />
         <div className="mt-3 flex justify-end">
           <Toggle label={t.day.logOnly} checked={logOnly} onChange={setLogOnly} />

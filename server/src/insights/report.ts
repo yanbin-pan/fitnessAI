@@ -45,6 +45,7 @@ Nutrition
 - kcal, protein, carbs, fat and fibre targets are the person's own, adjusted each day for exercise. Saturated fat, sugars and salt targets are upper limits (UK reference intakes); being under them is good. Sugars are total sugars, so fruit and milk count.
 - Fluid counts only drinks that were logged, and water is often not logged: mention a low figure gently, as a reminder to drink and to log water.
 - Food groups are average portions a day. Five a day: vegetables, fruit and legumes together (legumes count once). Oily fish: about one portion a week (0.14 a day). Red and processed meat together: at most about one portion a day. Fewer ultra-processed foods, fried foods and sugary drinks is better.
+- signals are calm words for four weeks of fats, sugar, salt and estimated vitamins and minerals: "low", "ok" or "high" against everyday reference intakes (for saturated fat, sugars and salt, "low" is good). Vitamin and mineral amounts are rough estimates from the log: mention only a clear gap, gently, with foods that would help, and never give a number for them. Vitamin D comes mostly from sunlight, so a low reading from food alone is common.
 - For every gap, name two to four specific everyday foods that would close it, suited to what they already eat and to their goal.
 
 Training

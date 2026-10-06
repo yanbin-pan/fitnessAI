@@ -17,6 +17,7 @@ const STATS: InsightStats = {
     sessions_per_week: 3.5, minutes_per_week: 210, active_kcal_per_week: 1450, by_activity: [{ activity: "tennis", sessions: 8, minutes: 480 }],
     sets_per_muscle: { chest: 12 }, training_days_last_7: 3, longest_streak: 3, load_ratio: 1.05,
   },
+  signals: { days: 18, levels: { salt: "high", vitamin_d_ug: "low" } },
 };
 const REPORT: InsightReport = {
   headline: "Steady weeks: protein is on target, fibre is short.",

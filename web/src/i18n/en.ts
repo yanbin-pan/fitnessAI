@@ -199,6 +199,22 @@ export const en = {
     snow: "Snow and ice",
     else: "Everything else",
   },
+  /** The calm nutrient card under the macros (2026-10-06 nutrients design): words, never numbers. */
+  nutrients: {
+    title: "Vitamins, fats & sugar",
+    caption: "Last 7 days · a rough guide",
+    fats: "Fats, sugar & salt",
+    micros: "Vitamins & minerals",
+    names: { unsaturated_fat: "Unsaturated fat", saturated_fat: "Saturated fat", sugars: "Sugar", salt: "Salt", vitamin_a_ug: "Vitamin A", vitamin_c_mg: "Vitamin C", vitamin_d_ug: "Vitamin D", vitamin_e_mg: "Vitamin E", vitamin_b12_ug: "Vitamin B12", folate_ug: "Folate", calcium_mg: "Calcium", iron_mg: "Iron", magnesium_mg: "Magnesium", potassium_mg: "Potassium", zinc_mg: "Zinc" },
+    /** Nutrients to get enough of. */
+    enough: { low: "A bit low", ok: "On point", high: "Stacked" },
+    /** Nutrients to keep moderate: saturated fat, sugar, salt. */
+    moderate: { low: "Chill", ok: "On point", high: "A lot" },
+    empty: "Not enough logged yet to say. A few days of meals and this fills in.",
+    microsPending: "Vitamins and minerals appear once the coach has estimated most of what you eat.",
+    sunlight: "Vitamin D comes mostly from sunlight, so food alone often reads low.",
+    disclaimer: "Estimated from what you log: a rough guide, never a target.",
+  },
   regulars: {
     title: "Regulars",
     intro: "Found in what you log: anything you have on 3 or more days in 4 weeks. Tap one in the chat to log it. Edit one to change what a tap logs, or remove it.",

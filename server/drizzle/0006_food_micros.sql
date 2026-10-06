@@ -1,0 +1,1 @@
+ALTER TABLE `food_items` ADD `micros` text;

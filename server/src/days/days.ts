@@ -10,6 +10,7 @@ import type { WorkoutSummary } from "../targets/targets.ts";
 import { analyseRegulars, suggestRegulars } from "../regulars/regulars.ts";
 import { localTime } from "../time.ts";
 import { featuredActivities } from "./featured.ts";
+import { signalsFor } from "./signals.ts";
 
 export type DaySnapshot = typeof days.$inferSelect;
 
@@ -117,6 +118,7 @@ export function buildDayView(sql: Sql, profile: Profile, date: string, today: st
     messages,
     featured: featuredActivities(sql, date, starter),
     suggestions: date === today ? suggestionsNow(sql, today, profile.timezone, nowIso) : [],
+    nutrients: signalsFor(sql, profile, date, today),
   };
 }
 

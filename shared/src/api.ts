@@ -1,5 +1,6 @@
 import type { Activity, BodyGoal, ExerciseCategory, EntrySource, FoodGroup, Muscle, MuscleRole } from "./vocab.ts";
-import type { ExerciseItemInput, FoodItemInput, Profile } from "./schemas.ts";
+import type { NutrientSignals } from "./nutrients.ts";
+import type { ExerciseItemInput, FoodItemInput, MicroAmount, Profile } from "./schemas.ts";
 
 // Shapes the API returns. The server builds them; the web app renders them.
 
@@ -28,6 +29,8 @@ export interface FoodItem extends Totals {
   assumption: string;
   saved_food_id: string | null;
   groups: { group: FoodGroup; portions: number }[];
+  /** The coach's estimate of its vitamins and minerals; null when nobody estimated them. */
+  micros: MicroAmount[] | null;
 }
 
 export interface ExerciseItem {
@@ -106,6 +109,11 @@ export interface DayView {
   featured: Activity[];
   /** Today only: regulars due around now and not yet logged today, to log with a tap (2026-10-06 design §2.2). Empty on other days. */
   suggestions: Regular[];
+  /**
+   * How fats, sugar, salt, vitamins and minerals look over the last 7 complete days (the 7 ending on this day, for a past
+   * day): words, never numbers (2026-10-06 nutrients design).
+   */
+  nutrients: NutrientSignals;
 }
 
 export type RegularKind = "meal" | "activity";
@@ -247,6 +255,8 @@ export interface InsightStats {
     /** Active kcal of the last 7 days over the weekly average of the 28: about 0.8 to 1.3 is steady. */
     load_ratio: number | null;
   };
+  /** The same calm signals as the day view, over the four weeks. */
+  signals: NutrientSignals;
 }
 
 /** What GET /api/insights returns. */

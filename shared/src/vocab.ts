@@ -84,3 +84,13 @@ export const REGULAR_MIN_DAYS_SEEN = 3;
 /** Insights (2026-10-06 design §3): written weekly, once there are fourteen days of data. */
 export const INSIGHTS_MIN_DATA_DAYS = 14;
 export const INSIGHTS_WINDOW_DAYS = 28;
+
+/**
+ * The vitamins and minerals the coach estimates per food (2026-10-06 nutrients design): each name ends in its unit.
+ * Rough estimates by design, so the app shows them as words, never as numbers against a target.
+ */
+export const MICROS = [
+  "vitamin_a_ug", "vitamin_c_mg", "vitamin_d_ug", "vitamin_e_mg", "vitamin_b12_ug", "folate_ug",
+  "calcium_mg", "iron_mg", "magnesium_mg", "potassium_mg", "zinc_mg",
+] as const;
+export type Micro = (typeof MICROS)[number];

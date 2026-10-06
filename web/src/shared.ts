@@ -7,5 +7,7 @@ export {
   ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, EXERCISE_CATEGORIES, LANGUAGES, MAX_BACKDATE_DAYS, MAX_PHOTOS_PER_MESSAGE, SEXES,
 } from "../../shared/src/vocab.ts";
 export type { Activity, ActivityLevel, BodyGoal, ExerciseCategory, Language, Sex } from "../../shared/src/vocab.ts";
+export { MODERATE, SIGNAL_KEYS } from "../../shared/src/nutrients.ts";
+export type { NutrientLevel, NutrientSignals, SignalKey } from "../../shared/src/nutrients.ts";
 export type * from "../../shared/src/api.ts";
 export type { ExerciseItemInput, FoodItemInput, MessageInput, Profile, ProfileInput } from "../../shared/src/schemas.ts";

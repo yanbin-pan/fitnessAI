@@ -43,6 +43,13 @@
       "when": 1791282379843,
       "tag": "0005_regulars_and_insights",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791286587766,
+      "tag": "0006_food_micros",
+      "breakpoints": true
     }
   ]
 }
