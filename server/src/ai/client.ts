@@ -38,6 +38,15 @@ export interface AiResponse {
   usage: AiUsage;
 }
 
+/** A one-off request whose answer must follow a JSON schema (structured outputs): the weekly insights. */
+export interface AiStructuredRequest {
+  system: string;
+  prompt: string;
+  /** A JSON schema the reply's text must match; every object closed (additionalProperties: false). */
+  schema: Record<string, unknown>;
+}
+
 export interface AiClient {
   complete(request: AiRequest, signal: AbortSignal): Promise<AiResponse>;
+  structured(request: AiStructuredRequest, signal: AbortSignal): Promise<AiResponse>;
 }

@@ -41,7 +41,7 @@ function migrationsUpTo(count: number): string {
   return folder;
 }
 
-const ENTRY_COLUMNS = "id, date, logged_at, source, message_id, external_id, merged_into_entry_id, edited, deleted_at, created_at, updated_at";
+const ENTRY_COLUMNS = "id, date, logged_at, source, message_id, external_id, merged_into_entry_id, edited, deleted_at, regular_key, created_at, updated_at";
 
 /** Rebuilds `entries` the way drizzle-kit does when a column change needs a new table. */
 const rebuildEntries = () => migrationsWith("0001_rebuild", [
@@ -49,7 +49,7 @@ const rebuildEntries = () => migrationsWith("0001_rebuild", [
   `CREATE TABLE __new_entries (
   id text PRIMARY KEY NOT NULL, date text NOT NULL, logged_at text NOT NULL, source text NOT NULL,
   message_id text, external_id text, merged_into_entry_id text, edited integer DEFAULT false NOT NULL,
-  deleted_at text, created_at text NOT NULL, updated_at text NOT NULL
+  deleted_at text, regular_key text, created_at text NOT NULL, updated_at text NOT NULL
 );`,
   `INSERT INTO __new_entries(${ENTRY_COLUMNS}) SELECT ${ENTRY_COLUMNS} FROM entries;`,
   "DROP TABLE entries;",
@@ -158,7 +158,10 @@ describe("openDatabase", () => {
     const file = path.join(dir, "fitness.db");
     const snapshots = path.join(dir, "snapshots");
     const m21 = openDatabase({ file, snapshotDir: null, migrationsFolder: migrationsUpTo(3) });
-    insertEntry(m21.db, sampleEntry({ id: "kept" }), NOW.toISOString());
+    // Written as milestone 2.1 had the table: today's schema has columns that database doesn't have yet.
+    m21.sqlite
+      .prepare("INSERT INTO entries (id, date, logged_at, source, message_id, edited, created_at, updated_at) VALUES ('kept', '2026-10-03', '2026-10-03T07:00:00.000Z', 'manual', NULL, 0, 'x', 'x')")
+      .run();
     m21.close();
     const upgraded = openDatabase({ file, snapshotDir: snapshots });
     expect(upgraded.sqlite.prepare("select count(*) from ai_usage").pluck().get()).toBe(0);
@@ -176,7 +179,10 @@ describe("openDatabase", () => {
     const dataDir = tempDir();
     fs.mkdirSync(path.join(dataDir, "db"));
     const m21 = openDatabase({ file: path.join(dataDir, "db", "fitness.db"), snapshotDir: null, migrationsFolder: migrationsUpTo(3) });
-    insertEntry(m21.db, sampleEntry({ id: "kept" }), NOW.toISOString());
+    // Written as milestone 2.1 had the table: today's schema has columns that database doesn't have yet.
+    m21.sqlite
+      .prepare("INSERT INTO entries (id, date, logged_at, source, message_id, edited, created_at, updated_at) VALUES ('kept', '2026-10-03', '2026-10-03T07:00:00.000Z', 'manual', NULL, 0, 'x', 'x')")
+      .run();
     m21.close();
     const key = personKey("owner@example.com");
     expect(moveOwnerIn(dataDir, key)).toBe("moved");

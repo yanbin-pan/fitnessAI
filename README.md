@@ -17,6 +17,13 @@ follows it, and the coach replies in it too — unless you write to the coach in
 another language, when it answers in that one. The words live in `web/src/i18n/`,
 one file per language, typed against `en.ts` so a missing string fails the typecheck.
 
+**Regulars** are found automatically: anything logged on 3 different days in 4 weeks
+(once 5 days are logged) is offered as a chip in the chat around its usual time, and one
+tap logs it. The Regulars tab reviews, edits and removes them; there is no adding one.
+**Insights** is a weekly coach's analysis of nutrition and training, written every Monday
+once 14 days are logged: exact numbers worked out in code, interpreted by Claude in the
+person's language. Design: [`docs/superpowers/specs/2026-10-06-regulars-and-insights-design.md`](docs/superpowers/specs/2026-10-06-regulars-and-insights-design.md).
+
 Design: [`docs/superpowers/specs/2026-10-03-fitnessai-design.md`](docs/superpowers/specs/2026-10-03-fitnessai-design.md),
 [`docs/superpowers/specs/2026-10-05-fitnessai-friends-and-family-design.md`](docs/superpowers/specs/2026-10-05-fitnessai-friends-and-family-design.md)
 · Plans: [milestone 1](docs/superpowers/plans/2026-10-03-fitnessai-milestone-1.md),

@@ -15,6 +15,11 @@
   --nm-tint-within: #b7d1c8;
   --nm-tint-near: #dcd1ba;
   --nm-tint-off: #dac2c0;
+  /* Severity in the weekly insights: going well, keep an eye on, change this week. Validated as a set (dataviz
+     validate_palette.js, light, on --nm-base): every check passes. Always shown with a word, never colour alone. */
+  --nm-good: #087a54;
+  --nm-watch: #9a8000;
+  --nm-act: #a8321f;
   /* The tab bar's height above the home-indicator inset; the composer sits on top of it. */
   --tabbar-h: 4rem;
   color-scheme: light;
@@ -34,6 +39,10 @@
     --nm-tint-within: #3d544c;
     --nm-tint-near: #575042;
     --nm-tint-off: #584645;
+    /* Dark, on --nm-base: passes all but CVD separation, which sits in the 6–8 band that is allowed with a label. */
+    --nm-good: #1f9c8c;
+    --nm-watch: #a8922c;
+    --nm-act: #d65a6a;
     color-scheme: dark;
   }
 }
@@ -51,6 +60,9 @@
   --color-tint-within: var(--nm-tint-within);
   --color-tint-near: var(--nm-tint-near);
   --color-tint-off: var(--nm-tint-off);
+  --color-good: var(--nm-good);
+  --color-watch: var(--nm-watch);
+  --color-act: var(--nm-act);
   --color-protein: #5b8def;
   --color-carbs: #f2a93b;
   --color-fat: #e8735a;

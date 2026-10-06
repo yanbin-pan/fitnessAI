@@ -2,7 +2,9 @@ import type Database from "better-sqlite3";
 import { Cron } from "croner";
 import type { FastifyBaseLogger } from "fastify";
 import path from "node:path";
+import type { AiClient } from "./ai/client.ts";
 import { pruneSnapshots, snapshot } from "./db/snapshot.ts";
+import { ensureWeeklyInsight } from "./insights/insights.ts";
 import { shortKey } from "./people/people.ts";
 import type { People, Store } from "./people/people.ts";
 import { getProfile } from "./profile/profile.ts";
@@ -85,4 +87,51 @@ export function startRetention(opts: {
     });
   run();
   return new Cron("7 * * * *", { catch: logEscape(opts.log, "retention purge failed") }, run);
+}
+
+/**
+ * Writes each person's weekly analysis when it is due (2026-10-06 design §3.1): hourly at minute 23, so it lands early
+ * on a Monday morning in any timezone, and within the hour for someone who has just reached fourteen days. One person
+ * at a time, and a person whose analysis is current costs only a lookup.
+ */
+export function startInsights(opts: {
+  people: People;
+  ai: AiClient | null;
+  ownerKey: string;
+  callCaps: { owner: number; guest: number };
+  log: FastifyBaseLogger;
+  now?: () => Date;
+}): Cron {
+  const now = opts.now ?? (() => new Date());
+  const failure = "weekly insight failed";
+  return new Cron("23 * * * *", { protect: true, catch: logEscape(opts.log, failure) }, () => runInsights(opts, now, failure));
+}
+
+export async function runInsights(
+  opts: { people: People; ai: AiClient | null; ownerKey: string; callCaps: { owner: number; guest: number }; log: FastifyBaseLogger },
+  now: () => Date,
+  failure = "weekly insight failed",
+): Promise<void> {
+  if (!opts.ai) return;
+  let keys: string[];
+  try {
+    keys = opts.people.keys();
+  } catch (err) {
+    opts.log.error({ err }, failure);
+    return;
+  }
+  for (const key of keys) {
+    try {
+      const store = opts.people.store(key);
+      const profile = getProfile(store.db);
+      if (!profile) continue;
+      const owner = key === opts.ownerKey;
+      const outcome = await ensureWeeklyInsight({
+        sql: store.db, profile, ai: opts.ai, now: now(), dailyCallCap: owner ? opts.callCaps.owner : opts.callCaps.guest,
+      });
+      if (outcome === "written" || outcome === "failed") opts.log.info({ person: shortKey(key), outcome }, "weekly insight");
+    } catch (err) {
+      opts.log.error({ err, person: shortKey(key) }, failure);
+    }
+  }
 }

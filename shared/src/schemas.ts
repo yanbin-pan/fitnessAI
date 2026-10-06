@@ -128,3 +128,13 @@ export const MessageInput = z
   .refine((m) => m.text.length > 0 || m.photo_ids.length > 0, { message: "A message needs text or a photo", path: ["text"] })
   .refine((m) => new Set(m.photo_ids).size === m.photo_ids.length, { message: "Each photo can be attached once", path: ["photo_ids"] });
 export type MessageInput = z.infer<typeof MessageInput>;
+
+/** An edit to a regular (2026-10-06 design §2.3): its name and what a tap logs. Regulars are never added by hand. */
+export const RegularEdit = z
+  .object({ name: z.string().trim().min(1).max(100), ...items })
+  .refine(hasItems, NEEDS_ITEMS);
+export type RegularEdit = z.infer<typeof RegularEdit>;
+
+/** Logging a regular with a tap: the id is made on the phone, so a repeated tap logs it once. */
+export const RegularLogInput = z.object({ id: z.uuid() });
+export type RegularLogInput = z.infer<typeof RegularLogInput>;

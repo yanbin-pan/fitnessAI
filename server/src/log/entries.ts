@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, sql as rawSql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lte, sql as rawSql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { entries, exerciseItems, exerciseMuscles, foodItemGroups, foodItems } from "../db/schema.ts";
 import type { Sql } from "../db/types.ts";
@@ -49,6 +49,8 @@ export interface NewEntry {
   logged_at: string;
   source: EntrySource;
   message_id: string | null;
+  /** The regular a tap logged, if one did. */
+  regular_key?: string | null;
   foods: FoodItemData[];
   exercises: ExerciseItemData[];
 }
@@ -134,6 +136,18 @@ export function listEntries(sql: Sql, date: string): Entry[] {
     .orderBy(asc(entries.logged_at), asc(entries.created_at), asc(rawSql`rowid`))
     .all();
   return hydrate(sql, rows);
+}
+
+/** Every live entry dated from `from` to `to`, oldest first, with the regular a tap logged it as. */
+export function listEntriesBetween(sql: Sql, from: string, to: string): { entry: Entry; regular_key: string | null }[] {
+  const rows = sql
+    .select()
+    .from(entries)
+    .where(and(gte(entries.date, from), lte(entries.date, to), isNull(entries.deleted_at)))
+    .orderBy(asc(entries.logged_at), asc(entries.created_at), asc(rawSql`rowid`))
+    .all();
+  const hydrated = hydrate(sql, rows);
+  return rows.map((row, i) => ({ entry: hydrated[i], regular_key: row.regular_key }));
 }
 
 const groupRank = (group: FoodGroup) => FOOD_GROUPS.indexOf(group);

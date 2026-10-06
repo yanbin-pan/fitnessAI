@@ -3,7 +3,7 @@ import { buildApp } from "./app.ts";
 import { createVerifier, devVerifier } from "./auth/access.ts";
 import { loadConfig } from "./config.ts";
 import { moveOwnerIn } from "./db/location.ts";
-import { startNightlySnapshot, startRetention } from "./jobs.ts";
+import { startInsights, startNightlySnapshot, startRetention } from "./jobs.ts";
 import { createMetrics, seedPeople, serveMetrics } from "./metrics.ts";
 import { createPeople, personKey, shortKey } from "./people/people.ts";
 import { getProfile } from "./profile/profile.ts";
@@ -61,6 +61,9 @@ people.stopWaitingForLocks();
 
 const job = startNightlySnapshot({ people, keep: config.snapshotKeep, timeZone: getProfile(owner.db)?.timezone ?? "Europe/London", log: app.log });
 const retention = startRetention({ people, hours: config.retentionHours, log: app.log });
+const insightsJob = startInsights({
+  people, ai, ownerKey, callCaps: { owner: config.aiDailyCallCap, guest: config.guestDailyCallCap }, log: app.log,
+});
 const metricsServer = await serveMetrics(metrics, config.metricsPort, host);
 await app.listen({ host, port: config.port });
 if (!ai) app.log.warn("ANTHROPIC_API_KEY is not set: the coach is off; manual logging still works");
@@ -72,6 +75,7 @@ async function shutdown(signal: string): Promise<void> {
   app.log.info({ signal }, "shutting down");
   job.stop();
   retention.stop();
+  insightsJob.stop();
   metricsServer.close();
   await app.close();
   people.close();

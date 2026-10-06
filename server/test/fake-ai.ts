@@ -1,19 +1,34 @@
 import { AiError } from "../src/ai/client.ts";
-import type { AiClient, AiContentBlock, AiRequest, AiResponse } from "../src/ai/client.ts";
+import type { AiClient, AiContentBlock, AiRequest, AiResponse, AiStructuredRequest } from "../src/ai/client.ts";
 
 // A scripted stand-in for Claude: each call takes the next step. Tests never touch the network.
 
 export type FakeStep = AiResponse | AiError | ((request: AiRequest, signal: AbortSignal) => AiResponse | Promise<AiResponse>);
 
+export type FakeStructuredStep = AiResponse | AiError | ((request: AiStructuredRequest) => AiResponse | Promise<AiResponse>);
+
 export interface FakeAi extends AiClient {
   requests: AiRequest[];
+  structuredRequests: AiStructuredRequest[];
 }
 
-export function fakeAi(steps: FakeStep[]): FakeAi {
+/** `steps` answer the coach's calls in turn; `structured` answers the weekly insights' calls. */
+export function fakeAi(steps: FakeStep[], structured: FakeStructuredStep[] = []): FakeAi {
   const requests: AiRequest[] = [];
+  const structuredRequests: AiStructuredRequest[] = [];
   let next = 0;
+  let nextStructured = 0;
   return {
     requests,
+    structuredRequests,
+    async structured(request, signal) {
+      if (signal.aborted) throw new AiError("timeout", "aborted");
+      structuredRequests.push(structuredClone(request));
+      const step = structured[nextStructured++];
+      if (step === undefined) throw new Error(`fakeAi: no scripted structured response for call ${nextStructured}`);
+      if (step instanceof AiError) throw step;
+      return typeof step === "function" ? step(request) : step;
+    },
     async complete(request, signal) {
       // Like the real client, a call made after the budget ran out fails at once.
       if (signal.aborted) throw new AiError("timeout", "aborted");
@@ -53,4 +68,9 @@ export function hangUntilAborted(): FakeStep {
     new Promise<AiResponse>((_resolve, reject) => {
       signal.addEventListener("abort", () => reject(new AiError("timeout", "aborted")));
     });
+}
+
+/** A structured-output reply: its JSON as the one text block. */
+export function jsonReply(value: unknown): AiResponse {
+  return { content: [block({ type: "text", text: JSON.stringify(value), citations: null })], stop_reason: "end_turn", model: "claude-opus-5-5", usage: { ...usage } };
 }

@@ -58,6 +58,8 @@ export const entries = sqliteTable(
     merged_into_entry_id: text(),
     edited: integer({ mode: "boolean" }).notNull().default(false),
     deleted_at: text(),
+    /** Set when a regular was logged with a tap: the entry counts towards that regular whatever its items. */
+    regular_key: text(),
     created_at: text().notNull(),
     updated_at: text().notNull(),
   },
@@ -208,3 +210,27 @@ export const aiUsage = sqliteTable(
   },
   (t) => [index("ai_usage_date_idx").on(t.date)],
 );
+
+
+/**
+ * What the person changed about a regular (2026-10-06 design §2.3). Regulars themselves are worked out from the
+ * entries on every read; this keeps only the edits (a name, the items a tap logs) and removals, by the regular's key.
+ */
+export const regularOverrides = sqliteTable("regular_overrides", {
+  key: text().primaryKey(),
+  name: text(),
+  foods: text({ mode: "json" }).$type<unknown[]>(),
+  exercises: text({ mode: "json" }).$type<unknown[]>(),
+  dismissed: integer({ mode: "boolean" }).notNull().default(false),
+  updated_at: text().notNull(),
+});
+
+/** One coach analysis per local week, written on its Monday (2026-10-06 design §3). Kept: it holds no conversation. */
+export const insights = sqliteTable("insights", {
+  week_start: text().primaryKey(),
+  generated_at: text().notNull(),
+  language: text().notNull(),
+  model: text(),
+  stats: text({ mode: "json" }).$type<unknown>().notNull(),
+  report: text({ mode: "json" }).$type<unknown>().notNull(),
+});

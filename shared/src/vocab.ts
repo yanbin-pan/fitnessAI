@@ -51,7 +51,7 @@ export type BodyGoal = (typeof BODY_GOALS)[number];
 export const SEXES = ["male", "female"] as const;
 export type Sex = (typeof SEXES)[number];
 
-export const ENTRY_SOURCES = ["coach", "photo", "saved_food", "manual", "apple_health"] as const;
+export const ENTRY_SOURCES = ["coach", "photo", "saved_food", "manual", "apple_health", "regular"] as const;
 export type EntrySource = (typeof ENTRY_SOURCES)[number];
 
 /** How far back the coach may log or change things (spec §7.5). */
@@ -74,3 +74,13 @@ export const LANGUAGE_NAMES: Record<Language, string> = {
   de: "German",
   es: "Spanish",
 };
+
+/** Regulars (2026-10-06 design §2): patterns found in the last four weeks, once there are five days of data. */
+export const REGULARS_WINDOW_DAYS = 28;
+export const REGULARS_MIN_DATA_DAYS = 5;
+/** A meal or activity becomes a regular once it is seen on this many different days in the window. */
+export const REGULAR_MIN_DAYS_SEEN = 3;
+
+/** Insights (2026-10-06 design §3): written weekly, once there are fourteen days of data. */
+export const INSIGHTS_MIN_DATA_DAYS = 14;
+export const INSIGHTS_WINDOW_DAYS = 28;

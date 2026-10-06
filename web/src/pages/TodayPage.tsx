@@ -147,7 +147,8 @@ export function TodayPage() {
           </button>
         </div>
       )}
-      {view.date === view.today && <Composer />}
+      {/* An older server sends no suggestions. */}
+      {view.date === view.today && <Composer suggestions={view.suggestions ?? []} />}
       {editing?.date === view.date && (
         <EntryEditor
           date={view.date}
