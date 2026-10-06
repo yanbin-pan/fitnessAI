@@ -2,8 +2,9 @@ import { countDistinct, isNull } from "drizzle-orm";
 import { adjustedTargets } from "../days/days.ts";
 import { entries } from "../db/schema.ts";
 import type { Sql } from "../db/types.ts";
+import { signalDays } from "../days/signals.ts";
 import { listEntriesBetween } from "../log/entries.ts";
-import { INSIGHTS_WINDOW_DAYS, addDays, daysBetween } from "../shared.ts";
+import { INSIGHTS_WINDOW_DAYS, addDays, daysBetween, nutrientSignals } from "../shared.ts";
 import type { Activity, Entry, FoodGroup, InsightStats, Muscle, NutrientStat, Profile } from "../shared.ts";
 
 // The numbers behind the weekly insights (2026-10-06 design §3.2). Worked out here, exactly, so the analysis is written
@@ -116,5 +117,6 @@ export function computeStats(sql: Sql, profile: Profile, periodEnd: string, nowI
       longest_streak: longestRun(trainingDates),
       load_ratio: kcalTotal > 0 ? Math.round((kcalLastWeek / (kcalTotal / weeks)) * 100) / 100 : null,
     },
+    signals: nutrientSignals(signalDays(list), profile.sex),
   };
 }

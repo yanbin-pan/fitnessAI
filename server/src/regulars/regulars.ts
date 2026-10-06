@@ -65,7 +65,7 @@ function toFoodInput(f: FoodItem): FoodItemInput {
   return {
     name: f.name, quantity: f.quantity, grams: f.grams, kcal: f.kcal, protein_g: f.protein_g, carbs_g: f.carbs_g, fat_g: f.fat_g,
     fibre_g: f.fibre_g, saturated_fat_g: f.saturated_fat_g, sugars_g: f.sugars_g, salt_g: f.salt_g, fluid_ml: f.fluid_ml,
-    alcohol_units: f.alcohol_units, assumption: f.assumption, groups: f.groups,
+    alcohol_units: f.alcohol_units, assumption: f.assumption, groups: f.groups, micros: f.micros,
   };
 }
 

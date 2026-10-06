@@ -24,6 +24,11 @@ tap logs it. The Regulars tab reviews, edits and removes them; there is no addin
 once 14 days are logged: exact numbers worked out in code, interpreted by Claude in the
 person's language. Design: [`docs/superpowers/specs/2026-10-06-regulars-and-insights-design.md`](docs/superpowers/specs/2026-10-06-regulars-and-insights-design.md).
 
+Under the macros, a folded **Vitamins, fats & sugar** card gives a word for each (fats,
+sugar, salt and 11 vitamins and minerals the coach estimates) over the last 7 days: "On
+point", "A bit low", "A lot". A rough guide, never a number against a target. Design:
+[`docs/superpowers/specs/2026-10-06-nutrients-design.md`](docs/superpowers/specs/2026-10-06-nutrients-design.md).
+
 Design: [`docs/superpowers/specs/2026-10-03-fitnessai-design.md`](docs/superpowers/specs/2026-10-03-fitnessai-design.md),
 [`docs/superpowers/specs/2026-10-05-fitnessai-friends-and-family-design.md`](docs/superpowers/specs/2026-10-05-fitnessai-friends-and-family-design.md)
 · Plans: [milestone 1](docs/superpowers/plans/2026-10-03-fitnessai-milestone-1.md),

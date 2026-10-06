@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { isIsoDate } from "./dates.ts";
 import {
-  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_PHOTOS_PER_MESSAGE, MUSCLES, MUSCLE_ROLES, SEXES,
+  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, SEXES,
 } from "./vocab.ts";
 
 // Request bodies the API accepts. Each schema's parsed output (defaults filled in)
@@ -23,6 +23,9 @@ const amount = z.number().nonnegative();
 const optionalPositive = z.number().positive().nullable().default(null);
 
 export const FoodGroupPortion = z.object({ group: z.enum(FOOD_GROUPS), portions: z.number().positive() });
+/** One vitamin or mineral in a portion, in the unit its name ends in. */
+export const MicroAmount = z.object({ nutrient: z.enum(MICROS), amount: z.number().nonnegative() });
+export type MicroAmount = z.infer<typeof MicroAmount>;
 export const MuscleWork = z.object({ muscle: z.enum(MUSCLES), role: z.enum(MUSCLE_ROLES) });
 
 export const FoodItemInput = z.object({
@@ -41,6 +44,8 @@ export const FoodItemInput = z.object({
   alcohol_units: amount.default(0),
   assumption: z.string().max(500).default(""),
   groups: z.array(FoodGroupPortion).max(FOOD_GROUPS.length).default([]),
+  /** The coach's estimate of its vitamins and minerals; null when nobody estimated them (typed in by hand). */
+  micros: z.array(MicroAmount).max(MICROS.length).nullable().default(null),
 });
 export type FoodItemInput = z.infer<typeof FoodItemInput>;
 

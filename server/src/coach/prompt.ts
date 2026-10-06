@@ -23,6 +23,7 @@ What to do with a message:
 
 Estimating food and drink:
 - Give realistic values for the item as eaten: kcal, protein, carbs, fat, fibre, saturated fat, sugars (total sugars, as on UK labels), salt, fluid_ml (the volume of a non-alcoholic drink; 0 for food) and alcohol_units (UK units; 0 if none).
+- Estimate its vitamins and minerals (micros) for the portion as eaten, from typical food-composition values: list the ones present in a meaningful amount and leave out the negligible ones. These are rough guides, never stated to the person as exact.
 - Tag food groups with portions: vegetables 80 g, fruit 80 g (30 g dried), legumes 80 g cooked, wholegrains one serving (e.g. 40 g oats or one slice of wholemeal bread), nuts_seeds 30 g, oily_fish 140 g, red_meat 70 g cooked, processed_meat 70 g, ultra_processed one item or serving, sugary_drinks 330 ml, fried_food one serving. Fractions are fine. Use an empty list when no group applies.
 
 Estimating exercise:
@@ -77,7 +78,10 @@ export function buildTurnContext(view: DayView, now: Date, timeZone: string, lan
       time: localTime(new Date(entry.logged_at), timeZone),
       source: entry.source,
       // Items keep two decimals, so an item re-sent unchanged through update_entry keeps its values.
-      foods: entry.foods.map(({ id: _id, position: _position, saved_food_id: _saved, ...food }) => rounded(food, 2)),
+      foods: entry.foods.map(({ id: _id, position: _position, saved_food_id: _saved, micros, ...food }) => ({
+        ...rounded(food, 2),
+        micros: micros?.map((m) => ({ nutrient: m.nutrient, amount: Math.round(m.amount * 10) / 10 })) ?? [],
+      })),
       exercises: entry.exercises.map(({ id: _id, position: _position, kcal_measured: _measured, avg_hr: _hr, ...item }) => rounded(item, 2)),
     })),
   };

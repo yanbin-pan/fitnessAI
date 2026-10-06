@@ -3,8 +3,8 @@ import { getDay } from "../src/days/days.ts";
 import { getEntry, insertEntry } from "../src/log/entries.ts";
 import { applyStaging, executeTool, newStaging } from "../src/coach/staging.ts";
 import type { ToolContext } from "../src/coach/staging.ts";
-import { COACH_TOOLS, LogItemsInput, strictJsonSchema } from "../src/coach/tools.ts";
-import { ACTIVITIES } from "../src/shared.ts";
+import { COACH_TOOLS, LogItemsInput, amountIssues, strictJsonSchema } from "../src/coach/tools.ts";
+import { ACTIVITIES, MICROS } from "../src/shared.ts";
 import { TOOL_EGGS, TOOL_RUN, logItemsInput, makeProfile, openTestDb, sampleEntry } from "./helpers.ts";
 
 const NOW_ISO = "2026-10-03T12:00:00.000Z";
@@ -71,6 +71,15 @@ describe("tool definitions", () => {
     }
   });
 
+  it("ask for each food's vitamins and minerals as a compact list, like the food groups", () => {
+    const schema = COACH_TOOLS[0].input_schema as {
+      properties: { foods: { items: { properties: Record<string, { items?: { properties: { nutrient: { enum: string[] } } } }>; required: string[] } } };
+    };
+    const food = schema.properties.foods.items;
+    expect(food.required).toContain("micros");
+    expect(food.properties.micros.items?.properties.nutrient.enum).toEqual([...MICROS]);
+  });
+
   it("make at most one tool strict, because the API rejects the grammar of both together", () => {
     // Live check, 4 Oct 2026: both strict gave 400 "The compiled grammar is too large"; either one alone was accepted.
     expect(COACH_TOOLS.filter((t) => t.strict).length).toBeLessThanOrEqual(1);
@@ -84,6 +93,17 @@ describe("tool definitions", () => {
     const props = (node: unknown) => (node as { properties: Record<string, unknown> }).properties;
     const foods = props(strictJsonSchema(LogItemsInput)).foods as { items: unknown };
     expect(props(foods.items).grams).toMatchObject({ anyOf: [{ type: "number" }, { type: "null" }] });
+  });
+});
+
+describe("amountIssues: micros", () => {
+  it("refuses a negative amount and a nutrient listed twice", () => {
+    const food = (micros: { nutrient: (typeof MICROS)[number]; amount: number }[]) => ({ ...TOOL_EGGS, micros }) as never;
+    expect(amountIssues({ foods: [food([{ nutrient: "iron_mg", amount: 1 }])], exercises: [] })).toEqual([]);
+    expect(amountIssues({ foods: [food([{ nutrient: "iron_mg", amount: -1 }])], exercises: [] })).toEqual(["foods.0.micros.0.amount must not be negative"]);
+    expect(amountIssues({ foods: [food([{ nutrient: "iron_mg", amount: 1 }, { nutrient: "iron_mg", amount: 2 }])], exercises: [] })).toEqual([
+      "foods.0.micros lists a nutrient twice",
+    ]);
   });
 });
 
