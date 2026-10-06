@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { isIsoDate } from "./dates.ts";
+import { isIsoDate, isTimeZone } from "./dates.ts";
 import {
-  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, SEXES,
+  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, PROFILE_RANGES, SEXES,
 } from "./vocab.ts";
 
 // Request bodies the API accepts. Each schema's parsed output (defaults filled in)
@@ -9,15 +9,6 @@ import {
 
 export const IsoDate = z.string().refine(isIsoDate, { message: "Expected a date as YYYY-MM-DD" });
 export const TIME_HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
-
-export function isTimeZone(value: string): boolean {
-  try {
-    new Intl.DateTimeFormat("en-GB", { timeZone: value });
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 const amount = z.number().nonnegative();
 const optionalPositive = z.number().positive().nullable().default(null);
@@ -89,19 +80,21 @@ export type EntryPatch = z.infer<typeof EntryPatch>;
 
 const override = z.number().nonnegative().nullable().default(null);
 
+const inRange = (field: keyof typeof PROFILE_RANGES) => z.number().min(PROFILE_RANGES[field][0]).max(PROFILE_RANGES[field][1]);
+
 export const ProfileInput = z.object({
   sex: z.enum(SEXES),
   birth_date: IsoDate,
-  height_cm: z.number().min(100).max(250),
-  weight_kg: z.number().min(30).max(300),
+  height_cm: inRange("height_cm"),
+  weight_kg: inRange("weight_kg"),
   activity_level: z.enum(ACTIVITY_LEVEL_KEYS),
   goal: z.enum(BODY_GOALS),
-  goal_rate_kg_week: z.number().min(0).max(1),
+  goal_rate_kg_week: inRange("goal_rate_kg_week"),
   body_goal_priority: z.enum(["high", "normal"]).default("high"),
-  protein_g_per_kg: z.number().min(0.5).max(3.5).default(1.8),
-  fat_pct: z.number().min(15).max(50).default(30),
-  fibre_g: z.number().min(0).max(80).default(30),
-  add_back_pct: z.number().min(0).max(100).default(50),
+  protein_g_per_kg: inRange("protein_g_per_kg").default(1.8),
+  fat_pct: inRange("fat_pct").default(30),
+  fibre_g: inRange("fibre_g").default(30),
+  add_back_pct: inRange("add_back_pct").default(50),
   override_kcal: override,
   override_protein_g: override,
   override_carbs_g: override,

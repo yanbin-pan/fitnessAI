@@ -293,5 +293,13 @@ export const fr: Messages = {
     signedOut: "Vous êtes déconnecté. Reconnectez-vous, puis enregistrez.",
     invalid: "Enregistrement impossible. Vérifiez que chaque valeur est remplie et dans les limites.",
     failed: "Enregistrement impossible. Réessayez.",
+    required: "Remplissez ce champ.",
+    badDate: "Saisissez une date valide.",
+    notNumber: "Saisissez un nombre.",
+    between: (min: number, max: number) => `Entre ${min} et ${max}.`,
+    notNegative: "Ne peut pas être négatif.",
+    badTimezone: "Choisissez un fuseau horaire.",
+    checkValue: "Vérifiez cette valeur.",
+    checkFields: "Certains éléments sont à vérifier : ils sont signalés plus haut.",
   },
 };

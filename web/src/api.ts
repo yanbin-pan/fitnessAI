@@ -7,13 +7,16 @@ export class ApiError extends Error {
   readonly kind: ApiErrorKind;
   readonly status: number;
   readonly code: string;
+  /** What a 400 invalid_request names as wrong, field by field (the server's `issues`). */
+  readonly issues: readonly { path: string; message: string }[] | undefined;
 
-  constructor(kind: ApiErrorKind, status: number, code: string, message: string) {
+  constructor(kind: ApiErrorKind, status: number, code: string, message: string, issues?: readonly { path: string; message: string }[]) {
     super(message);
     this.name = "ApiError";
     this.kind = kind;
     this.status = status;
     this.code = code;
+    this.issues = issues;
   }
 }
 
@@ -40,9 +43,12 @@ export async function responseError(res: Response): Promise<ApiError | null> {
     return new ApiError("signed_out", res.status, "signed_out", "Signed out");
   }
   if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { error?: unknown } | null;
+    const body = (await res.json().catch(() => null)) as { error?: unknown; issues?: unknown } | null;
     const code = typeof body?.error === "string" ? body.error : "http_error";
-    return new ApiError("http", res.status, code, `Request failed (${res.status})`);
+    const issues = Array.isArray(body?.issues)
+      ? body.issues.filter((i): i is { path: string; message: string } => typeof i?.path === "string" && typeof i?.message === "string")
+      : undefined;
+    return new ApiError("http", res.status, code, `Request failed (${res.status})`, issues);
   }
   return null;
 }

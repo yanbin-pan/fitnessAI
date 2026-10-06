@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  EntryPatch, ExerciseItemInput, FoodItemInput, ManualEntryInput, MessageInput, ProfileInput, isTimeZone,
+  EntryPatch, ExerciseItemInput, FoodItemInput, ManualEntryInput, MessageInput, ProfileInput,
 } from "../src/schemas.ts";
+import { isTimeZone } from "../src/dates.ts";
 
 const UUID = "0b9c7f4e-6a51-4f5e-9d4c-2f1f8f6f1a10";
 const food = { name: "Porridge", kcal: 300, protein_g: 10, carbs_g: 50, fat_g: 6 };

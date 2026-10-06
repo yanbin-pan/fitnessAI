@@ -291,5 +291,13 @@ export const de: Messages = {
     signedOut: "Du bist abgemeldet. Melde dich wieder an und speichere dann.",
     invalid: "Speichern nicht möglich. Prüfe, ob jeder Wert ausgefüllt ist und im zulässigen Bereich liegt.",
     failed: "Speichern nicht möglich. Versuch es noch einmal.",
+    required: "Bitte ausfüllen.",
+    badDate: "Gib ein gültiges Datum ein.",
+    notNumber: "Gib eine Zahl ein.",
+    between: (min: number, max: number) => `Zwischen ${min} und ${max}.`,
+    notNegative: "Darf nicht negativ sein.",
+    badTimezone: "Wähle eine Zeitzone.",
+    checkValue: "Prüfe diesen Wert.",
+    checkFields: "Einige Angaben müssen geprüft werden – sie sind oben markiert.",
   },
 };

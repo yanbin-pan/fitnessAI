@@ -26,7 +26,9 @@ describe("SettingsPage", () => {
     await screen.findByText("Saved.");
     expect(puts[0]).toMatchObject({
       sex: "male", birth_date: "1991-03-15", height_cm: 180, weight_kg: 80, activity_level: "light",
-      goal: "lose", goal_rate_kg_week: 0.5, override_kcal: null, timezone: "Europe/London",
+      goal: "lose", goal_rate_kg_week: 0.5, override_kcal: null,
+      // A new profile starts in the phone's own timezone.
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
     expect(screen.getByPlaceholderText("1860 kcal calculated")).toBeInTheDocument();
   });
@@ -68,7 +70,62 @@ describe("SettingsPage", () => {
     );
     renderWithProviders(<SettingsPage />);
     expect(await screen.findByDisplayValue("1990-05-01")).toBeInTheDocument();
-    expect(screen.getByLabelText("Calories override")).toHaveValue(2000);
+    expect(screen.getByLabelText("Calories override")).toHaveValue("2000");
     expect(screen.queryByLabelText("Rate (kg per week)")).toBeNull();
+  });
+
+  it("picks the timezone from a list grouped by region, with each zone's offset", async () => {
+    const puts: Record<string, unknown>[] = [];
+    mockFetch((_url, init) => {
+      if (init?.method !== "PUT") return jsonResponse({ error: "no_profile" }, 404);
+      const body = JSON.parse(String(init.body));
+      puts.push(body);
+      return jsonResponse({ profile: { ...HIDDEN_SETTINGS, ...body }, calculated: { kcal: 2000, protein_g: 144, carbs_g: 200, fat_g: 67, fibre_g: 30 } });
+    });
+    renderWithProviders(<SettingsPage />);
+    const select = (await screen.findByLabelText("Timezone")) as HTMLSelectElement;
+    expect(select.tagName).toBe("SELECT");
+    expect([...select.querySelectorAll("optgroup")].map((g) => g.label)).toEqual(expect.arrayContaining(["Asia", "Europe", "America"]));
+    expect(screen.getByRole("option", { name: /^Shanghai \(UTC\+8\)$/ })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Birth date"), { target: { value: "1991-03-15" } });
+    await userEvent.type(screen.getByLabelText("Height (cm)"), "165");
+    await userEvent.type(screen.getByLabelText("Weight (kg)"), "55");
+    await userEvent.selectOptions(select, "Asia/Shanghai");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText("Saved.");
+    expect(puts[0]).toMatchObject({ timezone: "Asia/Shanghai" });
+  });
+
+  it("keeps a stored timezone the list does not name", async () => {
+    mockFetch(() =>
+      jsonResponse({
+        profile: {
+          ...HIDDEN_SETTINGS, sex: "female", birth_date: "1990-05-01", height_cm: 165, weight_kg: 60,
+          activity_level: "moderate", goal: "maintain", goal_rate_kg_week: 0, protein_g_per_kg: 1.6, fat_pct: 30,
+          fibre_g: 30, add_back_pct: 50, override_kcal: null, override_protein_g: null, override_carbs_g: null,
+          override_fat_g: null, override_fibre_g: null, timezone: "Etc/GMT-3",
+        },
+        calculated: { kcal: 2100, protein_g: 96, carbs_g: 250, fat_g: 70, fibre_g: 30 },
+      }),
+    );
+    renderWithProviders(<SettingsPage />);
+    await screen.findByDisplayValue("1990-05-01");
+    expect(screen.getByLabelText("Timezone")).toHaveValue("Etc/GMT-3");
+  });
+
+  it("says why a new profile can't be saved yet, at the field, rather than doing nothing", async () => {
+    const puts: unknown[] = [];
+    mockFetch((_url, init) => {
+      if (init?.method === "PUT") puts.push(init.body);
+      return jsonResponse({ error: "no_profile" }, 404);
+    });
+    renderWithProviders(<SettingsPage />);
+    await screen.findByLabelText("Birth date");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(puts).toHaveLength(0);
+    expect(screen.getByRole("alert")).toHaveTextContent("Some details need a look. They're marked above.");
+    expect(screen.getByLabelText("Birth date")).toHaveAccessibleDescription("Fill this in.");
+    expect(screen.getByLabelText("Height (cm)")).toHaveAccessibleDescription("Fill this in.");
+    expect(screen.getByLabelText("Birth date")).toHaveFocus();
   });
 });

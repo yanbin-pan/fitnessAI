@@ -291,5 +291,13 @@ export const zh: Messages = {
     signedOut: "你已退出登录。请重新登录后再保存。",
     invalid: "无法保存。请确认每一项都已填写且在范围内。",
     failed: "无法保存，请重试。",
+    required: "请填写此项。",
+    badDate: "请输入有效的日期。",
+    notNumber: "请输入数字。",
+    between: (min: number, max: number) => `应在 ${min} 到 ${max} 之间。`,
+    notNegative: "不能为负数。",
+    badTimezone: "请选择时区。",
+    checkValue: "请检查这个值。",
+    checkFields: "有些信息需要检查，已在上方标出。",
   },
 };

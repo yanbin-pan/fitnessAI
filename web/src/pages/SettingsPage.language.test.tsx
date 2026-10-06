@@ -61,7 +61,7 @@ describe("SettingsPage: language", () => {
     await userEvent.type(screen.getByLabelText("Weight (kg)"), "58");
     await userEvent.selectOptions(screen.getByLabelText("App language"), "Deutsch");
     await waitFor(() => expect(screen.getByRole("heading", { name: "Einstellungen" })).toBeInTheDocument());
-    expect(screen.getByLabelText("Gewicht (kg)")).toHaveValue(58);
+    expect(screen.getByLabelText("Gewicht (kg)")).toHaveValue("58");
   });
 
   it("goes back to the stored language and says so when it can't be saved", async () => {
