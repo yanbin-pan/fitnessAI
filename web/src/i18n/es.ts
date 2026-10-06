@@ -291,5 +291,13 @@ export const es: Messages = {
     signedOut: "Has cerrado sesión. Vuelve a iniciarla y guarda.",
     invalid: "No se ha podido guardar. Comprueba que todos los valores estén rellenos y dentro del rango.",
     failed: "No se ha podido guardar. Inténtalo de nuevo.",
+    required: "Rellena este campo.",
+    badDate: "Introduce una fecha válida.",
+    notNumber: "Introduce un número.",
+    between: (min: number, max: number) => `Entre ${min} y ${max}.`,
+    notNegative: "No puede ser negativo.",
+    badTimezone: "Elige una zona horaria.",
+    checkValue: "Revisa este valor.",
+    checkFields: "Hay datos que revisar: están marcados arriba.",
   },
 };

@@ -291,5 +291,13 @@ export const it: Messages = {
     signedOut: "La sessione è scaduta. Accedi di nuovo, poi salva.",
     invalid: "Impossibile salvare. Controlla che ogni valore sia compilato e nei limiti.",
     failed: "Impossibile salvare. Riprova.",
+    required: "Compila questo campo.",
+    badDate: "Inserisci una data valida.",
+    notNumber: "Inserisci un numero.",
+    between: (min: number, max: number) => `Tra ${min} e ${max}.`,
+    notNegative: "Non può essere negativo.",
+    badTimezone: "Scegli un fuso orario.",
+    checkValue: "Controlla questo valore.",
+    checkFields: "Alcuni dati vanno controllati: sono segnati qui sopra.",
   },
 };

@@ -291,5 +291,13 @@ export const lt: Messages = {
     signedOut: "Atsijungėte. Prisijunkite iš naujo ir išsaugokite.",
     invalid: "Nepavyko išsaugoti. Patikrinkite, ar visos reikšmės užpildytos ir leistinose ribose.",
     failed: "Nepavyko išsaugoti. Bandykite dar kartą.",
+    required: "Užpildykite šį lauką.",
+    badDate: "Įveskite teisingą datą.",
+    notNumber: "Įveskite skaičių.",
+    between: (min: number, max: number) => `Nuo ${min} iki ${max}.`,
+    notNegative: "Negali būti neigiamas.",
+    badTimezone: "Pasirinkite laiko juostą.",
+    checkValue: "Patikrinkite šią reikšmę.",
+    checkFields: "Kai kuriuos duomenis reikia patikrinti – jie pažymėti aukščiau.",
   },
 };

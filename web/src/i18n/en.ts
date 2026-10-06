@@ -315,6 +315,14 @@ export const en = {
     signedOut: "You're signed out. Sign in again, then save.",
     invalid: "Couldn't save. Check that every value is filled in and in range.",
     failed: "Couldn't save. Try again.",
+    required: "Fill this in.",
+    badDate: "Enter a valid date.",
+    notNumber: "Enter a number.",
+    between: (min: number, max: number) => `Between ${min} and ${max}.`,
+    notNegative: "Can't be negative.",
+    badTimezone: "Pick a timezone.",
+    checkValue: "Check this value.",
+    checkFields: "Some details need a look. They're marked above.",
   },
 };
 

@@ -7,7 +7,8 @@ import { kcal10 } from "../format.ts";
 import { LANGUAGE_NAMES, isLanguage, useI18n } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
 import { useProfile } from "../queries.ts";
-import { ACTIVITY_LEVEL_KEYS, BODY_GOALS, LANGUAGES, SEXES } from "../shared.ts";
+import { deviceTimeZone, timeZoneGroups } from "../timezones.ts";
+import { ACTIVITY_LEVEL_KEYS, BODY_GOALS, LANGUAGES, PROFILE_RANGES, SEXES, isIsoDate, isTimeZone } from "../shared.ts";
 import type { Language, MacroTargets, Profile, ProfileInput, ProfileView } from "../shared.ts";
 
 const FIELDS = [
@@ -34,9 +35,60 @@ function formFrom(profile: Profile): Form {
   return form;
 }
 
+/** A new profile starts in the phone's own timezone. */
+function blankForm(): Form {
+  return { ...EMPTY, timezone: deviceTimeZone() ?? EMPTY.timezone };
+}
+
+/** A typed number, taking a decimal comma as well as a point (an Italian or Lithuanian keyboard types "68,5"). */
+function parseNumber(value: string): number {
+  const text = value.trim().replace(",", ".");
+  return text === "" ? Number.NaN : Number(text);
+}
+
+const OVERRIDES = ["override_kcal", "override_protein_g", "override_carbs_g", "override_fat_g", "override_fibre_g"] as const;
+type Errors = Partial<Record<Field, string>>;
+
+/**
+ * What is wrong with the form, field by field, checked here rather than by the browser: iOS can refuse to submit a
+ * form without saying why, which looks like Save doing nothing. The ranges are the server's own (PROFILE_RANGES).
+ */
+function validate(form: Form, t: Messages): Errors {
+  const errors: Errors = {};
+  if (form.birth_date.trim() === "") errors.birth_date = t.settings.required;
+  else if (!isIsoDate(form.birth_date)) errors.birth_date = t.settings.badDate;
+  for (const [field, [min, max]] of Object.entries(PROFILE_RANGES) as [keyof typeof PROFILE_RANGES, readonly [number, number]][]) {
+    // The rate is only asked for, and only sent, when losing or gaining.
+    if (field === "goal_rate_kg_week" && form.goal === "maintain") continue;
+    const value = parseNumber(form[field]);
+    if (form[field].trim() === "") errors[field] = t.settings.required;
+    else if (Number.isNaN(value)) errors[field] = t.settings.notNumber;
+    else if (value < min || value > max) errors[field] = t.settings.between(min, max);
+  }
+  for (const field of OVERRIDES) {
+    if (form[field].trim() === "") continue;
+    const value = parseNumber(form[field]);
+    if (Number.isNaN(value)) errors[field] = t.settings.notNumber;
+    else if (value < 0) errors[field] = t.settings.notNegative;
+  }
+  if (!isTimeZone(form.timezone.trim())) errors.timezone = t.settings.badTimezone;
+  return errors;
+}
+
+/** The fields a 400 from the server names, should it refuse something the form let through. */
+function serverErrors(error: unknown, t: Messages): Errors {
+  const errors: Errors = {};
+  if (!(error instanceof ApiError) || error.code !== "invalid_request") return errors;
+  for (const issue of error.issues ?? []) {
+    const field = FIELDS.find((f) => f === issue.path);
+    if (field) errors[field] = t.settings.checkValue;
+  }
+  return errors;
+}
+
 function payloadFrom(form: Form, previous: Profile | null, language: Language): ProfileInput {
-  const number = (field: Field) => Number(form[field]);
-  const optional = (field: Field) => (form[field].trim() === "" ? null : Number(form[field]));
+  const number = (field: Field) => parseNumber(form[field]);
+  const optional = (field: Field) => (form[field].trim() === "" ? null : parseNumber(form[field]));
   return {
     ...previous, // keeps the settings this screen does not show yet
     sex: form.sex as Profile["sex"],
@@ -78,12 +130,64 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function TextField({ label, ...input }: { label: string } & InputHTMLAttributes<HTMLInputElement>) {
+/** The message under a field the form or the server refused. */
+function FieldError({ id, error }: { id: string; error: string | undefined }) {
+  return error ? (
+    <span id={id} className="mt-1 block text-xs text-danger">
+      {error}
+    </span>
+  ) : null;
+}
+
+function TextField({ label, error, ...input }: { label: string; error?: string } & InputHTMLAttributes<HTMLInputElement>) {
+  const errorId = `${input.name ?? label}-error`;
+  // The message sits outside the label, so it never becomes part of the field's name.
   return (
-    <label className="block text-sm">
-      {label}
-      <input {...input} className={fieldClass} />
-    </label>
+    <div>
+      <label className="block text-sm">
+        {label}
+        <input {...input} aria-invalid={error ? true : undefined} aria-describedby={error ? errorId : undefined} className={fieldClass} />
+      </label>
+      <FieldError id={errorId} error={error} />
+    </div>
+  );
+}
+
+/** A number typed on the phone's decimal keypad. Text, not type="number", so a decimal comma reaches the form intact. */
+function NumberField(props: { label: string; error?: string } & InputHTMLAttributes<HTMLInputElement>) {
+  return <TextField type="text" inputMode="decimal" autoComplete="off" {...props} />;
+}
+
+/** The timezone, picked from the list the phone knows (grouped by region), or typed where it can't list them. */
+function TimezoneField({ label, value, error, onChange }: { label: string; value: string; error?: string; onChange: (value: string) => void }) {
+  const groups = timeZoneGroups(value);
+  if (!groups) return <TextField name="timezone" label={label} value={value} error={error} onChange={(event) => onChange(event.target.value)} />;
+  return (
+    <div>
+      <label className="block text-sm">
+        {label}
+        <select
+          name="timezone"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? "timezone-error" : undefined}
+          className={fieldClass}
+        >
+          {!isTimeZone(value) && <option value={value}>{value}</option>}
+          {groups.map((group) => (
+            <optgroup key={group.region} label={group.region}>
+              {group.zones.map((zone) => (
+                <option key={zone.value} value={zone.value}>
+                  {zone.label}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </label>
+      <FieldError id="timezone-error" error={error} />
+    </div>
   );
 }
 
@@ -108,7 +212,9 @@ export function SettingsPage() {
   const client = useQueryClient();
   const { language, t, choose } = useI18n();
   const profile = useProfile();
-  const [form, setForm] = useState<Form>(EMPTY);
+  const [form, setForm] = useState<Form>(blankForm);
+  const [errors, setErrors] = useState<Errors>({});
+  const formRef = useRef<HTMLFormElement>(null);
   const [calculated, setCalculated] = useState<MacroTargets | null>(null);
   // The stored values the form last took. Changing the language saves the profile on its own, and that must not
   // throw away what is being typed in the rest of the form: only a change to what the form shows is copied in.
@@ -133,6 +239,7 @@ export function SettingsPage() {
       setCalculated(view.calculated);
       void client.invalidateQueries({ queryKey: ["day"] });
     },
+    onError: (error) => setErrors(serverErrors(error, t)),
   });
 
   // The app speaks the new language at once. With a profile saved, the choice is saved straight away too (every phone
@@ -159,24 +266,38 @@ export function SettingsPage() {
     if (profile.data) saveLanguage.mutate(value);
   };
 
-  const bind = (field: Field) => ({
-    value: form[field],
-    onChange: (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      if (!save.isPending) save.reset();
-      setForm({ ...form, [field]: event.target.value });
-    },
-  });
-  const pick = (field: Field) => (value: string) => {
+  const change = (field: Field, value: string) => {
     if (!save.isPending) save.reset();
     setForm({ ...form, [field]: value });
+    // A corrected field stops being marked; the others keep their message until the next Save.
+    if (errors[field]) setErrors({ ...errors, [field]: undefined });
   };
+  const bind = (field: Field) => ({
+    name: field,
+    value: form[field],
+    error: errors[field],
+    onChange: (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => change(field, event.target.value),
+  });
+  const pick = (field: Field) => (value: string) => change(field, value);
   const hint = (key: keyof MacroTargets, unit: string) =>
     calculated ? t.settings.calculated(key === "kcal" ? kcal10(calculated.kcal) : Math.round(calculated[key]), unit) : "";
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const found = validate(form, t);
+    setErrors(found);
+    if (Object.keys(found).length > 0) {
+      save.reset();
+      // Take the person to the first thing to fix, which may be far above the Save button.
+      const first = FIELDS.find((field) => found[field]);
+      const input = first ? formRef.current?.querySelector<HTMLElement>(`[name="${first}"]`) : null;
+      input?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+      input?.focus({ preventScroll: true });
+      return;
+    }
     save.mutate();
   }
+  const hasErrors = Object.values(errors).some(Boolean);
 
   if (profile.isPending) return <main className="p-6 text-muted">{t.common.loading}</main>;
   // No stored profile is `null` (404 no_profile). `undefined` after the load settled means it failed: do not show the blank form,
@@ -197,7 +318,7 @@ export function SettingsPage() {
   return (
     <main className="mx-auto max-w-xl px-4 pb-28 pt-[calc(env(safe-area-inset-top)_+_1rem)]">
       <h1 className="text-xl font-semibold">{t.settings.title}</h1>
-      <form onSubmit={submit} className="mt-4 flex flex-col gap-6">
+      <form ref={formRef} onSubmit={submit} noValidate className="mt-4 flex flex-col gap-6">
         <Section title={t.settings.language}>
           <SelectField
             label={t.settings.languageField}
@@ -219,9 +340,9 @@ export function SettingsPage() {
             onChange={pick("sex")}
             options={SEXES.map((value) => ({ value, label: t.settings[value] }))}
           />
-          <TextField label={t.settings.birthDate} type="date" required {...bind("birth_date")} />
-          <TextField label={t.settings.height} type="number" step="0.1" required {...bind("height_cm")} />
-          <TextField label={t.settings.weight} type="number" step="0.1" required {...bind("weight_kg")} />
+          <TextField label={t.settings.birthDate} type="date" {...bind("birth_date")} />
+          <NumberField label={t.settings.height} {...bind("height_cm")} />
+          <NumberField label={t.settings.weight} {...bind("weight_kg")} />
           <SelectField
             label={t.settings.activityLevel}
             options={ACTIVITY_LEVEL_KEYS.map((value) => ({ value, label: t.settings.levels[value] }))}
@@ -235,23 +356,28 @@ export function SettingsPage() {
             onChange={pick("goal")}
             options={BODY_GOALS.map((value) => ({ value, label: t.settings.goals[value] }))}
           />
-          {form.goal !== "maintain" && <TextField label={t.settings.rate} type="number" step="0.05" required {...bind("goal_rate_kg_week")} />}
+          {form.goal !== "maintain" && <NumberField label={t.settings.rate} {...bind("goal_rate_kg_week")} />}
         </Section>
         <Section title={t.settings.targets}>
-          <TextField label={t.settings.protein} type="number" step="0.1" required {...bind("protein_g_per_kg")} />
-          <TextField label={t.settings.fat} type="number" required {...bind("fat_pct")} />
-          <TextField label={t.settings.fibre} type="number" required {...bind("fibre_g")} />
-          <TextField label={t.settings.addBack} type="number" required {...bind("add_back_pct")} />
+          <NumberField label={t.settings.protein} {...bind("protein_g_per_kg")} />
+          <NumberField label={t.settings.fat} {...bind("fat_pct")} />
+          <NumberField label={t.settings.fibre} {...bind("fibre_g")} />
+          <NumberField label={t.settings.addBack} {...bind("add_back_pct")} />
           <p className="text-xs text-muted">{t.settings.overrideNote}</p>
-          <TextField label={t.settings.overrideKcal} type="number" placeholder={hint("kcal", t.units.kcal)} {...bind("override_kcal")} />
-          <TextField label={t.settings.overrideProtein} type="number" placeholder={hint("protein_g", t.units.g)} {...bind("override_protein_g")} />
-          <TextField label={t.settings.overrideCarbs} type="number" placeholder={hint("carbs_g", t.units.g)} {...bind("override_carbs_g")} />
-          <TextField label={t.settings.overrideFat} type="number" placeholder={hint("fat_g", t.units.g)} {...bind("override_fat_g")} />
-          <TextField label={t.settings.overrideFibre} type="number" placeholder={hint("fibre_g", t.units.g)} {...bind("override_fibre_g")} />
+          <NumberField label={t.settings.overrideKcal} placeholder={hint("kcal", t.units.kcal)} {...bind("override_kcal")} />
+          <NumberField label={t.settings.overrideProtein} placeholder={hint("protein_g", t.units.g)} {...bind("override_protein_g")} />
+          <NumberField label={t.settings.overrideCarbs} placeholder={hint("carbs_g", t.units.g)} {...bind("override_carbs_g")} />
+          <NumberField label={t.settings.overrideFat} placeholder={hint("fat_g", t.units.g)} {...bind("override_fat_g")} />
+          <NumberField label={t.settings.overrideFibre} placeholder={hint("fibre_g", t.units.g)} {...bind("override_fibre_g")} />
         </Section>
         <Section title={t.settings.time}>
-          <TextField label={t.settings.timezone} required {...bind("timezone")} />
+          <TimezoneField label={t.settings.timezone} value={form.timezone} error={errors.timezone} onChange={pick("timezone")} />
         </Section>
+        {hasErrors && !save.isError && (
+          <p role="alert" className="text-sm text-danger">
+            {t.settings.checkFields}
+          </p>
+        )}
         {save.isError && (
           <p role="alert" className="text-sm text-danger">
             {saveError(save.error, t)}

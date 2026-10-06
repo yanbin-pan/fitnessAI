@@ -34,3 +34,12 @@ export function daysBetween(from: string, to: string): number {
 export function chatOpen(date: string, today: string): boolean {
   return date <= today && daysBetween(date, today) <= CHAT_WINDOW_DAYS;
 }
+
+export function isTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-GB", { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}

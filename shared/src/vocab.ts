@@ -63,6 +63,17 @@ export const MAX_BACKDATE_DAYS = 7;
  */
 export const CHAT_WINDOW_DAYS = 3;
 
+/** The accepted range of each number in the profile, shared by the server's check and the settings form's. */
+export const PROFILE_RANGES = {
+  height_cm: [100, 250],
+  weight_kg: [30, 300],
+  goal_rate_kg_week: [0, 1],
+  protein_g_per_kg: [0.5, 3.5],
+  fat_pct: [15, 50],
+  fibre_g: [0, 80],
+  add_back_pct: [0, 100],
+} as const satisfies Record<string, readonly [number, number]>;
+
 /** How many photos one message can carry (spec §6.5). */
 export const MAX_PHOTOS_PER_MESSAGE = 4;
 
