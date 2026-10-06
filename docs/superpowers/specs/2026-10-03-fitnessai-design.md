@@ -885,11 +885,12 @@ Tabs: **Today · Trends · Goals · Body · Settings**.
     accessible name says it in words ("3 October: 1,317 of 2,320 kcal, within target").
   - A summary header: calories eaten against the adjusted target (with the add-back
     shown), protein / carbs / fat / fibre bars, and burn.
-  - **The activities card**, under the summary, only when the day has exercise: "Activity"
-    and the day's total burned, then one badge per activity in time order with its kcal
-    underneath (an entry with several exercises of one activity — a gym session — is one
-    badge with their total). Tapping a badge presses it in and opens a panel inside the
-    card: the name, time, minutes, kcal and MET, each exercise's sets × reps × weight or
+  - **The activity badges**, under the summary, only when the day has exercise: one badge
+    per activity in time order with its kcal underneath, floating centred on the page with
+    no card of their own, so a day with one workout shows one badge rather than an empty
+    card (an entry with several exercises of one activity — a gym session — is one badge
+    with their total). The day's total burned is the summary's exercise line. Tapping a
+    badge presses it in and opens a panel beneath the badges: the name, time, minutes, kcal and MET, each exercise's sets × reps × weight or
     distance when known, the coach's assumption, and **Edit** (the entry editor). Tapping
     it again closes the panel; tapping another switches. Each badge is a button named
     like "Tennis singles, 788 kcal". The exercise cards stay in the feed.

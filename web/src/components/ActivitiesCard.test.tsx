@@ -28,10 +28,12 @@ describe("ActivitiesCard", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("shows each activity's badge with its kcal, and the day's total burned", () => {
+  it("shows each activity's badge with its kcal, floating on the page rather than in a card", () => {
     render(<ActivitiesCard view={dayView({ entries: [tennis, gym, kite] })} onEdit={() => {}} />);
     const card = screen.getByRole("region", { name: "Activity" });
-    expect(within(card).getByText("1,908 kcal")).toBeInTheDocument();
+    expect(card).not.toHaveClass("raised");
+    // The day's total is in the summary's exercise line, not repeated here.
+    expect(within(card).queryByText("1,908 kcal")).toBeNull();
     expect(within(card).getByRole("button", { name: "Tennis singles, 788 kcal" })).toHaveTextContent("788");
     expect(within(card).getByRole("button", { name: "Bench press, Rows, 220 kcal" })).toBeInTheDocument();
   });
