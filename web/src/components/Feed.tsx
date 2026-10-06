@@ -32,6 +32,20 @@ interface FeedProps {
   onUndo?: (entryIds: string[]) => void;
   /** The message whose retry is on its way: its Retry stays disabled until the request ends. */
   retrying?: string | null;
+  /** Zabaione's hello at the top of today's chat (the name and greeting design, 3B); never stored, made on the phone. */
+  greeting?: string | null;
+}
+
+/** Zabaione's hello, drawn like one of its replies. */
+function Greeting({ text }: { text: string }) {
+  return (
+    <div className="mr-6 flex items-start gap-2">
+      <span className="raised-sm flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-accent-ink">
+        <Icon name="sports" size={16} />
+      </span>
+      <p className="pt-0.5">{text}</p>
+    </div>
+  );
 }
 
 function PhotoThumb({ id, index, single }: { id: string; index: number; single: boolean }) {
@@ -145,7 +159,7 @@ function Bubble({
   );
 }
 
-export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying }: FeedProps) {
+export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying, greeting }: FeedProps) {
   const t = useT();
   const items = buildFeed(view, logOnly);
   // A card can point at an entry dated another day (back-dated), which travels in linked_entries.
@@ -157,6 +171,16 @@ export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying }: FeedP
     !logOnly && !open && view.date < view.today ? (
       <p className="px-4 pb-4 text-center text-xs text-muted">{t.feed.kept}</p>
     ) : null;
+  // The hello belongs to the chat, so Log only leaves it out.
+  const hello = greeting && !logOnly ? greeting : null;
+  // A greeting already invites the first message, so it stands in for the empty-day text.
+  if (items.length === 0 && hello) {
+    return (
+      <div className="px-4 py-4">
+        <Greeting text={hello} />
+      </div>
+    );
+  }
   if (items.length === 0) {
     return (
       <>
@@ -170,6 +194,11 @@ export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying }: FeedP
   return (
     <>
       <ol className="flex flex-col gap-3 px-4 py-4">
+        {hello && (
+          <li>
+            <Greeting text={hello} />
+          </li>
+        )}
         {items.map((item) =>
           item.kind === "entry" ? (
             <li key={`e-${item.entry.id}`}>

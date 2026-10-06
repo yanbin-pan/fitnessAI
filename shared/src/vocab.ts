@@ -74,6 +74,9 @@ export const PROFILE_RANGES = {
   add_back_pct: [0, 100],
 } as const satisfies Record<string, readonly [number, number]>;
 
+/** The longest name Zabaione keeps for the person. */
+export const MAX_NAME_LENGTH = 40;
+
 /** How many photos one message can carry (spec §6.5). */
 export const MAX_PHOTOS_PER_MESSAGE = 4;
 

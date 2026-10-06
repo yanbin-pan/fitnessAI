@@ -30,6 +30,8 @@ export const profile = sqliteTable("profile", {
   context_days: integer().notNull(),
   goal_notes: text().notNull(),
   language: text().notNull().default("en"),
+  name: text(),
+  name_prompt: text().notNull().default("show"),
   updated_at: text().notNull(),
 });
 

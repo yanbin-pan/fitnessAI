@@ -54,6 +54,8 @@ function goalText(profile: Profile): string {
 export function buildSystemPrompt(profile: Profile, date: string): string {
   const about = [
     `About the person (as of ${date}):`,
+    // Quoted, so a name is only ever read as a name. Used sparingly: a greeting or a well done, not every reply.
+    ...(profile.name ? [`- They like to be called ${JSON.stringify(profile.name)}; use it now and then, not in every reply`] : []),
     `- ${profile.sex}, ${ageOn(profile.birth_date, date)} years, ${profile.height_cm} cm, ${profile.weight_kg} kg`,
     `- Body goal: ${goalText(profile)}`,
     `- Everyday activity, excluding workouts: ${profile.activity_level}`,

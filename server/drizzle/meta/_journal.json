@@ -50,6 +50,13 @@
       "when": 1791286587766,
       "tag": "0006_food_micros",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1791322638140,
+      "tag": "0007_profile_name",
+      "breakpoints": true
     }
   ]
 }

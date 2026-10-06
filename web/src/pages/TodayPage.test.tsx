@@ -416,3 +416,70 @@ describe("TodayPage", () => {
     expect(await screen.findByText("Scrambled eggs")).toBeInTheDocument();
   });
 });
+
+describe("TodayPage: the name and the greeting", () => {
+  const stored = {
+    sex: "male", birth_date: "1990-05-04", height_cm: 178, weight_kg: 80, activity_level: "light", goal: "maintain",
+    goal_rate_kg_week: 0, body_goal_priority: "high", protein_g_per_kg: 1.8, fat_pct: 30, fibre_g: 30, add_back_pct: 50,
+    override_kcal: null, override_protein_g: null, override_carbs_g: null, override_fat_g: null, override_fibre_g: null,
+    timezone: "Europe/London", units_mass: "kg", units_length: "cm", context_days: 5, goal_notes: "on", language: "en",
+    name: null, name_prompt: "show",
+  } as const;
+  const calculated = { kcal: 2300, protein_g: 144, carbs_g: 260, fat_g: 70, fibre_g: 30 };
+
+  it("asks once for the name, and the hello uses it straight away", async () => {
+    const puts: Record<string, unknown>[] = [];
+    mockFetch((url, init) => {
+      if (init?.method === "PUT") {
+        const body = JSON.parse(String(init.body));
+        puts.push(body);
+        return jsonResponse({ profile: body, calculated });
+      }
+      return jsonResponse(dayView());
+    });
+    const { client } = renderDay();
+    client.setQueryData(["profile"], { profile: stored, calculated });
+    await userEvent.type(await screen.findByPlaceholderText("Your name"), "Bin");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.queryByText("Hey, what should Zabaione call you?")).toBeNull());
+    expect(puts[0]).toMatchObject({ name: "Bin", name_prompt: "done", height_cm: 178 });
+    expect(screen.getByText(/Bin/)).toBeInTheDocument();
+  });
+
+  it("Not now settles it without a name", async () => {
+    const puts: Record<string, unknown>[] = [];
+    mockFetch((_url, init) => {
+      if (init?.method === "PUT") {
+        const body = JSON.parse(String(init.body));
+        puts.push(body);
+        return jsonResponse({ profile: body, calculated });
+      }
+      return jsonResponse(dayView());
+    });
+    const { client } = renderDay();
+    client.setQueryData(["profile"], { profile: stored, calculated });
+    await userEvent.click(await screen.findByRole("button", { name: "Not now" }));
+    await waitFor(() => expect(screen.queryByText("Hey, what should Zabaione call you?")).toBeNull());
+    expect(puts[0]).toMatchObject({ name: null, name_prompt: "done" });
+  });
+
+  it("doesn't ask on another day, and greets only on today, never in Log only", async () => {
+    mockFetch((url) => jsonResponse(url.endsWith("/today") ? dayView() : dayView({ date: "2026-10-02" })));
+    const { client } = renderDay("/day/2026-10-02");
+    client.setQueryData(["profile"], { profile: { ...stored, name: "Bin" }, calculated });
+    expect(await screen.findByText("Yesterday")).toBeInTheDocument();
+    expect(screen.queryByText("Hey, what should Zabaione call you?")).toBeNull();
+    expect(screen.queryByText(/Bin/)).toBeNull();
+  });
+
+  it("puts Zabaione's hello at the top of today's chat, with the name, and Log only hides it", async () => {
+    mockFetch(() => jsonResponse(dayView({ entries: [named("a", "Scrambled eggs", { message_id: "m1" })], messages: [question] })));
+    const { client } = renderDay();
+    client.setQueryData(["profile"], { profile: { ...stored, name: "Bin", name_prompt: "done" }, calculated });
+    const hello = await screen.findByText(/Bin/);
+    const feed = hello.closest("ol");
+    expect(feed?.firstElementChild).toContainElement(hello);
+    await userEvent.click(screen.getByRole("switch", { name: "Log only" }));
+    expect(screen.queryByText(/Bin/)).toBeNull();
+  });
+});
