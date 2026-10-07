@@ -1,6 +1,9 @@
 export const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
 export type Effort = (typeof EFFORTS)[number];
 
+/** The model the coach and the insights call when ANTHROPIC_MODEL is unset; its list price is in ai/pricing.ts. */
+export const DEFAULT_MODEL = "claude-opus-5-5";
+
 export interface AccessConfig {
   teamDomain: string;
   audience: string;
@@ -111,7 +114,7 @@ export function loadConfig(env: Env): Config {
     ownerEmail: owner,
     anthropic: {
       apiKey: trimmed(env, "ANTHROPIC_API_KEY"),
-      model: trimmed(env, "ANTHROPIC_MODEL") ?? "claude-opus-5-5",
+      model: trimmed(env, "ANTHROPIC_MODEL") ?? DEFAULT_MODEL,
       effort: effort as Effort,
     },
     coachBudgetMs: positiveInt(env, "COACH_BUDGET_MS", 90_000),

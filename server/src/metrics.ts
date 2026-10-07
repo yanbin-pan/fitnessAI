@@ -106,8 +106,9 @@ export interface Spend {
 
 /**
  * Each person's estimated Anthropic spend so far, worked out again from their usage records on every scrape. Those
- * records are kept for good, so the total survives restarts and only grows as calls are made, which is what a
- * Prometheus counter has to do; increase() then gives the spend over any window.
+ * records are kept for good, so the total survives restarts and, while the prices stay the same, only grows as calls
+ * are made: what a Prometheus counter has to do, so increase() gives the spend over any window. Editing a price
+ * re-prices everything recorded so far (ai/pricing.ts); a cut makes the series fall, which Prometheus reads as a reset.
  */
 export function registerSpend(metrics: Metrics, read: () => Spend[]): void {
   new Counter<"person" | "role">({

@@ -79,7 +79,7 @@ npm run icons --workspace web  # after changing web/public/logo.svg
 | `ALLOWED_EMAILS` | unset (the owner alone) | Friends and family who may also sign in, comma-separated (see [Friends and family](#friends-and-family)) |
 | `AI_DAILY_CALL_CAP` / `GUEST_DAILY_CALL_CAP` | `200` / `60` | Claude calls a day for the owner / for each guest |
 | `ANTHROPIC_API_KEY` | unset | Turns the coach on |
-| `ANTHROPIC_MODEL` / `ANTHROPIC_EFFORT` | `claude-opus-5-5` / `medium` | `claude-sonnet-5-5` roughly halves the cost; a new model needs its list price in `server/src/ai/pricing.ts` (a test checks the one in `k8s/30-app.yaml`) |
+| `ANTHROPIC_MODEL` / `ANTHROPIC_EFFORT` | `claude-opus-5-5` / `medium` | `claude-sonnet-5-5` costs about 40–50% less here (cache reads cost the same on both); a new model needs its list price in `server/src/ai/pricing.ts` (a test checks the one in `k8s/30-app.yaml`) |
 | `DATA_DIR` | `./.data` | Everyone's databases, photos and snapshots |
 | `PORT` / `METRICS_PORT` | `8080` / `9464` | App and Prometheus ports |
 | `COACH_BUDGET_MS` | `90000` | Time one coach message may take |
@@ -124,9 +124,13 @@ owner's Anthropic key. Usage per person shows on the fitnessAI Grafana dashboard
 id: `printf %s 'friend@example.com' | sha256sum | cut -c1-8`.
 
 The dashboard also estimates the Anthropic spend, in total and per person. The estimate
-prices every model call in each person's usage records (coach and weekly insights, kept
-since 2026-10-05) at the list prices in `server/src/ai/pricing.ts`. The bill in the
-Claude Console is the authority.
+prices every model call recorded in each person's usage records (coach and weekly
+insights, kept since 2026-10-05) at the list prices in `server/src/ai/pricing.ts`. A
+request a fallback model answered is priced at that model's rate, and a call that never
+came back (a timeout) has no tokens recorded. Editing a price re-prices everything already
+recorded, so the panels jump once. After a price cut, the 24 h and 7-day panels show the
+whole total until that moment is more than 7 days old, when Prometheus drops it. The bill in
+the Claude Console is the authority.
 
 **Adding someone** — both lists, because the app checks its own as well as Cloudflare's:
 
