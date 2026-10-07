@@ -4,9 +4,10 @@ import { createVerifier, devVerifier } from "./auth/access.ts";
 import { loadConfig } from "./config.ts";
 import { moveOwnerIn } from "./db/location.ts";
 import { startInsights, startNightlySnapshot, startRetention } from "./jobs.ts";
-import { createMetrics, seedPeople, serveMetrics } from "./metrics.ts";
+import { createMetrics, registerSpend, seedPeople, serveMetrics } from "./metrics.ts";
 import { createPeople, personKey, shortKey } from "./people/people.ts";
 import { getProfile } from "./profile/profile.ts";
+import { spendByPerson } from "./spend.ts";
 
 const config = loadConfig(process.env);
 // The development sign-in bypass must never be reachable from the network.
@@ -42,6 +43,16 @@ const app = buildApp({
   metrics,
   logger: true,
 });
+// Each person's spend so far, priced from their usage records whenever Prometheus scrapes. A model with no list price
+// is named in the log once, not on every scrape.
+const unpriced = new Set<string>();
+registerSpend(metrics, () =>
+  spendByPerson(people, ownerKey, (model) => {
+    if (unpriced.has(model)) return;
+    unpriced.add(model);
+    app.log.warn({ model }, "no list price for this model, so the spend estimate leaves its calls out; add it to src/ai/pricing.ts");
+  }),
+);
 if (move === "moved") app.log.info("moved the owner's data into users/ (milestone 2.2)");
 if (move === "both") app.log.warn("found data in both data/db and the owner's folder under data/users; using the owner's folder. Check the old data/db, data/photos and data/snapshots aren't needed, then remove them");
 

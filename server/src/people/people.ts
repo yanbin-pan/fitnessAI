@@ -44,6 +44,8 @@ export interface People {
   store(key: string): Store;
   /** Every person's folder under users/, by key, sorted. */
   keys(): string[];
+  /** The stores open now (startup opens everyone's), so a reader can skip opening any. */
+  opened(): Store[];
   /** Only startup may wait out an old pod's lock (P2); afterwards a locked database is refused at once. */
   stopWaitingForLocks(): void;
   close(): void;
@@ -90,6 +92,9 @@ export function createPeople(opts: { dataDir: string }): People {
         .filter((entry) => entry.isDirectory() && PERSON_KEY.test(entry.name))
         .map((entry) => entry.name)
         .sort();
+    },
+    opened() {
+      return [...open.values()].map(({ store: opened }) => opened);
     },
     stopWaitingForLocks() {
       lockWaitMs = 0;

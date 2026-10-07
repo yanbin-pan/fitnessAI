@@ -1205,9 +1205,17 @@ No DNS or tunnel changes in either.
 - Structured logs from Fastify (pino).
 - Prometheus metrics: HTTP request counts and latency; coach calls; failures by error code;
   tokens and estimated cost; ingest counts and the time of the last successful sync.
+- Estimated cost: `fitnessai_ai_cost_dollars_total{person, role}`. Every scrape prices each
+  person's usage records (`ai_usage`: every model call, the coach's and the weekly
+  insights') at the list prices in `server/src/ai/pricing.ts`, with cache writes at the
+  5-minute rate. Those records are kept for good, so the counter holds the total since
+  2026-10-05, survives restarts, and doesn't depend on Prometheus's 7-day retention. A model
+  with no price is logged once and left out; a test fails if the model in
+  `k8s/30-app.yaml` has none.
 - A Grafana dashboard (home-cluster `infra/monitoring/dashboards/fitnessai-usage.yaml`) shows
   active people, each person's requests, coach messages, model calls against their cap, cap
-  refusals and tokens, by short id, and the app's traffic, errors, latency and memory.
+  refusals, tokens and estimated spend, by short id, and the app's traffic, errors, latency
+  and memory.
 
 ---
 
