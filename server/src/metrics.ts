@@ -98,6 +98,32 @@ export function seedPeople(metrics: Metrics, people: { key: string; owner: boole
   }
 }
 
+/** One person's estimated Anthropic spend so far, in US dollars. */
+export interface Spend {
+  labels: PersonLabels;
+  dollars: number;
+}
+
+/**
+ * Each person's estimated Anthropic spend so far, worked out again from their usage records on every scrape. Those
+ * records are kept for good, so the total survives restarts and, while the prices stay the same, only grows as calls
+ * are made: what a Prometheus counter has to do, so increase() gives the spend over any window. Editing a price
+ * re-prices everything recorded so far (ai/pricing.ts); a cut makes the series fall, which Prometheus reads as a reset.
+ */
+export function registerSpend(metrics: Metrics, read: () => Spend[]): void {
+  new Counter<"person" | "role">({
+    name: "fitnessai_ai_cost_dollars_total",
+    help: "Estimated Anthropic API spend in US dollars at list prices, from each person's recorded model usage (coach and insights)",
+    labelNames: ["person", "role"],
+    registers: [metrics.registry],
+    collect() {
+      this.reset();
+      // Exactly these two labels, whatever else the caller's object carries.
+      for (const { labels, dollars } of read()) this.inc({ person: labels.person, role: labels.role }, dollars);
+    },
+  });
+}
+
 /** Prometheus scrapes this port; no Ingress routes to it, so it is never public (spec §13). */
 export function serveMetrics(metrics: Metrics, port: number, host = "0.0.0.0"): Promise<http.Server> {
   const server = http.createServer((req, res) => {

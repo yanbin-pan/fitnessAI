@@ -90,7 +90,7 @@ one and stays behind Access too.
 |---|---|---|
 | D1 | PWA, mobile-first; the owner plus a few invited people, each with their own data (D23) | Logging happens on the phone; no app store; one owner, who invites. |
 | D2 | TypeScript in one container: React PWA + Fastify + SQLite (Drizzle on better-sqlite3) | SQLite on NFS forces a single replica, so a separate frontend container buys nothing. Same language as tea-cabinet, so its CI, Access verification and Claude patterns carry over. |
-| D3 | Claude API, model set by environment (default `claude-opus-5-5`) | Best estimates; runs fine from a Pi. Switching to `claude-sonnet-5-5` roughly halves cost. |
+| D3 | Claude API, model set by environment (default `claude-opus-5-5`) | Best estimates; runs fine from a Pi. Switching to `claude-sonnet-5-5` costs about 40–50% less (cache reads cost the same on both). |
 | D4 | Voice through phone keyboard dictation | The Claude API accepts text, images and PDFs but not audio; on-cluster Whisper would be slow on Pi 4s. |
 | D5 | One composer; the coach decides whether to log or advise | The owner wants to log ("I ate this for lunch") and consult ("should I have a Big Mac?") in the same place. |
 | D6 | Statements of fact are logged immediately with Undo; questions, hypotheticals and goal plans produce drafts | Owner preference: save immediately, edit later. Hypotheticals never pollute the log, and nothing changes your goals without approval. |
@@ -332,12 +332,14 @@ photo), `media_type` (`image/jpeg` / `image/png`), `bytes`, `width`, `height`, `
 The file is `photos/<id>.jpg` or `.png` in the person's folder (`/data/users/<key>/photos/`);
 the row and the file are deleted together.
 
-**`ai_usage`** — one row per coach run that reached Claude, success or failure: `id`,
+**`ai_usage`** — one row per run that reached Claude, success or failure: each coach
+message's run, and each weekly insights call (`message_id` `insights:<week>`): `id`,
 `date` (the person's local date when the run started: the day its calls count against),
 `message_id`, `model` (the model that last answered; null when none did), `calls` (model
 calls made), `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`,
-`created_at`; `cost_usd_estimate` arrives with the cost display (milestone 3). Kept when
-its message is deleted, so the cap and cost history survive (milestone 2.2).
+`created_at`. No cost column: the spend estimate prices these tokens at list prices
+whenever Prometheus scrapes (§14.5). Kept when its message is deleted, so the cap and
+cost history survive (milestone 2.2).
 
 **`sync_log`** — `id`, `received_at`, `workouts_upserted`, `metrics_upserted`,
 `items_skipped`, `error`.
@@ -1205,9 +1207,23 @@ No DNS or tunnel changes in either.
 - Structured logs from Fastify (pino).
 - Prometheus metrics: HTTP request counts and latency; coach calls; failures by error code;
   tokens and estimated cost; ingest counts and the time of the last successful sync.
+- Estimated cost: `fitnessai_ai_cost_dollars_total{person, role}`. Every scrape prices each
+  person's usage records (`ai_usage`: every recorded model call, the coach's and the
+  weekly insights') at the list prices in `server/src/ai/pricing.ts`, with cache writes at
+  the 5-minute rate. A request a fallback model answered is priced at that model's rate.
+  Those records are kept for good, so the counter holds the total since 2026-10-05, survives
+  restarts, and doesn't depend on Prometheus's 7-day retention.
+  - **Gaps:** a call that never came back has no tokens recorded. A model with no price is
+    logged once and left out; a test fails if the model in `k8s/30-app.yaml` has none. A
+    person whose records can't be read is logged once and left out of that scrape, never
+    shown as 0, so the rest of `/metrics` still answers.
+  - **Price edits:** editing a price re-prices everything already recorded. After a cut,
+    increase() reads the drop as a counter reset, and windowed panels show the whole total
+    until that moment is more than 7 days old.
 - A Grafana dashboard (home-cluster `infra/monitoring/dashboards/fitnessai-usage.yaml`) shows
   active people, each person's requests, coach messages, model calls against their cap, cap
-  refusals and tokens, by short id, and the app's traffic, errors, latency and memory.
+  refusals, tokens and estimated spend, by short id, and the app's traffic, errors, latency
+  and memory.
 
 ---
 

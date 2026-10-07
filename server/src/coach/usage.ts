@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { eq, sql as rawSql } from "drizzle-orm";
+import type { AnyColumn } from "drizzle-orm";
 import type { AiUsage } from "../ai/client.ts";
 import { aiUsage } from "../db/schema.ts";
 import type { Sql } from "../db/types.ts";
@@ -42,4 +43,24 @@ export function callsOn(sql: Sql, date: string): number {
     .where(eq(aiUsage.date, date))
     .get();
   return row?.calls ?? 0;
+}
+
+/** Every token recorded so far, per model (null for runs where no call came back): what the spend estimate prices. */
+export function tokensByModel(sql: Sql): { model: string | null; usage: AiUsage }[] {
+  const total = (column: AnyColumn) => rawSql<number>`coalesce(sum(${column}), 0)`.mapWith(Number);
+  return sql
+    .select({
+      model: aiUsage.model,
+      input: total(aiUsage.input_tokens),
+      output: total(aiUsage.output_tokens),
+      cacheRead: total(aiUsage.cache_read_tokens),
+      cacheWrite: total(aiUsage.cache_write_tokens),
+    })
+    .from(aiUsage)
+    .groupBy(aiUsage.model)
+    .all()
+    .map((row) => ({
+      model: row.model,
+      usage: { input_tokens: row.input, output_tokens: row.output, cache_read_input_tokens: row.cacheRead, cache_creation_input_tokens: row.cacheWrite },
+    }));
 }
