@@ -349,6 +349,8 @@ export const fr: Messages = {
     },
     streak: (days: number, of: number) => `${days} jours sur ${of} dans l’objectif avant « Au top »`,
     rule: "Suit votre moyenne sur 7 jours, pas une seule journée.",
+    alcohol: (units: string) => `Au-dessus du repère britannique de 14 unités par semaine : ${units} unités sur les 7 derniers jours. Zabaione est un peu pompette.`,
+    alcoholShort: "au-dessus du repère d’alcool",
   },
   companionPrompt: {
     title: "Choisissez un compagnon",

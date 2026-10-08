@@ -347,6 +347,8 @@ export const de: Messages = {
     },
     streak: (days: number, of: number) => `${days} von ${of} Tagen im Ziel bis „Topfit“`,
     rule: "Folgt deinem 7-Tage-Schnitt, nicht einem einzelnen Tag.",
+    alcohol: (units: string) => `Über der britischen Empfehlung von 14 Einheiten pro Woche: ${units} Einheiten in den letzten 7 Tagen. Zabaione ist etwas beschwipst.`,
+    alcoholShort: "über der Alkohol-Empfehlung",
   },
   companionPrompt: {
     title: "Such dir einen Begleiter aus",

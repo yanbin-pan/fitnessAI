@@ -116,6 +116,13 @@ function makeTextures() {
       g.quadraticCurveTo(0, 64, 8, 0);
       g.fill();
     }, 16, 128),
+    hic: glyphTex((g) => {
+      g.fillStyle = "#B5546A";
+      g.font = "italic 700 36px system-ui, sans-serif";
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillText("hic!", 64, 34);
+    }, 128, 64),
     oof: glyphTex((g) => {
       g.fillStyle = "#7C8492";
       g.font = "italic 600 38px system-ui, sans-serif";
@@ -164,6 +171,8 @@ interface Cast {
   grr: THREE.Sprite;
   bub: THREE.Sprite;
   oofS: THREE.Sprite;
+  hicS: THREE.Sprite;
+  dizzy: THREE.Sprite[];
   sparks: { s: THREE.Sprite; off: number; px: number; py: number }[];
   bolts: { s: THREE.Sprite; side: number; off: number }[];
   streaks: { s: THREE.Sprite; off: number; px: number }[];
@@ -203,6 +212,13 @@ function castOf(companion: CompanionId, tex: Textures, plinthMat: THREE.Material
   animal.root.add(bub);
   const oofS = sprite(tex.oof);
   animal.root.add(oofS);
+  const hicS = sprite(tex.hic);
+  animal.root.add(hicS);
+  const dizzy = [0, 1, 2].map(() => {
+    const d = sprite(tex.bubble);
+    holder.add(d);
+    return d;
+  });
   // energy FX for Thriving: twinkling sparkles, popping bolts, rising speed streaks, landing ring
   const sparks = [0, 1, 2, 3].map((k) => {
     const s = sprite(k % 2 ? tex.sparkW : tex.spark);
@@ -228,7 +244,7 @@ function castOf(companion: CompanionId, tex: Textures, plinthMat: THREE.Material
   ring.position.y = 0.012;
   holder.add(ring);
   return {
-    holder, animal, blob, blobBase: blob.scale.clone(), zs, grr, bub, oofS, sparks, bolts, streaks, ring,
+    holder, animal, blob, blobBase: blob.scale.clone(), zs, grr, bub, oofS, hicS, dizzy, sparks, bolts, streaks, ring,
     nextBlink: 1 + Math.random() * 2, blinkAt: -1, happyAt: -10,
   };
 }
@@ -280,6 +296,7 @@ export function createStage(host: HTMLElement, options: StageOptions): Stage {
   // The mood the companion eases towards, as the prototype: the score at about 3× a second, each flag over ~0.4 s.
   let mood = options.mood;
   let score = mood.score, sleepK = mood.inactive ? 1 : 0, overK = mood.overfed && !mood.inactive ? 1 : 0;
+  let alcRaw = mood.overAlcohol ? 1 : 0;
 
   let width = 1, height = 1;
   const resize = () => {
@@ -365,6 +382,8 @@ export function createStage(host: HTMLElement, options: StageOptions): Stage {
     const vFinal = lerp(v, 0.7, o); // stuffed: awake but heavy and droopy
     const u = (1 - smooth(score, 22, 50)) * (1 - sleepK) * (1 - overK); // under-eating, awake only
     const x = smooth(score, 70, 92) * (1 - sleepK) * (1 - overK); // extra joy for Thriving
+    alcRaw = reduce ? (mood.overAlcohol ? 1 : 0) : alcRaw + ((mood.overAlcohol ? 1 : 0) - alcRaw) * Math.min(1, dt * 2.5);
+    const alcK = alcRaw * (1 - sleepK); // never shown while Inactive
     const c = cast;
     c.animal.applyColour(vFinal, x, Math.max(u, o * 0.3)); // a touch of queasy pallor when stuffed
 
@@ -377,7 +396,7 @@ export function createStage(host: HTMLElement, options: StageOptions): Stage {
     const blink = clockNow - c.blinkAt < 0.13 && v > 0.25;
     const hRaw = (clockNow - c.happyAt) / 1.1;
     const happy = hRaw >= 0 && hRaw <= 1 ? (reduce ? 0.5 : hRaw) : 0;
-    const lift = c.animal.update(t, vFinal, x, { blink, happy: sleepK > 0.5 ? 0 : happy, unwell: u, over: o });
+    const lift = c.animal.update(t, vFinal, x, { blink, happy: sleepK > 0.5 ? 0 : happy, unwell: u, over: o, alc: alcK });
     const a = c.animal;
     c.grr.material.opacity = a.grumble * 0.9;
     c.grr.visible = a.grumble > 0.02;
@@ -390,6 +409,17 @@ export function createStage(host: HTMLElement, options: StageOptions): Stage {
     c.oofS.material.opacity = a.oof * 0.95;
     c.oofS.position.set(-0.75, a.headTop - 0.1 + a.oof * 0.12, 0.4);
     c.oofS.scale.set(0.5 + a.oof * 0.1, 0.25 + a.oof * 0.05, 1);
+    c.hicS.visible = a.hic > 0.02;
+    c.hicS.material.opacity = a.hic;
+    c.hicS.position.set(0.7, a.headTop - 0.05 + a.hic * 0.15, 0.4);
+    c.hicS.scale.set(0.42, 0.21, 1);
+    c.dizzy.forEach((d, k) => {
+      const angle = (reduce ? 0 : clockNow * 1.6) + k * 2.09;
+      d.position.set(Math.cos(angle) * 0.42, a.headTop + 0.12 + Math.sin(angle * 2) * 0.03, Math.sin(angle) * 0.42);
+      d.scale.setScalar(0.09);
+      d.material.opacity = alcK * 0.75;
+      d.visible = alcK > 0.02;
+    });
     const s = 1 - lift * 0.5;
     c.blob.scale.set(c.blobBase.x * s, c.blobBase.y * s, 1);
     c.blob.material.opacity = 1 - lift * 0.6;
@@ -509,7 +539,7 @@ export function companionStills(ids: readonly CompanionId[], size: number): Reco
       const animal = buildAnimal(SPECIES[id], true);
       animal.root.rotation.y = -0.3;
       animal.applyColour(1, 0, 0);
-      animal.update(0, 1, 0, { blink: false, happy: 0, unwell: 0, over: 0 });
+      animal.update(0, 1, 0, { blink: false, happy: 0, unwell: 0, over: 0, alc: 0 });
       scene.add(animal.root);
       renderer.render(scene, camera);
       out[id] = renderer.domElement.toDataURL("image/png");

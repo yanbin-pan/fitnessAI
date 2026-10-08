@@ -8,21 +8,24 @@ export interface MoodInput {
   inactive: boolean;
   /** Stuffed; wins over the score. */
   overfed: boolean;
+  /** Over the weekly alcohol guide: a woozy layer on top of any awake mood, hidden while asleep. */
+  overAlcohol: boolean;
 }
 
-/** Each mood as the prototype's presets show it. */
-export function moodInput(mood: CompanionMood): MoodInput {
+/** Each mood as the prototype's presets show it, with the alcohol layer on top when the week is over the guide. */
+export function moodInput(mood: CompanionMood, overAlcohol = false): MoodInput {
+  const base = { score: 55, inactive: false, overfed: false, overAlcohol };
   switch (mood) {
     case "inactive":
-      return { score: 55, inactive: true, overfed: false };
+      return { ...base, inactive: true };
     case "sluggish":
-      return { score: 20, inactive: false, overfed: false };
+      return { ...base, score: 20 };
     case "thriving":
-      return { score: 95, inactive: false, overfed: false };
+      return { ...base, score: 95 };
     case "overfed":
-      return { score: 55, inactive: false, overfed: true };
+      return { ...base, overfed: true };
     default:
-      return { score: 55, inactive: false, overfed: false };
+      return base;
   }
 }
 

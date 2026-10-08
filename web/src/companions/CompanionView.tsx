@@ -29,6 +29,8 @@ export function CompanionBadge({ companion, className = "" }: { companion: Compa
 interface CompanionViewProps {
   companion: CompanionId;
   mood: CompanionMood;
+  /** Over the weekly alcohol guide: woozy on top of the mood. */
+  overAlcohol?: boolean;
   framing: Framing;
   /** Drag to turn, tap to pet. */
   interactive?: boolean;
@@ -48,15 +50,15 @@ interface CompanionViewProps {
  * without WebGL, the badge stands in. Decorative: whatever it shows, the text beside it says.
  */
 export function CompanionView({
-  companion, mood, framing, interactive = false, plinth = false, fps, paused = false, className = "", badgeClassName = "", onPet,
+  companion, mood, overAlcohol = false, framing, interactive = false, plinth = false, fps, paused = false, className = "", badgeClassName = "", onPet,
 }: CompanionViewProps) {
   const host = useRef<HTMLDivElement>(null);
   const stage = useRef<Stage | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(() => !drawable3d());
   // The latest values, for the stage that loads after them.
-  const latest = useRef({ companion, mood, paused, onPet });
-  latest.current = { companion, mood, paused, onPet };
+  const latest = useRef({ companion, mood, overAlcohol, paused, onPet });
+  latest.current = { companion, mood, overAlcohol, paused, onPet };
 
   useEffect(() => {
     if (failed || !host.current) return;
@@ -67,7 +69,7 @@ export function CompanionView({
         if (disposed) return;
         const now = latest.current;
         stage.current = createStage(element, {
-          companion: now.companion, mood: moodInput(now.mood), framing, interactive, plinth, fps,
+          companion: now.companion, mood: moodInput(now.mood, now.overAlcohol), framing, interactive, plinth, fps,
           // The latest callback, whenever the tap comes.
           onPet: () => latest.current.onPet?.(),
         });
@@ -85,7 +87,7 @@ export function CompanionView({
     };
   }, [failed, framing, interactive, plinth, fps]);
 
-  useEffect(() => stage.current?.setMood(moodInput(mood)), [mood, ready]);
+  useEffect(() => stage.current?.setMood(moodInput(mood, overAlcohol)), [mood, overAlcohol, ready]);
   useEffect(() => stage.current?.setCompanion(companion), [companion, ready]);
   useEffect(() => stage.current?.setPaused(paused), [paused, ready]);
 

@@ -48,6 +48,8 @@ export interface FrameContext {
   unwell: number;
   /** Overfed. */
   over: number;
+  /** Over the weekly alcohol guide: woozy, on top of any awake mood. */
+  alc: number;
 }
 
 export interface Animal {
@@ -59,6 +61,7 @@ export interface Animal {
   grumble: number;
   burp: number;
   oof: number;
+  hic: number;
   /** v: pose (0 asleep → 1 content). x: joy on top (0 → ecstatic). Returns how high it is off the plinth. */
   update(t: number, v: number, x: number, ctx: FrameContext): number;
   /** Recolours the fur for the mood: drained when low or underfed, slightly richer when thriving. */
@@ -540,6 +543,49 @@ export function buildAnimal(cfg: Species, reduce: boolean): Animal {
   oMouth.position.set(0, mouthY, mouthZ);
   head.add(oMouth);
 
+  // --- Over the weekly alcohol limit (combines with any awake mood) ---
+  const booze = new THREE.Group();
+  const bottle = new THREE.Mesh(
+    facet(new THREE.LatheGeometry([
+      new THREE.Vector2(0, 0), new THREE.Vector2(0.1, 0), new THREE.Vector2(0.105, 0.04), new THREE.Vector2(0.105, 0.36),
+      new THREE.Vector2(0.08, 0.44), new THREE.Vector2(0.04, 0.5), new THREE.Vector2(0.036, 0.64), new THREE.Vector2(0, 0.64),
+    ], 8), 0.004),
+    mat("#3F6E4E", { keep: true }),
+  );
+  const label = new THREE.Mesh(new THREE.CylinderGeometry(0.108, 0.108, 0.13, 8, 1, true), mat("#EFE6D2", { keep: true, double: true }));
+  label.position.y = 0.19;
+  const cork = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.05, 6), mat("#B88A5A", { keep: true }));
+  cork.position.y = 0.66;
+  const bottleG = new THREE.Group();
+  bottleG.add(bottle, label, cork);
+  bottleG.rotation.z = 0.08;
+  const glassMat = mat("#CFE1E8", { keep: true, opacity: 0.75 });
+  const glass = new THREE.Mesh(
+    new THREE.LatheGeometry([
+      new THREE.Vector2(0, 0), new THREE.Vector2(0.07, 0), new THREE.Vector2(0.07, 0.012), new THREE.Vector2(0.012, 0.02),
+      new THREE.Vector2(0.012, 0.12), new THREE.Vector2(0.06, 0.15), new THREE.Vector2(0.075, 0.22), new THREE.Vector2(0.07, 0.27),
+    ], 8),
+    glassMat,
+  );
+  glass.rotation.z = Math.PI / 2 - 0.1;
+  glass.position.set(0.28, 0.07, 0.2);
+  glass.rotation.y = -0.6;
+  const spill = new THREE.Mesh(new THREE.CircleGeometry(0.13, 10), mat("#8A2F44", { keep: true, opacity: 0.7 }));
+  spill.rotation.x = -Math.PI / 2;
+  spill.scale.set(1.3, 0.8, 1);
+  spill.position.set(0.48, 0.006, 0.3);
+  booze.add(bottleG, glass, spill);
+  booze.position.set(-0.85, 0, 0.5);
+  root.add(booze);
+  // flushed cheeks
+  const flushMat = mat("#E5675F", { keep: true, opacity: 0 });
+  for (const sd of [-1, 1]) {
+    const f = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 8), flushMat);
+    f.scale.set(1, 0.6, 0.4);
+    f.position.set((ex + 0.12) * sd, ey - 0.12, surfZ(ex + 0.12, ey - 0.12) + 0.006);
+    head.add(f);
+  }
+
   // tail
   const tail = new THREE.Group();
   inner.add(tail);
@@ -637,6 +683,7 @@ export function buildAnimal(cfg: Species, reduce: boolean): Animal {
     grumble: 0,
     burp: 0,
     oof: 0,
+    hic: 0,
     applyColour(v, x, u) {
       const k = v + x * 0.5 + u * 3;
       if (Math.abs(k - lastColour) < 0.003) return;
@@ -654,7 +701,11 @@ export function buildAnimal(cfg: Species, reduce: boolean): Animal {
       }
     },
     update(t, v, x, ctx) {
-      const u = ctx.unwell, o = ctx.over;
+      const u = ctx.unwell, o = ctx.over, al = ctx.alc;
+      // tipsy: a hiccup about every 3 s, and a slow, off-balance sway
+      const hcPh = (t * 0.31 + seed * 0.41) % 1, hic = !reduce && hcPh < 0.06 ? Math.sin((hcPh / 0.06) * Math.PI) * al : 0;
+      this.hic = hic;
+      const swayA = reduce ? 0 : Math.sin(t * 1.25 + seed), swayB = reduce ? 0 : Math.cos(t * 1.25 + seed);
       const bp = (t * 0.19 + seed * 0.53) % 1, burp = !reduce && bp < 0.09 ? Math.sin((bp / 0.09) * Math.PI) * o : 0;
       this.burp = burp;
       // stuffed discomfort: every ~7 s a wince with an "oof…"
@@ -675,10 +726,11 @@ export function buildAnimal(cfg: Species, reduce: boolean): Animal {
       const lift = Math.max(hop, tap * 0.25);
       const sigh = Math.sin(t * 0.9) * 0.025 * u + Math.sin(t * 1.1) * 0.03 * o;
       const breath = 1 + Math.sin(t * lerp(1.0, 2.2, v)) * lerp(0.03, 0.012, v) + sigh;
-      inner.position.y = lerp(-0.08, 0, v) + lift;
+      inner.position.y = lerp(-0.08, 0, v) + lift + hic * 0.09;
       inner.scale.set(scale * (1 + (1 - sq) * 0.5), scale * sq, scale * (1 + (1 - sq) * 0.5));
       body.rotation.x = lerp(0.32, -0.04, v) - x * 0.08 + u * 0.05 - o * 0.16 + oof * 0.14;
-      body.rotation.z = Math.sin(t * 4.2) * 0.09 * x + Math.sin(t * 46) * 0.035 * grumble;
+      body.rotation.z = Math.sin(t * 4.2) * 0.09 * x + Math.sin(t * 46) * 0.035 * grumble + swayA * 0.17 * al + (hop > 0.02 ? swayB * 0.12 * al : 0);
+      body.rotation.x += swayB * 0.06 * al;
       body.scale.y = lerp(0.88, 1, v) * breath;
       // fuller belly, wider haunches when overfed (+ a little jiggle on each burp)
       const puff = o * (1 + burp * 0.06);
@@ -693,7 +745,10 @@ export function buildAnimal(cfg: Species, reduce: boolean): Animal {
         h.position.x = (h.userData.x0 as number) * (1 + 0.08 * o);
       }
       head.rotation.x = lerp(0.42, 0, v) - x * 0.14 - tap * 0.15 + glance * 0.22 - o * 0.06 - burp * 0.18 + oof * 0.16;
-      head.rotation.z = Math.sin(t * 0.9 + cfg.phase) * 0.12 * smooth(v, 0.6, 1) * (1 - x) * (1 - u) + Math.sin(t * 4.2 + 0.6) * 0.2 * x + u * 0.1;
+      head.rotation.z =
+        Math.sin(t * 0.9 + cfg.phase) * 0.12 * smooth(v, 0.6, 1) * (1 - x) * (1 - u) + Math.sin(t * 4.2 + 0.6) * 0.2 * x + u * 0.1 +
+        Math.sin(t * 1.25 + seed + 1.3) * 0.2 * al;
+      head.rotation.x += -hic * 0.12;
       head.rotation.y = Math.sin(t * 0.6 + cfg.phase * 2) * 0.12 * v * (1 - x) * (1 - u) - glance * 0.45;
 
       for (const p of ears) {
@@ -707,14 +762,16 @@ export function buildAnimal(cfg: Species, reduce: boolean): Animal {
       }
 
       const happyEyes = tap > 0.05 || (x > 0.45 && Math.sin(t * 1.3 + seed) > -0.35);
-      for (const e of eyes) {
+      eyes.forEach((e, i) => {
         e.dot.visible = !happyEyes;
         e.arc.visible = happyEyes;
         let sy = lerp(0.22, 1, vE) * lerp(1, 0.68, u) * lerp(1, 0.4, o) * (1 - oof * 0.85);
-        if (ctx.blink) sy = 0.12;
+        sy *= i === 0 ? lerp(1, 0.45, al) : lerp(1, 0.9, al); // woozy: one eye droops more than the other
+        if (ctx.blink || hic > 0.4) sy = 0.12;
         e.dot.scale.y = sy;
-        e.g.position.y = ey - (1 - vE) * 0.02 - u * 0.01;
-      }
+        e.g.position.y = ey - (1 - vE) * 0.02 - u * 0.01 + Math.cos(t * 2.1 + i * 1.7) * 0.012 * al;
+        e.g.position.x = ex * (i === 0 ? -1 : 1) + Math.sin(t * 2.1 + i * 1.7) * 0.014 * al; // eyes drift a little
+      });
       const openK = Math.max(smooth(x, 0.35, 0.7), tap);
       const uneasy = (u > 0.35 || o > 0.5) && tap < 0.05;
       oMouth.visible = burp > 0.08;
@@ -734,6 +791,11 @@ export function buildAnimal(cfg: Species, reduce: boolean): Animal {
       open.scale.setScalar(0.7 + 0.4 * openK + Math.sin(t * 8) * 0.05 * x);
       blushMat.opacity = lerp(lerp(0.35, 0.9, Math.max(x, tap)) * (1 - u * 0.9), 0.3, o);
       bagMat.opacity = Math.max(smooth(u, 0.2, 0.7), o * 0.6) * 0.55;
+      for (const m of [smile, wobble, open, frown]) m.rotation.z = (m === smile ? Math.PI : 0) + 0.28 * al; // lopsided mouth
+      flushMat.opacity = al * 0.75;
+      const bz = smooth(al, 0.1, 0.5);
+      booze.visible = bz > 0.01;
+      booze.scale.setScalar(Math.max(bz, 0.001));
 
       const dp = (t * 0.35 + seed) % 1;
       drop.position.y = dropY0 - dp * 0.12;

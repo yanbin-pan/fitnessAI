@@ -347,6 +347,8 @@ export const es: Messages = {
     },
     streak: (days: number, of: number) => `${days} de ${of} días en el objetivo hasta «A tope»`,
     rule: "Sigue tu media de 7 días, no un solo día.",
+    alcohol: (units: string) => `Por encima de la guía británica de 14 unidades a la semana: ${units} unidades en los últimos 7 días. Zabaione está un poco achispado.`,
+    alcoholShort: "por encima de la guía de alcohol",
   },
   companionPrompt: {
     title: "Elige un compañero",

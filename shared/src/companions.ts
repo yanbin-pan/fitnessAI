@@ -1,3 +1,4 @@
+import { ALCOHOL_WEEK_GUIDE } from "./alcohol.ts";
 import type { DaySummary } from "./api.ts";
 import { addDays } from "./dates.ts";
 
@@ -28,6 +29,10 @@ export interface CompanionStatus {
   days_logged: number;
   /** Days in a row, ending yesterday, whose week was Okay with enough days logged, up to COMPANION_THRIVE_DAYS. */
   okay_streak: number;
+  /** Alcohol units of the 7 days ending today, today included, as the drinks pill counts them. */
+  alcohol_units: number;
+  /** Over the weekly guide: the woozy layer on top of any awake mood (2026-10-08 companions design §3). */
+  over_alcohol: boolean;
 }
 
 type WeekBalance = "under" | "okay" | "over";
@@ -58,9 +63,13 @@ function balanceOf(avg: { kcal: number; target: number }): WeekBalance {
 /**
  * The companion's mood on `today` from the days with food logged (the calendar's summaries), which must reach back
  * COMPANION_LOOKBACK_DAYS days. Today is still in progress, so the average is of the 7 days before it; but logging
- * anything today wakes a sleeping companion.
+ * anything today wakes a sleeping companion. `alcoholUnits` are the 7 days ending today: over the guide adds the layer.
  */
-export function companionStatus(days: readonly DaySummary[], today: string): CompanionStatus {
+export function companionStatus(days: readonly DaySummary[], today: string, alcoholUnits = 0): CompanionStatus {
+  return { ...moodOf(days, today), alcohol_units: alcoholUnits, over_alcohol: alcoholUnits > ALCOHOL_WEEK_GUIDE };
+}
+
+function moodOf(days: readonly DaySummary[], today: string): Omit<CompanionStatus, "alcohol_units" | "over_alcohol"> {
   const byDate = new Map(days.map((day) => [day.date, day]));
   const yesterday = addDays(today, -1);
   const current = week(byDate, yesterday);
