@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| **Date** | 2026-10-03, revised 2026-10-05 |
+| **Date** | 2026-10-03, revised 2026-10-08 |
 | **Status** | Approved. Milestones 1, 2, 2.1 and 2.2 are live. |
-| **Revision** | 6 — the app is called Zabaione on the phone and lives at `zabaione.minipi.net`; the first address, `fitness.minipi.net`, redirects there (revision 5 brought milestone 2.2: friends and family, each with a database of their own, an allowlist, a daily coach cap per person and their own featured activities; revision 4 brought instant replies with live steps, the activities card, the calendar, 33 activities and the zabaione-ball icon) |
+| **Revision** | 7 — the owner's usage dashboard names people by email (revision 6: the app is called Zabaione on the phone and lives at `zabaione.minipi.net`; the first address, `fitness.minipi.net`, redirects there; revision 5 brought milestone 2.2: friends and family, each with a database of their own, an allowlist, a daily coach cap per person and their own featured activities; revision 4 brought instant replies with live steps, the activities card, the calendar, 33 activities and the zabaione-ball icon) |
 | **Repository** | <https://github.com/yanbin-pan/fitnessAI> (public) |
 | **Deploys to** | <https://github.com/yanbin-pan/home-cluster> — k3s on four Raspberry Pi 4s |
 | **Reference app** | <https://github.com/yanbin-pan/tea-cabinet> — same deployment shape |
@@ -1092,9 +1092,13 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
   - CI fails if a key-shaped string appears in `web/` or if any `*.sops.yaml` file is
     unencrypted.
 - **Exposure:**
-  - Metrics are on a separate port with no Ingress route, and name a person only by the
-    first 8 characters of their key and whether they are the owner or a guest — never an
-    email — so the owner's dashboard can show each person's usage.
+  - Metrics are on a separate port with no Ingress route. They name a person by their email
+    when they are on the invite list (`OWNER_EMAIL` or `ALLOWED_EMAILS`), and otherwise (a
+    guest taken off the list) by the first 8 characters of their key, plus whether they are
+    the owner or a guest. That way the owner's dashboard shows who is using the app (the
+    owner's choice, 2026-10-08; before, metrics never held an email). The emails sit in
+    Prometheus for 7 days and in its nightly backups, and Grafana is open only to the
+    cluster's admins.
   - Photos are reachable only through the authenticated API, with unguessable 128-bit IDs;
     their type is checked from the file's first bytes and they're served with `nosniff`.
   - Logs record request metadata only — never message text, photos, goals, health values
@@ -1222,7 +1226,7 @@ No DNS or tunnel changes in either.
     until that moment is more than 7 days old.
 - A Grafana dashboard (home-cluster `infra/monitoring/dashboards/fitnessai-usage.yaml`) shows
   active people, each person's requests, coach messages, model calls against their cap, cap
-  refusals, tokens and estimated spend, by short id, and the app's traffic, errors, latency
+  refusals, tokens and estimated spend, by email, and the app's traffic, errors, latency
   and memory.
 
 ---

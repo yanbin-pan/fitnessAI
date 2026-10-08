@@ -3,14 +3,22 @@ import { Counter, Histogram, Registry, collectDefaultMetrics } from "prom-client
 import type { ProcessOutcome, ProcessOutcomeCode } from "./coach/process.ts";
 import { shortKey } from "./people/people.ts";
 
-/** How a metric names a person: the short id the logs use, and owner or guest. Never an email, never the whole key (2.2 §8). */
+/**
+ * How a metric names a person: their email if they're on the invite list, so the owner's dashboard shows who is who (the
+ * owner's choice, 2026-10-08). Otherwise, for a guest taken off the list, the short id the logs use. Never the whole key.
+ */
 export interface PersonLabels {
   person: string;
   role: "owner" | "guest";
 }
 
+/** Each listed person's email by key: OWNER_EMAIL and ALLOWED_EMAILS, lowercased as the app reads them. */
+export type PersonNames = ReadonlyMap<string, string>;
+
 export interface Metrics {
   registry: Registry;
+  /** Who the labels name by email; anyone missing here is named by short id. */
+  names: PersonNames;
   httpRequests: Counter<"method" | "route" | "status">;
   httpDuration: Histogram<"method" | "route">;
   requestsByPerson: Counter<"person" | "role">;
@@ -19,11 +27,12 @@ export interface Metrics {
   coachTokens: Counter<"kind" | "person" | "role">;
 }
 
-export function createMetrics(): Metrics {
+export function createMetrics(names: PersonNames = new Map()): Metrics {
   const registry = new Registry();
   collectDefaultMetrics({ register: registry });
   return {
     registry,
+    names,
     httpRequests: new Counter<"method" | "route" | "status">({
       name: "fitnessai_http_requests_total", help: "HTTP requests by route and status",
       labelNames: ["method", "route", "status"], registers: [registry],
@@ -34,7 +43,7 @@ export function createMetrics(): Metrics {
       labelNames: ["method", "route"], registers: [registry],
     }),
     requestsByPerson: new Counter<"person" | "role">({
-      name: "fitnessai_requests_by_person_total", help: "Signed-in API requests by person (short id) and role",
+      name: "fitnessai_requests_by_person_total", help: "Signed-in API requests by person (email, or short id if not on the list) and role",
       labelNames: ["person", "role"], registers: [registry],
     }),
     coachMessages: new Counter<"outcome" | "person" | "role">({
@@ -52,9 +61,9 @@ export function createMetrics(): Metrics {
   };
 }
 
-/** A signed-in person's labels: `shortKey` of their key (the id the logs use) and their role. */
-export function personLabels(person: { key: string; owner: boolean }): PersonLabels {
-  return { person: shortKey(person.key), role: person.owner ? "owner" : "guest" };
+/** A person's labels: their email from `names`, else `shortKey` of their key (the id the logs use), and their role. */
+export function personLabels(person: { key: string; owner: boolean }, names?: PersonNames): PersonLabels {
+  return { person: names?.get(person.key) ?? shortKey(person.key), role: person.owner ? "owner" : "guest" };
 }
 
 /** The kinds of Claude token a coach run counts. */
@@ -90,7 +99,7 @@ export function recordCoach(metrics: Metrics | undefined, result: ProcessOutcome
  */
 export function seedPeople(metrics: Metrics, people: { key: string; owner: boolean }[]): void {
   for (const person of people) {
-    const labels = personLabels(person);
+    const labels = personLabels(person, metrics.names);
     metrics.requestsByPerson.inc(labels, 0);
     metrics.coachModelCalls.inc(labels, 0);
     for (const outcome of OUTCOMES) metrics.coachMessages.inc({ outcome, ...labels }, 0);
@@ -100,7 +109,7 @@ export function seedPeople(metrics: Metrics, people: { key: string; owner: boole
 
 /** One person's estimated Anthropic spend so far, in US dollars. */
 export interface Spend {
-  labels: PersonLabels;
+  person: { key: string; owner: boolean };
   dollars: number;
 }
 
@@ -118,8 +127,7 @@ export function registerSpend(metrics: Metrics, read: () => Spend[]): void {
     registers: [metrics.registry],
     collect() {
       this.reset();
-      // Exactly these two labels, whatever else the caller's object carries.
-      for (const { labels, dollars } of read()) this.inc({ person: labels.person, role: labels.role }, dollars);
+      for (const { person, dollars } of read()) this.inc(personLabels(person, metrics.names), dollars);
     },
   });
 }

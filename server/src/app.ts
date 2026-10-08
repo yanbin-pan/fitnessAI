@@ -46,6 +46,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     const requests = deps.metrics.httpRequests;
     const duration = deps.metrics.httpDuration;
     const byPerson = deps.metrics.requestsByPerson;
+    const names = deps.metrics.names;
     app.addHook("onResponse", async (req, reply) => {
       // The route pattern, not the URL, keeps label cardinality bounded.
       const route = req.routeOptions.url ?? "unmatched";
@@ -53,7 +54,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
       duration.observe({ method: req.method, route }, reply.elapsedTime / 1000);
       // Only a signed-in person's request has a person: the health probe, the PWA's files and refused tokens have none (2.2 §8).
       // A stream the phone drops before it ends is not counted: onResponse fires on finish or error, as with the route metrics.
-      if (req.person) byPerson.inc(personLabels(req.person));
+      if (req.person) byPerson.inc(personLabels(req.person, names));
     });
   }
 

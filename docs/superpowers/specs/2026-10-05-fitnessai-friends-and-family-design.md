@@ -109,9 +109,10 @@ conversation-free snapshots that the cluster backs up.
 ## 8. Privacy and logs
 
 - Logs never contain an email. Where a job has to name a person it uses the first 8 hex
-  characters of their key. Metrics name a person only by the first 8 characters of their
-  key and whether they are the owner or a guest — never an email — so the owner's dashboard
-  can show each person's usage.
+  characters of their key. Metrics name a person by their email while they are on the invite
+  list, and otherwise by those 8 characters, plus whether they are the owner or a guest, so
+  the owner's dashboard shows who is using the app. (Changed at the owner's request on
+  2026-10-08; until then metrics held only the 8 characters, never an email.)
 - Guests' entries and photos live on the owner's home server, and their messages go to
   Anthropic under the owner's account. The README carries a short note for invitees saying so,
   and that conversations are deleted after 48 hours while the numbers are kept.

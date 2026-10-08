@@ -1,7 +1,6 @@
 import type { FastifyBaseLogger } from "fastify";
 import { costDollars } from "./ai/pricing.ts";
 import { tokensByModel } from "./coach/usage.ts";
-import { personLabels } from "./metrics.ts";
 import type { Spend } from "./metrics.ts";
 import { shortKey } from "./people/people.ts";
 import type { People } from "./people/people.ts";
@@ -39,7 +38,7 @@ export function spendByPerson(people: People, ownerKey: string, report: SpendRep
       if (cost === null) report.unpriced(model);
       else dollars += cost;
     }
-    spend.push({ labels: personLabels({ key: store.key, owner: store.key === ownerKey }), dollars });
+    spend.push({ person: { key: store.key, owner: store.key === ownerKey }, dollars });
   }
   return spend;
 }

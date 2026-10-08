@@ -156,6 +156,34 @@ describe("metrics", () => {
     ]);
   });
 
+  // The owner's choice (2026-10-08): the dashboard shows who is who, so everyone on the invite list is named by email.
+  it("name everyone on the invite list by email, through the routes and the seed alike", async () => {
+    const metrics = createMetrics(new Map([[personKey("owner@example.com"), "owner@example.com"], [personKey(FRIEND), FRIEND]]));
+    seedPeople(metrics, PEOPLE);
+    await twoPeopleAtWork(metrics);
+    const text = await metrics.registry.metrics();
+    expect(seriesOf(text, "fitnessai_requests_by_person_total")).toEqual([
+      'fitnessai_requests_by_person_total{person="friend@example.com",role="guest"} 1',
+      'fitnessai_requests_by_person_total{person="owner@example.com",role="owner"} 2',
+    ]);
+    expect(text).toContain('fitnessai_coach_messages_total{outcome="done",person="owner@example.com",role="owner"} 2');
+    expect(text).toContain('fitnessai_coach_messages_total{outcome="done",person="friend@example.com",role="guest"} 1');
+    expect(text).toContain('fitnessai_coach_tokens_total{kind="input_tokens",person="friend@example.com",role="guest"} 100');
+    // One series each: the seed and the traffic name a person the same way, so no short id sits beside an email.
+    expect(seriesOf(text, "fitnessai_coach_model_calls_total")).toEqual([
+      'fitnessai_coach_model_calls_total{person="friend@example.com",role="guest"} 1',
+      'fitnessai_coach_model_calls_total{person="owner@example.com",role="owner"} 2',
+    ]);
+    expect(text).not.toMatch(/person="[0-9a-f]{8}"/);
+    expect(text).not.toMatch(/[0-9a-f]{64}/);
+  });
+
+  it("name someone taken off the list by short id, never by their whole key", () => {
+    const names = new Map([[personKey("owner@example.com"), "owner@example.com"]]);
+    expect(personLabels({ key: personKey("owner@example.com"), owner: true }, names)).toEqual({ person: "owner@example.com", role: "owner" });
+    expect(personLabels({ key: personKey(FRIEND), owner: false }, names)).toEqual(GUEST);
+  });
+
   it("count a Retry under the person who sent the message", async () => {
     const metrics = createMetrics();
     const t = await testApp({ guests: [FRIEND], ai: fakeAi([new AiError("api_error", "down"), textReply("Noted.")]), metrics });

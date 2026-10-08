@@ -25,13 +25,16 @@ const verifier = config.devAuthEmail ? devVerifier(config.devAuthEmail) : create
 const ai = config.anthropic.apiKey
   ? anthropicClient({ apiKey: config.anthropic.apiKey, model: config.anthropic.model, effort: config.anthropic.effort })
   : null;
-const metrics = createMetrics();
+// The metrics name everyone on the list by email, so the owner's dashboard shows who is who; a guest taken off the list
+// is named by short id. The logs keep using short ids.
+const listed = [config.ownerEmail, ...(config.access?.allowedEmails ?? [])];
+const metrics = createMetrics(new Map(listed.map((email) => [personKey(email), email])));
 // So a restart doesn't hide anyone's first request or message from increase() and rate(). The people on the list, not the folders
 // under users/: those still include guests who were taken off it.
-seedPeople(metrics, [
-  { key: ownerKey, owner: true },
-  ...(config.access?.allowedEmails ?? []).map((email) => ({ key: personKey(email), owner: false })),
-]);
+seedPeople(
+  metrics,
+  listed.map((email) => ({ key: personKey(email), owner: email === config.ownerEmail })),
+);
 const app = buildApp({
   people,
   verifier,

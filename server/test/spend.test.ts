@@ -7,7 +7,7 @@ import { PRICES, costDollars } from "../src/ai/pricing.ts";
 import { recordRun, tokensByModel } from "../src/coach/usage.ts";
 import { DEFAULT_MODEL } from "../src/config.ts";
 import { personPaths, preparePersonDir } from "../src/db/location.ts";
-import { createMetrics, registerSpend } from "../src/metrics.ts";
+import { createMetrics, personLabels, registerSpend } from "../src/metrics.ts";
 import { personKey } from "../src/people/people.ts";
 import type { People, Store } from "../src/people/people.ts";
 import { spendByPerson, spendReader } from "../src/spend.ts";
@@ -30,7 +30,7 @@ const run = (messageId: string, model: string | null, usage: Partial<AiUsage>) =
 const rounded = (dollars: number) => Math.round(dollars * 1e6) / 1e6;
 /** spendByPerson's answer as plain rows, sorted by person. */
 const rows = (spend: ReturnType<typeof spendByPerson>) =>
-  spend.map(({ labels, dollars }) => ({ ...labels, dollars: rounded(dollars) })).sort((a, b) => a.person.localeCompare(b.person));
+  spend.map(({ person, dollars }) => ({ ...personLabels(person), dollars: rounded(dollars) })).sort((a, b) => a.person.localeCompare(b.person));
 /** A report that keeps what it was told. */
 function collect() {
   const unpriced: string[] = [];
@@ -213,7 +213,7 @@ describe("spendReader", () => {
 describe("the spend metric", () => {
   it("exposes each person's spend so far as a counter, read again on every scrape", async () => {
     const metrics = createMetrics();
-    let current = [{ labels: OWNER, dollars: 1.5 }, { labels: GUEST, dollars: 0 }];
+    let current = [{ person: { key: OWNER_KEY, owner: true }, dollars: 1.5 }, { person: { key: FRIEND_KEY, owner: false }, dollars: 0 }];
     registerSpend(metrics, () => current);
     let text = await metrics.registry.metrics();
     expect(text).toContain("# TYPE fitnessai_ai_cost_dollars_total counter");
@@ -221,7 +221,7 @@ describe("the spend metric", () => {
       'fitnessai_ai_cost_dollars_total{person="c8cd3c64",role="owner"} 1.5',
       'fitnessai_ai_cost_dollars_total{person="f387373a",role="guest"} 0',
     ]);
-    current = [{ labels: OWNER, dollars: 2.25 }];
+    current = [{ person: { key: OWNER_KEY, owner: true }, dollars: 2.25 }];
     text = await metrics.registry.metrics();
     // The new total, and no stale series for someone the read no longer returns.
     expect(spendSeries(text)).toEqual(['fitnessai_ai_cost_dollars_total{person="c8cd3c64",role="owner"} 2.25']);
@@ -245,6 +245,16 @@ describe("the spend metric", () => {
     } finally {
       people.close();
     }
+  });
+
+  // The owner's choice (2026-10-08): the dashboard shows who is who.
+  it("names a person on the invite list by email, and anyone else by short id", async () => {
+    const metrics = createMetrics(new Map([[OWNER_KEY, "owner@example.com"]]));
+    registerSpend(metrics, () => [{ person: { key: OWNER_KEY, owner: true }, dollars: 1.5 }, { person: { key: FRIEND_KEY, owner: false }, dollars: 0.25 }]);
+    expect(spendSeries(await metrics.registry.metrics())).toEqual([
+      'fitnessai_ai_cost_dollars_total{person="f387373a",role="guest"} 0.25',
+      'fitnessai_ai_cost_dollars_total{person="owner@example.com",role="owner"} 1.5',
+    ]);
   });
 
   it("still serves every other metric when one person's records can't be read", async () => {
