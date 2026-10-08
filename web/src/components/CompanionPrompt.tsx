@@ -33,6 +33,7 @@ export function CompanionPrompt({ profile }: { profile: Profile }) {
           {t.companionPrompt.title}
         </h2>
         <p className="text-sm text-muted">{t.companionPrompt.body}</p>
+        <p className="text-xs text-muted">{t.settings.companionOnce}</p>
         <CompanionPicker legend={t.companionPrompt.title} value={picked} onChange={setPicked} />
         {settle.isError && (
           <p role="alert" className="text-sm text-danger">

@@ -235,7 +235,13 @@ queasy, never sad or ashamed, and never cheerful.
   button or the scrim close it. The small one holds still while the bubble is open.
 - **Choosing:** Settings has the picker (eight tiles with a still of each), which is also the setup form for a new
   profile. A profile set up before companions existed gets a one-time card on Today, after the name question:
-  Choose or Not now (keeps Zabaione) settle it for good.
+  Choose or Not now (keeps Zabaione) settle it for good. The name question under the picker speaks in the words of the
+  companion picked, before it is saved.
+- **Once every 3 months:** the companion can change at most once every 3 calendar months, counted from the person's
+  local date of the last change (`profile.companion_changed_at`). Staying on Zabaione, the default, is no choice: the
+  first pick away from it is always free. Settings and the Today card say so; while locked, the other tiles are
+  disabled and Settings names the first day it can change. The server refuses an early change with
+  `409 { error: "companion_locked", until }`, and the profile carries `companion_locked_until`.
 - **The coach takes its name.** The companion is who the person chats with: the coach's instructions, the weekly
   analysis and every place the app names the coach say the companion's name. Zabaione stays the app's name and the
   default companion.

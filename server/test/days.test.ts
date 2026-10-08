@@ -90,6 +90,23 @@ describe("buildDayView", () => {
     expect(buildDayView(db.db, profile, "2026-09-20", "2026-10-03", NOW_ISO, []).companion).toEqual(today);
   });
 
+  it("carries the alcohol of the 7 days ending on the day, and none when there was none", () => {
+    db = openTestDb();
+    const profile = makeProfile();
+    expect(buildDayView(db.db, profile, "2026-10-03", "2026-10-03", NOW_ISO, []).alcohol).toBeNull();
+    const pint = sampleFood({ name: "Lager", kcal: 200, alcohol_units: 2.3, drink: "beer" });
+    db.db.transaction((tx) => {
+      insertEntry(tx, sampleEntry({ date: "2026-09-28", foods: [pint, pint] }), NOW_ISO);
+      insertEntry(tx, sampleEntry({ date: "2026-10-03", foods: [pint, sampleFood({ name: "Red wine", kcal: 160, alcohol_units: 2.3, drink: "wine" })] }), NOW_ISO);
+    });
+    const today = buildDayView(db.db, profile, "2026-10-03", "2026-10-03", NOW_ISO, []);
+    expect(today.alcohol).toMatchObject({ units: 9.2, status: "within", alcohol_free_days: 5 });
+    expect(today.alcohol?.drinks).toEqual([{ drink: "beer", count: 3, units: 6.9, kcal: 600 }, { drink: "wine", count: 1, units: 2.3, kcal: 160 }]);
+    expect(today.entries[0].foods[0].drink).toBe("beer");
+    // Six days later the binge on the 28th has left the week.
+    expect(buildDayView(db.db, profile, "2026-10-05", "2026-10-05", NOW_ISO, []).alcohol?.units).toBe(4.6);
+  });
+
   it("gives an untouched past day targets from the current profile without storing it", () => {
     db = openTestDb();
     const view = buildDayView(db.db, makeProfile(), "2026-09-01", "2026-10-03", NOW_ISO, []);

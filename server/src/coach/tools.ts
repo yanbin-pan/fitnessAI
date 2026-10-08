@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AiTool } from "../ai/client.ts";
-import { ACTIVITIES, EXERCISE_CATEGORIES, FOOD_GROUPS, MICROS, MUSCLES, MUSCLE_ROLES } from "../shared.ts";
+import { ACTIVITIES, DRINKS, EXERCISE_CATEGORIES, FOOD_GROUPS, MICROS, MUSCLES, MUSCLE_ROLES } from "../shared.ts";
 
 // The coach's tool inputs (spec §6.1). Strict tool use needs every property
 // required and every object closed, so optional values are nullable instead of
@@ -20,6 +20,10 @@ const FoodToolItem = z.strictObject({
   salt_g: z.number(),
   fluid_ml: z.number().describe("Volume of a non-alcoholic drink; 0 for food"),
   alcohol_units: z.number().describe("UK alcohol units; 0 if none"),
+  drink: z
+    .enum(DRINKS)
+    .nullable()
+    .describe("For an alcoholic drink: beer (also cider), wine (also prosecco and champagne) or cocktail (also spirits and shots); null for food and for drinks without alcohol"),
   groups: z
     .array(z.strictObject({ group: z.enum(FOOD_GROUPS), portions: z.number().describe("Portions of the group; fractions are fine") }))
     .describe("Food-group portions; empty when no group applies"),

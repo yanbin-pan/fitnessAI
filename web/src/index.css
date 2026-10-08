@@ -115,6 +115,29 @@ body {
   outline-offset: 2px;
 }
 
+/* What drinks add (2026-10-08 alcohol design §2): the colour of what it adds to, as diagonal stripes on a paler tint,
+   so it reads as extra even without colour. Each kind sets --s-fg and --s-bg; .stripes paints them, and an SVG pattern
+   fills its two rects from the same variables. */
+.stripes-kcal { --s-fg: #087a54; --s-bg: #9fd2bf; }
+.stripes-over { --s-fg: #a8321f; --s-bg: #efb8ad; }
+.stripes-near { --s-fg: #8a7300; --s-bg: #e6d488; }
+.stripes-protein { --s-fg: #2f5fbf; --s-bg: #bcd0f7; }
+.stripes-carbs { --s-fg: #b8740f; --s-bg: #f8d79f; }
+.stripes-fat { --s-fg: #b2462f; --s-bg: #f5c1b5; }
+.stripes-fibre { --s-fg: #2f8a5c; --s-bg: #bfe6cf; }
+@media (prefers-color-scheme: dark) {
+  .stripes-kcal { --s-fg: #34d399; --s-bg: #1f4a3c; }
+  .stripes-over { --s-fg: #f2876f; --s-bg: #5a2a22; }
+  .stripes-near { --s-fg: #c9ae3a; --s-bg: #4a4320; }
+  .stripes-protein { --s-fg: #7fa6f2; --s-bg: #26365a; }
+  .stripes-carbs { --s-fg: #f2a93b; --s-bg: #5a4320; }
+  .stripes-fat { --s-fg: #ee8f7a; --s-bg: #5a2f27; }
+  .stripes-fibre { --s-fg: #6fcf9c; --s-bg: #21402f; }
+}
+.stripes {
+  background: repeating-linear-gradient(135deg, var(--s-fg) 0 2px, var(--s-bg) 2px 5px);
+}
+
 /* The companion's bubble grows out of its button in the top-left corner. */
 @keyframes companion-pop {
   from {

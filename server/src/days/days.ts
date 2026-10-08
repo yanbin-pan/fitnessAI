@@ -3,7 +3,7 @@ import { days } from "../db/schema.ts";
 import type { Sql } from "../db/types.ts";
 import { getEntry, listEntries } from "../log/entries.ts";
 import { listMessages } from "../messages/messages.ts";
-import { COMPANION_LOOKBACK_DAYS, addDays, companionStatus, daysBetween } from "../shared.ts";
+import { COMPANION_LOOKBACK_DAYS, addDays, alcoholWeek, companionStatus, daysBetween } from "../shared.ts";
 import type { Activity, DaySummary, DayView, Entry, MacroTargets, Profile, Totals } from "../shared.ts";
 import { adjustTargets, baselineTargets } from "../targets/targets.ts";
 import type { WorkoutSummary } from "../targets/targets.ts";
@@ -121,6 +121,8 @@ export function buildDayView(sql: Sql, profile: Profile, date: string, today: st
     nutrients: signalsFor(sql, profile, date, today),
     // As of today whichever day is open: the companion shows how the person is doing now.
     companion: companionStatus(daySummaries(sql, profile, addDays(today, -COMPANION_LOOKBACK_DAYS), today, nowIso), today),
+    // The 7 days ending on the day open, as the nutrient signals: the day's own drinks are part of its week.
+    alcohol: alcoholWeek(date, (day) => (day === date ? list : listEntries(sql, day)).flatMap((entry) => entry.foods)),
   };
 }
 

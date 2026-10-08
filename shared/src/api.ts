@@ -1,4 +1,5 @@
-import type { Activity, BodyGoal, ExerciseCategory, EntrySource, FoodGroup, Muscle, MuscleRole } from "./vocab.ts";
+import type { AlcoholWeek } from "./alcohol.ts";
+import type { Activity, BodyGoal, Drink, ExerciseCategory, EntrySource, FoodGroup, Muscle, MuscleRole } from "./vocab.ts";
 import type { CompanionStatus } from "./companions.ts";
 import type { NutrientSignals } from "./nutrients.ts";
 import type { ExerciseItemInput, FoodItemInput, MicroAmount, Profile } from "./schemas.ts";
@@ -29,6 +30,8 @@ export interface FoodItem extends Totals {
   grams: number | null;
   assumption: string;
   saved_food_id: string | null;
+  /** The kind of alcoholic drink; null for food and for drinks without alcohol. */
+  drink: Drink | null;
   groups: { group: FoodGroup; portions: number }[];
   /** The coach's estimate of its vitamins and minerals; null when nobody estimated them. */
   micros: MicroAmount[] | null;
@@ -117,6 +120,8 @@ export interface DayView {
   nutrients: NutrientSignals;
   /** How the companion feels as of today, whichever day is open: from the rolling week (2026-10-08 companions design §3). */
   companion: CompanionStatus;
+  /** The alcohol of the 7 days ending on this day; null when none was logged in them (2026-10-08 alcohol design §3). */
+  alcohol: AlcoholWeek | null;
 }
 
 export type RegularKind = "meal" | "activity";
@@ -153,6 +158,8 @@ export interface RegularsView {
 
 export interface ProfileView {
   profile: Profile;
+  /** While the companion was changed in the last 3 months: the first day it can be changed again. Null otherwise. */
+  companion_locked_until: string | null;
   /** Baseline targets before overrides, for showing beside the override fields. */
   calculated: MacroTargets;
 }

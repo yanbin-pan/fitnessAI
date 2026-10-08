@@ -3,6 +3,7 @@ import { timeOf } from "../format.ts";
 import { useT } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
 import type { Activity, DayView, Entry, ExerciseItem } from "../shared.ts";
+import { AlcoholPill, AlcoholWeekPanel, DrinkBadge, DrinkPanel, drinkGroups, drinkName, unitsText } from "./Drinks.tsx";
 import { SportBadge, sportName } from "./SportBadge.tsx";
 import { quietButton } from "./ui.tsx";
 
@@ -46,20 +47,27 @@ function facts(item: ExerciseItem, t: Messages): string {
 }
 
 /**
- * The day's activity at a glance, under the nutrients (spec §11.1): its badges float on the page, without a card of
- * their own, so a day with one workout shows one badge rather than an empty card. Only there when something was done.
- * The day's total burned is in the summary's exercise line.
+ * The day's activity and drinks at a glance, under the nutrients (spec §11.1, 2026-10-08 alcohol design): the badges
+ * float on the page, without a card of their own: one per sport, one per kind of drink had on the day, and the week's
+ * alcohol units as a pill while the 7 days ending on the day hold any. Each opens its panel under the row. Only there
+ * when there is something to show. The day's total burned is in the summary's exercise line.
  */
 export function ActivitiesCard({ view, onEdit }: { view: DayView; onEdit: (entry: Entry) => void }) {
   const t = useT();
   const groups = activityGroups(view);
+  const drinks = drinkGroups(view);
+  // An older server sends no alcohol.
+  const week = view.alcohol ?? null;
   const [openKey, setOpenKey] = useState<string | null>(null);
   const panelId = useId();
-  if (groups.length === 0) return null;
+  if (groups.length === 0 && drinks.length === 0 && !week) return null;
   const open = groups.find((g) => g.key === openKey) ?? null;
+  const openDrink = drinks.find((d) => `drink:${d.drink ?? "other"}` === openKey) ?? null;
+  const weekOpen = openKey === "week" && week !== null;
+  const toggle = (key: string) => setOpenKey(openKey === key ? null : key);
   return (
     <section aria-label={t.activity.title} className="mt-4">
-      <ul className="flex flex-wrap justify-center gap-x-3 gap-y-2">
+      <ul className="flex flex-wrap items-start justify-center gap-x-3 gap-y-2">
         {groups.map((group) => {
           const isOpen = group.key === open?.key;
           return (
@@ -69,7 +77,7 @@ export function ActivitiesCard({ view, onEdit }: { view: DayView; onEdit: (entry
                 aria-expanded={isOpen}
                 aria-controls={isOpen ? panelId : undefined}
                 aria-label={`${group.items.map((item) => item.name).join(", ")}, ${Math.round(group.kcal)} ${t.units.kcal}`}
-                onClick={() => setOpenKey(isOpen ? null : group.key)}
+                onClick={() => toggle(group.key)}
                 className="flex w-16 flex-col items-center gap-1.5 rounded-2xl py-1"
               >
                 <SportBadge activity={group.activity} size={44} labelled={false} pressed={isOpen} />
@@ -78,6 +86,31 @@ export function ActivitiesCard({ view, onEdit }: { view: DayView; onEdit: (entry
             </li>
           );
         })}
+        {groups.length > 0 && (drinks.length > 0 || week) && <li aria-hidden="true" className="mt-2 h-10 w-px bg-(--nm-lo)" />}
+        {drinks.map((group) => {
+          const key = `drink:${group.drink ?? "other"}`;
+          const isOpen = openKey === key;
+          return (
+            <li key={key}>
+              <button
+                type="button"
+                aria-expanded={isOpen}
+                aria-controls={isOpen ? panelId : undefined}
+                aria-label={t.alcohol.badge(drinkName(group.drink, t), group.items.length, unitsText(group.units, t))}
+                onClick={() => toggle(key)}
+                className="flex w-16 flex-col items-center gap-1.5 rounded-2xl py-1"
+              >
+                <DrinkBadge drink={group.drink} count={group.items.length} pressed={isOpen} />
+                <span className="text-[0.8125rem] tabular-nums text-muted">{t.alcohol.units(unitsText(group.units, t))}</span>
+              </button>
+            </li>
+          );
+        })}
+        {week && (
+          <li className="py-1">
+            <AlcoholPill week={week} pressed={weekOpen} onClick={() => toggle("week")} controls={weekOpen ? panelId : undefined} />
+          </li>
+        )}
       </ul>
       {open && (
         <div id={panelId} role="region" aria-label={t.activity.details(sportName(open.activity, t).label)} className="pressed mt-3 rounded-2xl p-3">
@@ -96,6 +129,8 @@ export function ActivitiesCard({ view, onEdit }: { view: DayView; onEdit: (entry
           </div>
         </div>
       )}
+      {openDrink && <DrinkPanel group={openDrink} id={panelId} onEdit={onEdit} />}
+      {weekOpen && <AlcoholWeekPanel week={week} id={panelId} />}
     </section>
   );
 }

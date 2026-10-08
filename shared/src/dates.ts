@@ -25,6 +25,14 @@ export function addDays(date: string, days: number): string {
   return new Date(utcMidnight(date) + days * DAY_MS).toISOString().slice(0, 10);
 }
 
+/** `date` moved by whole calendar months, landing on the month's last day when it is shorter (31 Jan + 1 → 28 Feb). */
+export function addMonths(date: string, months: number): string {
+  const [year, month, day] = new Date(utcMidnight(date)).toISOString().slice(0, 10).split("-").map(Number);
+  const first = new Date(Date.UTC(year, month - 1 + months, 1));
+  const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), Math.min(day, last))).toISOString().slice(0, 10);
+}
+
 /** Whole days from `from` to `to` (negative when `to` is earlier). */
 export function daysBetween(from: string, to: string): number {
   return Math.round((utcMidnight(to) - utcMidnight(from)) / DAY_MS);
