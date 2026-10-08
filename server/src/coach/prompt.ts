@@ -1,3 +1,4 @@
+import type { RecentDay } from "../days/days.ts";
 import type { DayView, Language, Profile } from "../shared.ts";
 import { LANGUAGE_NAMES, MAX_BACKDATE_DAYS } from "../shared.ts";
 import { ageOn } from "../targets/targets.ts";
@@ -14,6 +15,8 @@ Who you are:
 - If they sincerely ask whether you are an AI, say yes: Zabaione is an AI coach.
 
 Each new message from the person starts with a context block (JSON) describing their day so far, including the id of every entry. Only the most recent context block is current; earlier ones in the conversation may be out of date.
+
+The context block's previous_days gives the totals of each of the 7 days before message_date (kcal, protein, carbs, fat, sugars and salt against that day's kcal target), and week_average averages the days among them that have food logged. A day with nothing_logged means the person logged no food that day, not that they ate nothing. Use these to answer questions about earlier days ("how many calories yesterday?") and to see today in the light of the past week: a high-salt week, protein running low, or several days over or under target. Today stays the focus; bring the week up when it is asked about or genuinely helps. You can see only these totals for earlier days, not their individual entries.
 
 What to do with a message:
 - When they state as a fact something they ate, drank or did ("I had…", "just ran…", "lunch was…"), call log_items once for each distinct date and time in that message, with every item that belongs to it. Log straight away; do not ask for confirmation. If a portion or recipe is vague, choose a typical one and say what you assumed in that item's assumption field.
@@ -72,8 +75,47 @@ function rounded<T extends object>(value: T, digits = 1): T {
   ) as T;
 }
 
-/** `pastDay` when the message fills in an earlier day the person has open in the app (spec §6.6). */
-export function buildTurnContext(view: DayView, now: Date, timeZone: string, language: Language, pastDay = false): string {
+/** The weekday of a calendar date, which the model would otherwise have to work out. */
+function weekdayOf(date: string): string {
+  return weekdayName(new Date(`${date}T12:00:00Z`), "UTC");
+}
+
+/** The earlier days' totals, kcal and grams whole and salt to one decimal, and their average over the days with food logged. */
+function weekContext(recent: readonly RecentDay[]) {
+  const whole = (day: Omit<RecentDay, "date" | "logged">) => ({
+    target_kcal: Math.round(day.target_kcal),
+    kcal: Math.round(day.kcal),
+    protein_g: Math.round(day.protein_g),
+    carbs_g: Math.round(day.carbs_g),
+    fat_g: Math.round(day.fat_g),
+    sugars_g: Math.round(day.sugars_g),
+    salt_g: Math.round(day.salt_g * 10) / 10,
+  });
+  const previous_days = recent.map(({ date, logged, ...day }) =>
+    logged ? { date, weekday: weekdayOf(date), ...whole(day) } : { date, weekday: weekdayOf(date), nothing_logged: true },
+  );
+  const logged = recent.filter((day) => day.logged);
+  if (logged.length === 0) return { previous_days };
+  const mean = (key: keyof Omit<RecentDay, "date" | "logged">) => logged.reduce((sum, day) => sum + day[key], 0) / logged.length;
+  const average = whole({
+    target_kcal: mean("target_kcal"), kcal: mean("kcal"), protein_g: mean("protein_g"), carbs_g: mean("carbs_g"),
+    fat_g: mean("fat_g"), sugars_g: mean("sugars_g"), salt_g: mean("salt_g"),
+  });
+  return { previous_days, week_average: { days_logged: logged.length, ...average } };
+}
+
+/**
+ * `pastDay` when the message fills in an earlier day the person has open in the app (spec §6.6).
+ * `recent` is the days before the message's day (`recentDays`), so the coach sees the week around it.
+ */
+export function buildTurnContext(
+  view: DayView,
+  now: Date,
+  timeZone: string,
+  language: Language,
+  pastDay = false,
+  recent: readonly RecentDay[] = [],
+): string {
   const context = {
     reply_language: LANGUAGE_NAMES[language],
     now_local: `${localDate(now, timeZone)} ${localTime(now, timeZone)}`,
@@ -95,6 +137,7 @@ export function buildTurnContext(view: DayView, now: Date, timeZone: string, lan
       })),
       exercises: entry.exercises.map(({ id: _id, position: _position, kcal_measured: _measured, avg_hr: _hr, ...item }) => rounded(item, 2)),
     })),
+    ...(recent.length > 0 ? weekContext(recent) : {}),
   };
   return `Context for this message (JSON):\n${JSON.stringify(context)}`;
 }

@@ -3,8 +3,8 @@ import type { AiMessage } from "../src/ai/client.ts";
 import { PHOTOS_ONLY_TEXT } from "../src/coach/photo-blocks.ts";
 import { COACH_INSTRUCTIONS, buildSystemPrompt, buildTurnContext } from "../src/coach/prompt.ts";
 import { appendTurns, getOrCreateThread, loadTurns } from "../src/coach/thread.ts";
-import { buildDayView, ensureDay } from "../src/days/days.ts";
-import { insertEntry } from "../src/log/entries.ts";
+import { buildDayView, ensureDay, recentDays } from "../src/days/days.ts";
+import { deleteEntry, insertEntry } from "../src/log/entries.ts";
 import { makeProfile, openTestDb, sampleEntry, sampleExercise, sampleFood } from "./helpers.ts";
 
 const NOW = new Date("2026-10-03T12:00:00.000Z");
@@ -93,6 +93,58 @@ describe("buildTurnContext", () => {
     const exercise = context.entries[0].exercises[0];
     expect(exercise).toMatchObject({ name: "Run", met: 3.85, kcal: 123.46, muscles: [{ muscle: "quads", role: "primary" }] });
     for (const key of ["id", "position", "kcal_measured", "avg_hr"]) expect(exercise).not.toHaveProperty(key);
+  });
+});
+
+describe("the week before the message's day", () => {
+  const logFood = (date: string, food: Parameters<typeof sampleFood>[0], deleted = false) => {
+    const entry = sampleEntry({ date, logged_at: `${date}T12:00:00.000Z`, foods: [sampleFood(food)] });
+    db.db.transaction((tx) => insertEntry(tx, entry, NOW_ISO));
+    if (deleted) db.db.transaction((tx) => deleteEntry(tx, entry.id));
+  };
+  const contextFor = (date: string) => {
+    const profile = makeProfile();
+    const view = buildDayView(db.db, profile, date, "2026-10-03", NOW_ISO, []);
+    return JSON.parse(buildTurnContext(view, NOW, "Europe/London", "en", false, recentDays(db.db, profile, date, NOW_ISO)).split("\n")[1]);
+  };
+
+  it("gives each of the 7 days before, oldest first, with its macros, sugars, salt and target", () => {
+    logFood("2026-10-02", { kcal: 2100.4, protein_g: 95.6, carbs_g: 240, fat_g: 70, sugars_g: 61.2, salt_g: 7.26 });
+    logFood("2026-10-02", { kcal: 100, protein_g: 4, carbs_g: 10, fat_g: 5, sugars_g: 2, salt_g: 0.1 });
+    logFood("2026-10-03", { kcal: 999 }); // the message's own day stays in eaten_so_far, not the week
+    const context = contextFor("2026-10-03");
+
+    expect(context.previous_days.map((d: { date: string }) => d.date)).toEqual([
+      "2026-09-26", "2026-09-27", "2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02",
+    ]);
+    expect(context.previous_days[6]).toEqual({
+      date: "2026-10-02", weekday: "Friday", target_kcal: 1863, kcal: 2200, protein_g: 100, carbs_g: 250, fat_g: 75, sugars_g: 63, salt_g: 7.4,
+    });
+    expect(context.previous_days[5]).toEqual({ date: "2026-10-01", weekday: "Thursday", nothing_logged: true });
+    expect(context.eaten_so_far.kcal).toBe(999);
+  });
+
+  it("averages only the days with food logged, and leaves out deleted entries", () => {
+    logFood("2026-09-30", { kcal: 1800, protein_g: 80, sugars_g: 40, salt_g: 5 });
+    logFood("2026-10-02", { kcal: 2200, protein_g: 120, sugars_g: 60, salt_g: 8 });
+    logFood("2026-10-01", { kcal: 5000 }, true);
+    const context = contextFor("2026-10-03");
+
+    expect(context.previous_days[5]).toMatchObject({ date: "2026-10-01", nothing_logged: true });
+    expect(context.week_average).toMatchObject({ days_logged: 2, kcal: 2000, protein_g: 100, sugars_g: 50, salt_g: 6.5, target_kcal: 1863 });
+  });
+
+  it("counts back from the day the person has open, and has no average when nothing was logged", () => {
+    logFood("2026-09-29", { kcal: 1500 });
+    const context = contextFor("2026-09-30");
+    expect(context.previous_days[0].date).toBe("2026-09-23");
+    expect(context.previous_days.at(-1)).toMatchObject({ date: "2026-09-29", kcal: 1500 });
+    expect(contextFor("2026-09-28")).not.toHaveProperty("week_average");
+  });
+
+  it("tells the coach how to read the week", () => {
+    expect(COACH_INSTRUCTIONS).toContain("previous_days");
+    expect(COACH_INSTRUCTIONS).toContain("not that they ate nothing");
   });
 });
 
