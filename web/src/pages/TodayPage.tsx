@@ -25,12 +25,15 @@ import { storeDay, useDay, useLoadedProfile } from "../queries.ts";
 import { COMPANIONS, DEFAULT_COMPANION, MAX_BACKDATE_DAYS, chatOpen, daysBetween } from "../shared.ts";
 import type { DeleteResult, Entry } from "../shared.ts";
 
-/** The page's own scrolling, to the end of the feed: just above the composer, where the next entry goes. */
-function scrollToLatest(behavior: ScrollBehavior): void {
+/**
+ * The page's own scrolling: to the end of the feed, just above the composer where the next entry goes, or to the top,
+ * where the summary is.
+ */
+function scrollPage(to: "latest" | "top", behavior: ScrollBehavior): void {
   const page = document.scrollingElement;
   if (!page?.scrollTo) return;
   // After the browser has laid the day out, so the height is the day's.
-  requestAnimationFrame(() => page.scrollTo({ top: page.scrollHeight, behavior }));
+  requestAnimationFrame(() => page.scrollTo({ top: to === "latest" ? page.scrollHeight : 0, behavior }));
 }
 
 /**
@@ -67,18 +70,20 @@ export function TodayPage() {
   const bar = useRef<HTMLDivElement>(null);
   // Below the day bar, which is 4.25rem under the safe area: what's under it is hidden.
   const summaryAway = useScrolledAway(summaryCard, bar.current?.offsetHeight ?? 68);
-  // A day opens at its latest entry, just above the composer, as a chat does; something new arriving (a message sent, a
-  // reply, an entry) brings the page back down to it. Undo and edits don't move it.
+  // Today opens at its latest entry, just above the composer, as a chat does; another day opens at the top, on its
+  // summary, and so does a today with nothing in it yet. Something new arriving (a message sent, a reply, an entry)
+  // brings the page down to it. Undo and edits don't move it.
   const shownDate = day.data?.date;
+  const shownToday = day.data ? day.data.date === day.data.today : false;
   const itemCount = day.data ? day.data.entries.length + day.data.messages.length : 0;
   const lastShown = useRef<{ date?: string; count: number }>({ count: 0 });
   useLayoutEffect(() => {
     if (!shownDate) return;
     const previous = lastShown.current;
-    if (previous.date !== shownDate) scrollToLatest("instant");
-    else if (itemCount > previous.count) scrollToLatest("smooth");
+    if (previous.date !== shownDate) scrollPage(shownToday && itemCount > 0 ? "latest" : "top", "instant");
+    else if (itemCount > previous.count) scrollPage("latest", "smooth");
     lastShown.current = { date: shownDate, count: itemCount };
-  }, [shownDate, itemCount]);
+  }, [shownDate, shownToday, itemCount]);
   // An open editor belongs to the day it was opened on; Back or Forward to another day must not carry it along.
   const [editing, setEditing] = useState<{ date: string; entry: Entry | null } | null>(null);
   // After a failure the screen may be out of step with the server (a half-finished Undo, a message

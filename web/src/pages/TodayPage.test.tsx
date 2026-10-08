@@ -523,7 +523,7 @@ describe("TodayPage: the name and the greeting", () => {
     expect(screen.queryByRole("switch")).toBeNull();
   });
 
-  it("opens a day at its latest entry, and goes back down when something new arrives", async () => {
+  it("opens today at its latest entry, and goes back down when something new arrives", async () => {
     const scrollTo = vi.fn();
     Object.defineProperty(document, "scrollingElement", { configurable: true, value: { scrollTo, scrollHeight: 2400 } });
     vi.stubGlobal("requestAnimationFrame", (run: FrameRequestCallback) => {
@@ -538,6 +538,28 @@ describe("TodayPage: the name and the greeting", () => {
     view = { ...view, entries: [...view.entries, named("b", "Toast", { message_id: "m1" })] };
     client.setQueryData(["day", "today"], view);
     await waitFor(() => expect(scrollTo).toHaveBeenLastCalledWith({ top: 2400, behavior: "smooth" }));
+    Reflect.deleteProperty(document, "scrollingElement");
+  });
+
+  it("opens another day at the top, on its summary, and today too while it is empty", async () => {
+    const scrollTo = vi.fn();
+    Object.defineProperty(document, "scrollingElement", { configurable: true, value: { scrollTo, scrollHeight: 2400 } });
+    vi.stubGlobal("requestAnimationFrame", (run: FrameRequestCallback) => {
+      run(0);
+      return 0;
+    });
+    const past = dayView({ date: "2026-10-02", entries: [named("a", "Scrambled eggs", { message_id: "m1" })], messages: [question] });
+    mockFetch((url) => jsonResponse(url.endsWith("/today") ? dayView() : past));
+    const { unmount } = renderDay("/day/2026-10-02");
+    expect(await screen.findByText("Scrambled eggs")).toBeInTheDocument();
+    await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "instant" }));
+    expect(scrollTo).not.toHaveBeenCalledWith({ top: 2400, behavior: "instant" });
+    unmount();
+    scrollTo.mockClear();
+    renderDay();
+    expect(await screen.findByText("Chat")).toBeInTheDocument();
+    await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "instant" }));
+    expect(scrollTo).not.toHaveBeenCalledWith({ top: 2400, behavior: "instant" });
     Reflect.deleteProperty(document, "scrollingElement");
   });
 
