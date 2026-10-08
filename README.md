@@ -120,8 +120,11 @@ it starts, so once Flux has applied the change, restart it:
 Each person signs in with their own email and gets the whole app, with a database of
 their own that nobody else sees — the owner included. Guests get the coach too, up to
 `GUEST_DAILY_CALL_CAP` calls a day (about 20–30 messages); every call is billed to the
-owner's Anthropic key. Usage per person shows on the fitnessAI Grafana dashboard by short
-id: `printf %s 'friend@example.com' | sha256sum | cut -c1-8`.
+owner's Anthropic key. Usage per person shows on the fitnessAI Grafana dashboard by email.
+Someone taken off the list shows by short id instead, which you can match with
+`printf %s 'friend@example.com' | sha256sum | cut -c1-8`. The emails sit in Prometheus
+for 7 days (and in its nightly backups), and only the cluster's admins can open Grafana.
+The logs still name people by short id only.
 
 The dashboard also estimates the Anthropic spend, in total and per person. The estimate
 prices every model call recorded in each person's usage records (coach and weekly
@@ -165,8 +168,8 @@ Their snapshots age out of the backups under the 6-month retention.
 conversations are stored on the owner's home server, and what you send the coach goes to
 Anthropic under the owner's account. Conversations and photos are deleted after 48
 hours; the numbers you log are kept, and backed up off-site for up to six months. The
-owner also sees how much each person uses the app — requests, coach messages and model
-calls — by a short id, never by name or email.
+owner also sees how much each person uses the app — requests, coach messages, model
+calls and their estimated cost — by your email.
 
 ## Data, backups and restore
 
