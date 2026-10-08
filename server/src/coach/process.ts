@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AiClient, AiMessage, AiUsage } from "../ai/client.ts";
-import { buildDayView, getDay, snapshotValues } from "../days/days.ts";
+import { buildDayView, getDay, recentDays, snapshotValues } from "../days/days.ts";
 import type { Sql } from "../db/types.ts";
 import { getMessage, insertReply, setMessageStatus } from "../messages/messages.ts";
 import { photoData } from "../photos/photos.ts";
@@ -89,7 +89,17 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
   const storedTurn: AiMessage = {
     role: "user",
     content: [
-      { type: "text", text: buildTurnContext(view, now, profile.timezone, profile.language, fillsInPastDay(message.date, sentAt, profile.timezone)) },
+      {
+        type: "text",
+        text: buildTurnContext(
+          view,
+          now,
+          profile.timezone,
+          profile.language,
+          fillsInPastDay(message.date, sentAt, profile.timezone),
+          recentDays(deps.db, profile, message.date, nowIso),
+        ),
+      },
       ...message.photo_ids.map(photoRef),
       { type: "text", text: message.text || PHOTOS_ONLY_TEXT },
     ] as unknown as AiMessage["content"],

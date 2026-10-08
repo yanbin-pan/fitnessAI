@@ -149,3 +149,38 @@ export function daySummaries(sql: Sql, profile: Profile, from: string, to: strin
   }
   return out;
 }
+
+/** One earlier day as the coach sees it: the day's food totals against its kcal target, or that nothing was logged. */
+export interface RecentDay {
+  date: string;
+  logged: boolean;
+  target_kcal: number;
+  kcal: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  sugars_g: number;
+  salt_g: number;
+}
+
+/** The `count` days before `date`, oldest first, so the coach can see the week the day sits in. */
+export function recentDays(sql: Sql, profile: Profile, date: string, nowIso: string, count = 7): RecentDay[] {
+  const out: RecentDay[] = [];
+  for (let i = count; i >= 1; i--) {
+    const day = addDays(date, -i);
+    const list = listEntries(sql, day);
+    const totals = sumTotals(list);
+    out.push({
+      date: day,
+      logged: list.some((entry) => entry.foods.length > 0),
+      target_kcal: adjustedTargets(sql, profile, day, list, nowIso).kcal,
+      kcal: totals.kcal,
+      protein_g: totals.protein_g,
+      carbs_g: totals.carbs_g,
+      fat_g: totals.fat_g,
+      sugars_g: totals.sugars_g,
+      salt_g: totals.salt_g,
+    });
+  }
+  return out;
+}
