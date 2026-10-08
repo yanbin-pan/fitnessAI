@@ -39,6 +39,8 @@ interface CompanionViewProps {
   className?: string;
   /** The badge's size, where the 3D view can't be drawn. */
   badgeClassName?: string;
+  /** Told each time a tap pets the companion. */
+  onPet?: () => void;
 }
 
 /**
@@ -46,15 +48,15 @@ interface CompanionViewProps {
  * without WebGL, the badge stands in. Decorative: whatever it shows, the text beside it says.
  */
 export function CompanionView({
-  companion, mood, framing, interactive = false, plinth = false, fps, paused = false, className = "", badgeClassName = "",
+  companion, mood, framing, interactive = false, plinth = false, fps, paused = false, className = "", badgeClassName = "", onPet,
 }: CompanionViewProps) {
   const host = useRef<HTMLDivElement>(null);
   const stage = useRef<Stage | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(() => !drawable3d());
   // The latest values, for the stage that loads after them.
-  const latest = useRef({ companion, mood, paused });
-  latest.current = { companion, mood, paused };
+  const latest = useRef({ companion, mood, paused, onPet });
+  latest.current = { companion, mood, paused, onPet };
 
   useEffect(() => {
     if (failed || !host.current) return;
@@ -64,7 +66,11 @@ export function CompanionView({
       .then(({ createStage }) => {
         if (disposed) return;
         const now = latest.current;
-        stage.current = createStage(element, { companion: now.companion, mood: moodInput(now.mood), framing, interactive, plinth, fps });
+        stage.current = createStage(element, {
+          companion: now.companion, mood: moodInput(now.mood), framing, interactive, plinth, fps,
+          // The latest callback, whenever the tap comes.
+          onPet: () => latest.current.onPet?.(),
+        });
         stage.current.setPaused(now.paused);
         setReady(true);
       })

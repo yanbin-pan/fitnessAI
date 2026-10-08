@@ -246,7 +246,18 @@ queasy, never sad or ashamed, and never cheerful.
   analysis and every place the app names the coach say the companion's name. Zabaione stays the app's name and the
   default companion.
 
-## 8. Acceptance checklist
+## 8. Interactions, for the owner's dashboard
+
+- The phone reports each tap that pets the companion (`pet`) and each open of its bubble (`open`) to
+  `POST /api/companion/interactions`, best effort: offline or refused, it is not counted and nothing is shown.
+- Each person's database counts them per local day (`companion_interactions`: date, kind, count, at most 500 a day per
+  kind). Counts only, kept like the logbook, so months read whole.
+- On every scrape the app reads everyone's counts, as it does the spend: `fitnessai_companion_interactions_total{kind,
+  person, role}` (all time, a counter) and `fitnessai_companion_interactions_month{kind, period, person, role}` with
+  `period` `this_month` or `last_month` in the person's timezone. Everyone open gets zeros too, so the dashboard can tell
+  "no one petted" from "no data". The panels are in the home cluster's `fitnessai-usage` dashboard.
+
+## 9. Acceptance checklist
 
 - [ ] All eight companions match the prototype's silhouette, colours and faceted look side by side.
 - [ ] Inactive, score 20, 55, 95 and Overfed each look like their mood in the table above.

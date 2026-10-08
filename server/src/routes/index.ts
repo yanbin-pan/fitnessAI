@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { AppDeps } from "../deps.ts";
+import { registerCompanionRoutes } from "./companion.ts";
 import { registerDayRoutes } from "./days.ts";
 import { registerEntryRoutes } from "./entries.ts";
 import { registerHealth } from "./health.ts";
@@ -18,4 +19,5 @@ export function registerRoutes(app: FastifyInstance, deps: AppDeps): void {
   registerPhotoRoutes(app, deps);
   registerRegularRoutes(app, deps);
   registerInsightRoutes(app, deps);
+  registerCompanionRoutes(app, deps);
 }

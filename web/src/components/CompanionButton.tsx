@@ -1,12 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { api } from "../api.ts";
 import { CompanionView } from "../companions/CompanionView.tsx";
 import { kcal10, thousands } from "../format.ts";
 import { useT } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
 import { COMPANION_NAMES, COMPANION_THRIVE_DAYS } from "../shared.ts";
-import type { CompanionId, CompanionStatus } from "../shared.ts";
+import type { CompanionId, CompanionInteractionInput, CompanionStatus } from "../shared.ts";
+
+/**
+ * Tells the server about a pet or an open of the bubble, for the owner's dashboard (2026-10-08 companions design §8).
+ * Best effort: offline or refused, it is simply not counted, and nothing is shown.
+ */
+export function reportInteraction(kind: CompanionInteractionInput["kind"]): void {
+  void api<void>("/api/companion/interactions", { method: "POST", json: { kind } satisfies CompanionInteractionInput }).catch(() => {});
+}
 
 // The bubble opens under the day bar, as the calendar does, and leaves the bar usable.
 const BELOW_BAR = "top-[calc(env(safe-area-inset-top)_+_4.25rem)]";
@@ -40,7 +49,10 @@ function CompanionBubble({ companion, status, onClose }: { companion: CompanionI
       <div role="dialog" aria-label={name} className={`fixed inset-x-0 ${BELOW_BAR} z-50 mx-auto max-w-xl px-4`}>
         <div className="companion-pop raised max-w-sm rounded-3xl p-3">
           <div className="pressed relative h-64 overflow-hidden rounded-2xl">
-            <CompanionView companion={companion} mood={status.mood} framing="full" interactive plinth className="h-full w-full" badgeClassName="m-auto h-24 w-24 text-4xl" />
+            <CompanionView
+              companion={companion} mood={status.mood} framing="full" interactive plinth className="h-full w-full" badgeClassName="m-auto h-24 w-24 text-4xl"
+              onPet={() => reportInteraction("pet")}
+            />
             <span className="pointer-events-none absolute bottom-2 left-3 text-xs text-muted">{t.companion.hint}</span>
             <button
               ref={closeButton}
@@ -99,7 +111,10 @@ export function CompanionButton({ companion, status }: { companion: CompanionId;
         aria-expanded={open}
         aria-haspopup="dialog"
         className={`tap flex h-11 w-11 items-center justify-center overflow-hidden rounded-full ${open ? "pressed" : "raised-sm"}`}
-        onClick={() => setOpen((was) => !was)}
+        onClick={() => {
+          if (!open) reportInteraction("open");
+          setOpen(!open);
+        }}
       >
         {/* Held still while the bubble shows the same companion large. */}
         <CompanionView companion={companion} mood={status.mood} framing="mini" fps={30} paused={open} className="h-11 w-11" badgeClassName="h-9 w-9 text-base" />

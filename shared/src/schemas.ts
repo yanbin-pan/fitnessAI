@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { isIsoDate, isTimeZone } from "./dates.ts";
 import {
-  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, DEFAULT_COMPANION, DRINKS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, PROFILE_RANGES, SEXES,
+  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, COMPANION_INTERACTIONS, DEFAULT_COMPANION, DRINKS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, PROFILE_RANGES, SEXES,
 } from "./vocab.ts";
 
 // Request bodies the API accepts. Each schema's parsed output (defaults filled in)
@@ -148,3 +148,7 @@ export type RegularEdit = z.infer<typeof RegularEdit>;
 /** Logging a regular with a tap: the id is made on the phone, so a repeated tap logs it once. */
 export const RegularLogInput = z.object({ id: z.uuid() });
 export type RegularLogInput = z.infer<typeof RegularLogInput>;
+
+/** One interaction with the companion, counted per day for the owner's dashboard (2026-10-08 companions design §8). */
+export const CompanionInteractionInput = z.object({ kind: z.enum(COMPANION_INTERACTIONS) });
+export type CompanionInteractionInput = z.infer<typeof CompanionInteractionInput>;

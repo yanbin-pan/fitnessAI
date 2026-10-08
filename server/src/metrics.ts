@@ -1,5 +1,5 @@
 import http from "node:http";
-import { Counter, Histogram, Registry, collectDefaultMetrics } from "prom-client";
+import { Counter, Gauge, Histogram, Registry, collectDefaultMetrics } from "prom-client";
 import type { ProcessOutcome, ProcessOutcomeCode } from "./coach/process.ts";
 import { shortKey } from "./people/people.ts";
 
@@ -128,6 +128,49 @@ export function registerSpend(metrics: Metrics, read: () => Spend[]): void {
     collect() {
       this.reset();
       for (const { person, dollars } of read()) this.inc(personLabels(person, metrics.names), dollars);
+    },
+  });
+}
+
+/** One person's interactions of one kind with their companion: all time, this calendar month and the one before. */
+export interface CompanionInteractionCounts {
+  person: { key: string; owner: boolean };
+  kind: string;
+  total: number;
+  /** In the person's timezone. */
+  thisMonth: number;
+  lastMonth: number;
+}
+
+/**
+ * How much each person interacts with their companion (2026-10-08 companions design §8), worked out again from their
+ * own records on every scrape, as the spend is: the records are kept for good, so the counts survive restarts and don't
+ * depend on Prometheus's 7-day retention. The total is a counter (increase() over any window); the monthly gauge gives
+ * this calendar month and the one before by `period`, so a month reads whole even when Prometheus holds only a week.
+ */
+export function registerCompanionInteractions(metrics: Metrics, read: () => CompanionInteractionCounts[]): void {
+  new Counter<"kind" | "person" | "role">({
+    name: "fitnessai_companion_interactions_total",
+    help: "Interactions with the companion so far, by kind (pet: a tap that pets it; open: its bubble opened), from each person's own records",
+    labelNames: ["kind", "person", "role"],
+    registers: [metrics.registry],
+    collect() {
+      this.reset();
+      for (const counts of read()) this.inc({ kind: counts.kind, ...personLabels(counts.person, metrics.names) }, counts.total);
+    },
+  });
+  new Gauge<"kind" | "period" | "person" | "role">({
+    name: "fitnessai_companion_interactions_month",
+    help: "Interactions with the companion in a calendar month of the person's timezone: period this_month or last_month",
+    labelNames: ["kind", "period", "person", "role"],
+    registers: [metrics.registry],
+    collect() {
+      this.reset();
+      for (const counts of read()) {
+        const labels = { kind: counts.kind, ...personLabels(counts.person, metrics.names) };
+        this.set({ ...labels, period: "this_month" }, counts.thisMonth);
+        this.set({ ...labels, period: "last_month" }, counts.lastMonth);
+      }
     },
   });
 }

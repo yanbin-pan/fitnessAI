@@ -244,3 +244,17 @@ export const insights = sqliteTable("insights", {
   stats: text({ mode: "json" }).$type<unknown>().notNull(),
   report: text({ mode: "json" }).$type<unknown>().notNull(),
 });
+
+/**
+ * Taps on the companion and opens of its bubble, counted per local day (2026-10-08 companions design §8), so the owner's
+ * dashboard can tell whether people interact with it. Counts only: no time of day, nothing else about the person.
+ */
+export const companionInteractions = sqliteTable(
+  "companion_interactions",
+  {
+    date: text().notNull(),
+    kind: text().notNull(),
+    count: integer().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.date, t.kind] })],
+);

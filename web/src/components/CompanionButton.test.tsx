@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { CompanionStatus } from "../shared.ts";
+import { mockFetch } from "../test/render.tsx";
 import { CompanionButton } from "./CompanionButton.tsx";
 
 const okay: CompanionStatus = { mood: "okay", avg_kcal: 2104, avg_target_kcal: 2316, days_logged: 6, okay_streak: 3 };
@@ -52,5 +53,17 @@ describe("CompanionButton", () => {
     expect(screen.getByRole("dialog")).not.toHaveTextContent("days on track towards");
     rerender(<CompanionButton companion="zabaione" status={{ mood: "okay", avg_kcal: null, avg_target_kcal: null, days_logged: 0, okay_streak: 0 }} />);
     expect(screen.getByRole("dialog")).toHaveTextContent("Awake again.");
+  });
+
+  it("reports opening the bubble for the owner's dashboard, once per open, and not on closing", async () => {
+    const fetch = mockFetch(() => new Response(null, { status: 204 }));
+    render(<CompanionButton companion="cannolo" status={okay} />);
+    const button = screen.getByRole("button", { name: /Cannolo/ });
+    await userEvent.click(button);
+    await userEvent.click(button);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe("/api/companion/interactions");
+    expect(JSON.parse(String(init?.body))).toEqual({ kind: "open" });
   });
 });

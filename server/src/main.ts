@@ -4,7 +4,8 @@ import { createVerifier, devVerifier } from "./auth/access.ts";
 import { loadConfig } from "./config.ts";
 import { moveOwnerIn } from "./db/location.ts";
 import { startInsights, startNightlySnapshot, startRetention } from "./jobs.ts";
-import { createMetrics, registerSpend, seedPeople, serveMetrics } from "./metrics.ts";
+import { interactionsReader } from "./companion/metrics.ts";
+import { createMetrics, registerCompanionInteractions, registerSpend, seedPeople, serveMetrics } from "./metrics.ts";
 import { createPeople, personKey, shortKey } from "./people/people.ts";
 import { getProfile } from "./profile/profile.ts";
 import { spendReader } from "./spend.ts";
@@ -48,6 +49,8 @@ const app = buildApp({
 });
 // Each person's spend so far, priced from their usage records whenever Prometheus scrapes.
 registerSpend(metrics, spendReader(people, ownerKey, app.log));
+// And how much each person interacts with their companion, from their own records, likewise.
+registerCompanionInteractions(metrics, interactionsReader(people, ownerKey, () => new Date(), app.log));
 if (move === "moved") app.log.info("moved the owner's data into users/ (milestone 2.2)");
 if (move === "both") app.log.warn("found data in both data/db and the owner's folder under data/users; using the owner's folder. Check the old data/db, data/photos and data/snapshots aren't needed, then remove them");
 
