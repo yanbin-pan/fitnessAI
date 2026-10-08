@@ -902,7 +902,13 @@ Tabs: **Today · Trends · Goals · Body · Settings**.
   - One feed mixing coach messages and cards: food, exercise (with a watch badge),
     measurements, check-ins and drafts (entries and goal plans), each with Undo, edit, Add
     or Split as appropriate.
-  - A **"Log only"** switch that hides the conversation and leaves a clean logbook.
+  - The chat starts under a thin divider ("Chat", or "Logbook" on a day past the chat window) whose
+    **All | Log** switch hides the conversation and leaves a clean logbook (Log). It replaces the
+    "Log only" row that stood between the badges and the chat.
+  - A day opens at its latest entry, just above the composer, as a chat does; something new
+    arriving (a message sent, a reply, an entry) brings the page back down to it. Once the
+    summary card has scrolled under the day bar, a one-line summary floats beneath the bar (kcal
+    left and the four macros as small bars); a tap scrolls back up to the card.
   - The composer pinned at the bottom: a camera button, the text box and Send, with any
     attached photos as thumbnails above (upload progress, retry, ✕); plus **"+ Add
     manually"** (name, kcal, macros) for when the AI is unavailable. The editor picks an
