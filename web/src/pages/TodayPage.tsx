@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useParams } from "react-router";
 import { ApiError, api } from "../api.ts";
 import { dropLive, finishLive, firstStep, pushStep, startLive } from "../coach/live.ts";
@@ -14,14 +14,42 @@ import { Feed } from "../components/Feed.tsx";
 import { CompanionPrompt } from "../components/CompanionPrompt.tsx";
 import { NamePrompt } from "../components/NamePrompt.tsx";
 import { SetupPrompt } from "../components/SetupPrompt.tsx";
+import { FeedDivider } from "../components/FeedDivider.tsx";
 import { Summary } from "../components/Summary.tsx";
-import { Toggle, quietButton } from "../components/ui.tsx";
+import { SummaryStrip } from "../components/SummaryStrip.tsx";
+import { quietButton } from "../components/ui.tsx";
 import { useT } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
 import { greetingFor } from "../greeting.ts";
 import { storeDay, useDay, useLoadedProfile } from "../queries.ts";
 import { COMPANIONS, DEFAULT_COMPANION, MAX_BACKDATE_DAYS, chatOpen, daysBetween } from "../shared.ts";
 import type { DeleteResult, Entry } from "../shared.ts";
+
+/** The page's own scrolling, to the end of the feed: just above the composer, where the next entry goes. */
+function scrollToLatest(behavior: ScrollBehavior): void {
+  const page = document.scrollingElement;
+  if (!page?.scrollTo) return;
+  // After the browser has laid the day out, so the height is the day's.
+  requestAnimationFrame(() => page.scrollTo({ top: page.scrollHeight, behavior }));
+}
+
+/**
+ * Whether `element` has scrolled up under the day bar (`barHeight` px), so the summary strip should stand in for it.
+ * Without IntersectionObserver (old browsers, tests) it never does.
+ */
+function useScrolledAway(element: HTMLElement | null, barHeight: number): boolean {
+  const [away, setAway] = useState(false);
+  useEffect(() => {
+    if (!element || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([seen]) => setAway(!seen.isIntersecting && seen.boundingClientRect.top < barHeight),
+      { rootMargin: `-${barHeight}px 0px 0px 0px` },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [element, barHeight]);
+  return away;
+}
 
 function actionError(error: unknown, t: Messages): string {
   if (error instanceof ApiError && error.kind === "offline") return t.day.actionOffline;
@@ -35,6 +63,22 @@ export function TodayPage() {
   const profile = useLoadedProfile();
   const client = useQueryClient();
   const [logOnly, setLogOnly] = useState(false);
+  const [summaryCard, setSummaryCard] = useState<HTMLDivElement | null>(null);
+  const bar = useRef<HTMLDivElement>(null);
+  // Below the day bar, which is 4.25rem under the safe area: what's under it is hidden.
+  const summaryAway = useScrolledAway(summaryCard, bar.current?.offsetHeight ?? 68);
+  // A day opens at its latest entry, just above the composer, as a chat does; something new arriving (a message sent, a
+  // reply, an entry) brings the page back down to it. Undo and edits don't move it.
+  const shownDate = day.data?.date;
+  const itemCount = day.data ? day.data.entries.length + day.data.messages.length : 0;
+  const lastShown = useRef<{ date?: string; count: number }>({ count: 0 });
+  useLayoutEffect(() => {
+    if (!shownDate) return;
+    const previous = lastShown.current;
+    if (previous.date !== shownDate) scrollToLatest("instant");
+    else if (itemCount > previous.count) scrollToLatest("smooth");
+    lastShown.current = { date: shownDate, count: itemCount };
+  }, [shownDate, itemCount]);
   // An open editor belongs to the day it was opened on; Back or Forward to another day must not carry it along.
   const [editing, setEditing] = useState<{ date: string; entry: Entry | null } | null>(null);
   // After a failure the screen may be out of step with the server (a half-finished Undo, a message
@@ -120,22 +164,28 @@ export function TodayPage() {
     // (photos, notices, a longer message) and is published as --composer-h. A day without a composer uses the fallback.
     <main className="mx-auto max-w-xl pb-[calc(var(--composer-h,8rem)_+_var(--tabbar-h)_+_env(safe-area-inset-bottom)_+_1rem)]">
       {/* Only the day navigation stays pinned; the summary scrolls away with the feed. Sticky is bounded by its parent, so this must stay a direct child of main. */}
-      <div className="sticky top-0 z-10 bg-base px-4 pt-[env(safe-area-inset-top)]">
+      <div ref={bar} className="sticky top-0 z-10 bg-base px-4 pt-[env(safe-area-inset-top)]">
+        {summaryAway && (
+          <div className="absolute inset-x-4 top-full">
+            <SummaryStrip view={view} onClick={() => summaryCard?.scrollIntoView?.({ block: "start", behavior: "smooth" })} />
+          </div>
+        )}
         <DayNav date={view.date} today={view.today} companion={view.companion ? { id: companion, status: view.companion } : undefined} />
       </div>
       {/* The top padding gives the card's raised highlight room below the solid bar, which would otherwise paint over it. */}
-      <div className="px-4 py-3">
+      <div className="px-4 pt-3">
         {isToday && stored?.name_prompt === "show" && <NamePrompt profile={stored} />}
         {/* One question at a time: the name first, then the companion. */}
         {isToday && stored && stored.name_prompt !== "show" && stored.companion_prompt === "show" && <CompanionPrompt profile={stored} />}
-        <Summary view={view} />
+        {/* Scrolled to, under the day bar, when the summary strip is tapped. */}
+        <div ref={setSummaryCard} className="scroll-mt-[calc(env(safe-area-inset-top)_+_4.75rem)]">
+          <Summary view={view} />
+        </div>
         {/* An older server sends no signals. */}
         {view.nutrients && <NutrientCard signals={view.nutrients} />}
         <ActivitiesCard view={view} onEdit={(entry) => setEditing({ date: view.date, entry })} />
-        <div className="mt-3 flex justify-end">
-          <Toggle label={t.day.logOnly} checked={logOnly} onChange={setLogOnly} />
-        </div>
       </div>
+      <FeedDivider chat={chatOpen(view.date, view.today)} logOnly={logOnly} onChange={setLogOnly} />
       {(retry.isError || undo.isError) && (
         <p role="alert" className="px-4 pt-3 text-sm text-danger">
           {actionError(undo.error ?? retry.error, t)}

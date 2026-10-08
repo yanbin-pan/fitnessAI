@@ -4,7 +4,7 @@ import { useT } from "../i18n/index.tsx";
 import { isDrink } from "../shared.ts";
 import type { DayView } from "../shared.ts";
 
-const MACROS = [
+export const MACROS = [
   { key: "protein_g", word: "protein", fill: "bg-protein", stripes: "stripes-protein" },
   { key: "carbs_g", word: "carbs", fill: "bg-carbs", stripes: "stripes-carbs" },
   { key: "fat_g", word: "fat", fill: "bg-fat", stripes: "stripes-fat" },

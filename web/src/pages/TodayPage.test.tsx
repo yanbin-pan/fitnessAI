@@ -116,7 +116,7 @@ describe("TodayPage", () => {
     mockFetch(() => jsonResponse(dayView({ entries: [eggs], messages: [question, { ...answer, cards: [{ type: "entry", id: "a" }] }] })));
     renderDay();
     expect(await screen.findByText("eggs and toast")).toBeInTheDocument();
-    await userEvent.click(screen.getByLabelText("Log only"));
+    await userEvent.click(screen.getByRole("radio", { name: "Log" }));
     expect(screen.queryByText("eggs and toast")).not.toBeInTheDocument();
     expect(screen.getByText("Scrambled eggs")).toBeInTheDocument();
   });
@@ -512,6 +512,35 @@ describe("TodayPage: the name and the greeting", () => {
     expect(screen.queryByRole("button", { name: /How your week is going/ })).toBeNull();
   });
 
+  it("starts the chat under a divider whose All | Log switch shows everything or only what was logged", async () => {
+    mockFetch(() => jsonResponse(dayView({ entries: [named("a", "Scrambled eggs", { message_id: "m1" })], messages: [question] })));
+    renderDay();
+    expect(await screen.findByText("Chat")).toBeInTheDocument();
+    const group = screen.getByRole("group", { name: "Show" });
+    expect(within(group).getByRole("radio", { name: "All" })).toBeChecked();
+    await userEvent.click(within(group).getByRole("radio", { name: "Log" }));
+    expect(within(group).getByRole("radio", { name: "Log" })).toBeChecked();
+    expect(screen.queryByRole("switch")).toBeNull();
+  });
+
+  it("opens a day at its latest entry, and goes back down when something new arrives", async () => {
+    const scrollTo = vi.fn();
+    Object.defineProperty(document, "scrollingElement", { configurable: true, value: { scrollTo, scrollHeight: 2400 } });
+    vi.stubGlobal("requestAnimationFrame", (run: FrameRequestCallback) => {
+      run(0);
+      return 0;
+    });
+    let view = dayView({ entries: [named("a", "Scrambled eggs", { message_id: "m1" })], messages: [question] });
+    mockFetch(() => jsonResponse(view));
+    const { client } = renderDay();
+    expect(await screen.findByText("Scrambled eggs")).toBeInTheDocument();
+    await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 2400, behavior: "instant" }));
+    view = { ...view, entries: [...view.entries, named("b", "Toast", { message_id: "m1" })] };
+    client.setQueryData(["day", "today"], view);
+    await waitFor(() => expect(scrollTo).toHaveBeenLastCalledWith({ top: 2400, behavior: "smooth" }));
+    Reflect.deleteProperty(document, "scrollingElement");
+  });
+
   it("doesn't ask on another day, and greets only on today, never in Log only", async () => {
     mockFetch((url) => jsonResponse(url.endsWith("/today") ? dayView() : dayView({ date: "2026-10-02" })));
     const { client } = renderDay("/day/2026-10-02");
@@ -528,7 +557,7 @@ describe("TodayPage: the name and the greeting", () => {
     const hello = await screen.findByText(/Bin/);
     const feed = hello.closest("ol");
     expect(feed?.firstElementChild).toContainElement(hello);
-    await userEvent.click(screen.getByRole("switch", { name: "Log only" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Log" }));
     expect(screen.queryByText(/Bin/)).toBeNull();
   });
 });
