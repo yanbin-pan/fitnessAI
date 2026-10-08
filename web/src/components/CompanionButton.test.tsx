@@ -5,7 +5,7 @@ import type { CompanionStatus } from "../shared.ts";
 import { mockFetch } from "../test/render.tsx";
 import { CompanionButton } from "./CompanionButton.tsx";
 
-const okay: CompanionStatus = { mood: "okay", avg_kcal: 2104, avg_target_kcal: 2316, days_logged: 6, okay_streak: 3 };
+const okay: CompanionStatus = { mood: "okay", avg_kcal: 2104, avg_target_kcal: 2316, days_logged: 6, okay_streak: 3, alcohol_units: 0, over_alcohol: false };
 
 describe("CompanionButton", () => {
   it("names the companion and its mood, and opens the bubble with the week behind it", async () => {
@@ -51,7 +51,7 @@ describe("CompanionButton", () => {
     rerender(<CompanionButton companion="zabaione" status={{ ...okay, mood: "thriving", okay_streak: 14 }} />);
     expect(screen.getByRole("dialog")).toHaveTextContent("Two weeks on track.");
     expect(screen.getByRole("dialog")).not.toHaveTextContent("days on track towards");
-    rerender(<CompanionButton companion="zabaione" status={{ mood: "okay", avg_kcal: null, avg_target_kcal: null, days_logged: 0, okay_streak: 0 }} />);
+    rerender(<CompanionButton companion="zabaione" status={{ mood: "okay", avg_kcal: null, avg_target_kcal: null, days_logged: 0, okay_streak: 0, alcohol_units: 0, over_alcohol: false }} />);
     expect(screen.getByRole("dialog")).toHaveTextContent("Awake again.");
   });
 
@@ -65,5 +65,16 @@ describe("CompanionButton", () => {
     const [url, init] = fetch.mock.calls[0];
     expect(url).toBe("/api/companion/interactions");
     expect(JSON.parse(String(init?.body))).toEqual({ kind: "open" });
+  });
+
+  it("says when the week is over the alcohol guide, on top of the mood, and not while asleep", async () => {
+    const { rerender } = render(<CompanionButton companion="bombolone" status={{ ...okay, mood: "thriving", alcohol_units: 16.1, over_alcohol: true }} />);
+    const button = screen.getByRole("button", { name: "Bombolone, Thriving, over the alcohol guide. How your week is going" });
+    await userEvent.click(button);
+    expect(screen.getByRole("dialog")).toHaveTextContent("Over the UK guide of 14 units a week: 16.1 units in the last 7 days.");
+    expect(screen.getByRole("dialog")).toHaveTextContent("Two weeks on track.");
+    rerender(<CompanionButton companion="bombolone" status={{ ...okay, mood: "inactive", alcohol_units: 16.1, over_alcohol: true }} />);
+    expect(screen.getByRole("dialog")).not.toHaveTextContent("Over the UK guide");
+    expect(screen.getByRole("button", { name: "Bombolone, Inactive. How your week is going" })).toBeInTheDocument();
   });
 });

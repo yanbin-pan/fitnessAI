@@ -108,6 +108,9 @@ export function buildDayView(sql: Sql, profile: Profile, date: string, today: st
   const linkedIds = [...new Set(messages.flatMap((m) => m.cards.filter((c) => c.type === "entry" && !onThisDay.has(c.id)).map((c) => c.id)))];
   const linked = linkedIds.map((id) => getEntry(sql, id)).filter((e): e is Entry => e !== null);
   const t = adjustTargets(baseOf(snapshot), snapshot.add_back_pct, snapshot.weight_kg_used, summarizeWorkouts(list));
+  // The 7 days ending on a day, as the nutrient signals: the day's own drinks are part of its week.
+  const alcoholOn = (end: string) => alcoholWeek(end, (day) => (day === date ? list : listEntries(sql, day)).flatMap((entry) => entry.foods));
+  const alcohol = alcoholOn(date);
   return {
     date,
     today,
@@ -119,10 +122,13 @@ export function buildDayView(sql: Sql, profile: Profile, date: string, today: st
     featured: featuredActivities(sql, date, starter),
     suggestions: date === today ? suggestionsNow(sql, today, profile.timezone, nowIso) : [],
     nutrients: signalsFor(sql, profile, date, today),
-    // As of today whichever day is open: the companion shows how the person is doing now.
-    companion: companionStatus(daySummaries(sql, profile, addDays(today, -COMPANION_LOOKBACK_DAYS), today, nowIso), today),
-    // The 7 days ending on the day open, as the nutrient signals: the day's own drinks are part of its week.
-    alcohol: alcoholWeek(date, (day) => (day === date ? list : listEntries(sql, day)).flatMap((entry) => entry.foods)),
+    // As of today whichever day is open: the companion shows how the person is doing now, the week's drinks included.
+    companion: companionStatus(
+      daySummaries(sql, profile, addDays(today, -COMPANION_LOOKBACK_DAYS), today, nowIso),
+      today,
+      (date === today ? alcohol : alcoholOn(today))?.units ?? 0,
+    ),
+    alcohol,
   };
 }
 

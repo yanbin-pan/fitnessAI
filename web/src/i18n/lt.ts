@@ -347,6 +347,8 @@ export const lt: Messages = {
     },
     streak: (days: number, of: number) => `${days} iš ${of} dienų pagal tikslą iki „Puikiai“`,
     rule: "Seka jūsų 7 dienų vidurkį, o ne vieną dieną.",
+    alcohol: (units: string) => `Daugiau nei JK rekomendacija – 14 vienetų per savaitę: ${units} vnt. per paskutines 7 dienas. Zabaione kiek apsvaigęs.`,
+    alcoholShort: "virš alkoholio rekomendacijos",
   },
   companionPrompt: {
     title: "Išsirinkite kompanioną",

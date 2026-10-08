@@ -347,6 +347,8 @@ export const zh: Messages = {
     },
     streak: (days: number, of: number) => `已达标 ${days}/${of} 天，离“活力满满”更近一步`,
     rule: "看的是 7 天平均，而不是某一天。",
+    alcohol: (units: string) => `超出英国每周 14 单位的建议：近 7 天 ${units} 单位。Zabaione 有点微醺了。`,
+    alcoholShort: "超出饮酒建议",
   },
   companionPrompt: {
     title: "选一个伙伴",

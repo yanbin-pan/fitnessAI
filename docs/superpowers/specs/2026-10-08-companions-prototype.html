@@ -1,4 +1,4 @@
-<title>Nutrition Companions R7</title>
+<title>Nutrition Companions R8</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600&family=DM+Sans:wght@400;500&display=swap">
 <style>
@@ -60,7 +60,7 @@ input[type=range]::-moz-range-thumb{ width:30px; height:30px; border-radius:50%;
 <div class="wrap">
   <header>
     <div>
-      <div class="eyebrow">Nutrition companions · low-poly 3D · classic eyes · round 7</div>
+      <div class="eyebrow">Nutrition companions · low-poly 3D · classic eyes · round 8</div>
       <h1>The dessert companions</h1>
       <p class="lede">Five moods: Inactive dozes off when nothing is logged; Sluggish is under-fed beside an empty bowl; Okay is calm and content; Thriving bursts with energy; Overfed is stuffed and uncomfortable beside an overflowing bowl.</p>
     </div>
@@ -95,6 +95,9 @@ input[type=range]::-moz-range-thumb{ width:30px; height:30px; border-radius:50%;
         <button type="button" class="btn" id="p-mid" data-set="55">Okay</button>
         <button type="button" class="btn" id="p-high" data-set="95">Thriving</button>
         <button type="button" class="btn" id="p-over" aria-pressed="false">Overfed</button>
+      </div>
+      <div class="presets" style="margin-top:14px">
+        <button type="button" class="btn" id="p-alc" aria-pressed="false">Over alcohol limit</button>
         <button type="button" class="btn" id="play" aria-pressed="false">Play example week</button>
       </div>
     </div>
@@ -102,6 +105,7 @@ input[type=range]::-moz-range-thumb{ width:30px; height:30px; border-radius:50%;
       <div class="read"><dt>Eyes</dt><dd id="r-eyes">Happy ^ ^ squints</dd></div>
       <div class="read"><dt>Body</dt><dd id="r-body">Bouncing, dancing, wagging</dd></div>
       <div class="read"><dt>Extras</dt><dd id="r-extra">Open smile, sparkles, energy bolts</dd></div>
+      <div class="read"><dt>Alcohol</dt><dd id="r-alc">Within weekly limit</dd></div>
       <p class="note">Tiramisù the bear, Panna Cotta the elephant, Zabaione the Shiba Inu, Cannolo the capybara, Bombolone the pig, Sfogliatella the tiger, Meringa the sheep and Cantuccio the horse. The example week uses made-up daily scores.</p>
     </dl>
   </section>
@@ -386,6 +390,24 @@ input[type=range]::-moz-range-thumb{ width:30px; height:30px; border-radius:50%;
     // round "burp" mouth
     const oMouth = new THREE.Mesh(new THREE.TorusGeometry(0.03,0.012,6,14), mouthMat); oMouth.position.set(0, mouthY, mouthZ); head.add(oMouth);
 
+    // --- Over the weekly alcohol limit (combines with any awake mood) ---
+    const booze = new THREE.Group();
+    const bottle = new THREE.Mesh(facet(new THREE.LatheGeometry([
+      new THREE.Vector2(0,0), new THREE.Vector2(0.1,0), new THREE.Vector2(0.105,0.04), new THREE.Vector2(0.105,0.36),
+      new THREE.Vector2(0.08,0.44), new THREE.Vector2(0.04,0.5), new THREE.Vector2(0.036,0.64), new THREE.Vector2(0,0.64)], 8), 0.004), mat('#3F6E4E', {keep:true}));
+    const label = new THREE.Mesh(new THREE.CylinderGeometry(0.108,0.108,0.13,8,1,true), mat('#EFE6D2', {keep:true, double:true})); label.position.y = 0.19;
+    const cork = new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.05,6), mat('#B88A5A', {keep:true})); cork.position.y = 0.66;
+    const bottleG = new THREE.Group(); bottleG.add(bottle, label, cork); bottleG.rotation.z = 0.08;
+    const glassMat = mat('#CFE1E8', {keep:true, opacity:0.75});
+    const glass = new THREE.Mesh(new THREE.LatheGeometry([new THREE.Vector2(0,0), new THREE.Vector2(0.07,0), new THREE.Vector2(0.07,0.012), new THREE.Vector2(0.012,0.02),
+      new THREE.Vector2(0.012,0.12), new THREE.Vector2(0.06,0.15), new THREE.Vector2(0.075,0.22), new THREE.Vector2(0.07,0.27)], 8), glassMat);
+    glass.rotation.z = Math.PI/2 - 0.1; glass.position.set(0.28, 0.07, 0.2); glass.rotation.y = -0.6;
+    const spill = new THREE.Mesh(new THREE.CircleGeometry(0.13, 10), mat('#8A2F44', {keep:true, opacity:0.7})); spill.rotation.x = -Math.PI/2; spill.scale.set(1.3,0.8,1); spill.position.set(0.48, 0.006, 0.3);
+    booze.add(bottleG, glass, spill); booze.position.set(-0.85, 0, 0.5); root.add(booze);
+    // flushed cheeks
+    const flushMat = mat('#E5675F', {keep:true, opacity:0});
+    [-1,1].forEach(sd => { const f = new THREE.Mesh(new THREE.SphereGeometry(0.085,12,8), flushMat); f.scale.set(1,0.6,0.4); f.position.set((ex+0.12)*sd, ey-0.12, surfZ(ex+0.12, ey-0.12)+0.006); head.add(f); });
+
     // tail
     const tail = new THREE.Group(); inner.add(tail); tail.userData.axis = 'y';
     if (cfg.tail === 'tuft'){
@@ -442,6 +464,10 @@ input[type=range]::-moz-range-thumb{ width:30px; height:30px; border-radius:50%;
         // stuffed discomfort: every ~7 s a wince with an "oof…"
         const ofPh = (t*0.14 + this.seed*0.71) % 1, oof = (!reduce && ofPh < 0.16) ? Math.sin(ofPh/0.16*Math.PI) * o : 0;
         this.oof = oof;
+        const al = ctx.alc || 0;
+        const hcPh = (t*0.31 + this.seed*0.41) % 1, hic = (!reduce && hcPh < 0.06) ? Math.sin(hcPh/0.06*Math.PI) * al : 0;
+        this.hic = hic;
+        const swayA = reduce ? 0 : Math.sin(t*1.25 + this.seed), swayB = reduce ? 0 : Math.cos(t*1.25 + this.seed);
         const vE = smooth(v,0.2,0.7);
         const glance = u * clamp(Math.sin(t*0.45 + this.seed)*1.6, 0, 1);         // looks over at the empty bowl
         const grPh = (t*0.23 + this.seed*0.37) % 1, grumble = (!reduce && grPh < 0.1) ? Math.sin(grPh/0.1*Math.PI) * u : 0;
@@ -456,10 +482,11 @@ input[type=range]::-moz-range-thumb{ width:30px; height:30px; border-radius:50%;
         const lift = Math.max(hop, tap*0.25);
         const sigh = Math.sin(t*0.9) * 0.025 * u + Math.sin(t*1.1) * 0.03 * o;
         const breath = 1 + Math.sin(t*lerp(1.0,2.2,v)) * lerp(0.03,0.012,v) + sigh;
-        inner.position.y = lerp(-0.08,0,v) + lift;
+        inner.position.y = lerp(-0.08,0,v) + lift + hic*0.09;
         inner.scale.set((cfg.scale||1)*(1+(1-sq)*0.5), (cfg.scale||1)*sq, (cfg.scale||1)*(1+(1-sq)*0.5));
         body.rotation.x = lerp(0.32,-0.04,v) - x*0.08 + u*0.05 - o*0.16 + oof*0.14;
-        body.rotation.z = Math.sin(t*4.2)*0.09*x + Math.sin(t*46)*0.035*grumble;
+        body.rotation.z = Math.sin(t*4.2)*0.09*x + Math.sin(t*46)*0.035*grumble + swayA*0.17*al + (hop > 0.02 ? swayB*0.12*al : 0);
+        body.rotation.x += swayB*0.06*al;
         body.scale.y = lerp(0.88,1,v) * breath;
         // fuller belly, wider haunches when overfed (+ a little jiggle on each burp)
         const puff = o*(1 + burp*0.06);
@@ -468,7 +495,8 @@ input[type=range]::-moz-range-thumb{ width:30px; height:30px; border-radius:50%;
         belly.visible = o > 0.02; belly.scale.set(bellyBase.x*puff, bellyBase.y*puff, bellyBase.z*puff);
         haunches.forEach(h => { const b0 = h.userData.base; h.scale.set(b0.x*(1+0.14*o), b0.y*(1+0.06*o), b0.z*(1+0.1*o)); h.position.x = h.userData.x0*(1+0.08*o); });
         head.rotation.x = lerp(0.42,0,v) - x*0.14 - tap*0.15 + glance*0.22 - o*0.06 - burp*0.18 + oof*0.16;
-        head.rotation.z = Math.sin(t*0.9 + cfg.x)*0.12*smooth(v,0.6,1)*(1-x)*(1-u) + Math.sin(t*4.2+0.6)*0.2*x + u*0.1;
+        head.rotation.z = Math.sin(t*0.9 + cfg.x)*0.12*smooth(v,0.6,1)*(1-x)*(1-u) + Math.sin(t*4.2+0.6)*0.2*x + u*0.1 + Math.sin(t*1.25 + this.seed + 1.3)*0.2*al;
+        head.rotation.x += -hic*0.12;
         head.rotation.y = Math.sin(t*0.6 + cfg.x*2)*0.12*v*(1-x)*(1-u) - glance*0.45;
 
         ears.forEach(p => {
@@ -480,11 +508,14 @@ input[type=range]::-moz-range-thumb{ width:30px; height:30px; border-radius:50%;
         });
 
         const happyEyes = tap > 0.05 || (x > 0.45 && Math.sin(t*1.3 + this.seed) > -0.35);
-        eyes.forEach(e => {
+        eyes.forEach((e, i) => {
           e.dot.visible = !happyEyes; e.arc.visible = happyEyes;
-          let sy = lerp(0.22, 1, vE) * lerp(1, 0.68, u) * lerp(1, 0.4, o) * (1 - oof*0.85); if (ctx.blink) sy = 0.12;
+          let sy = lerp(0.22, 1, vE) * lerp(1, 0.68, u) * lerp(1, 0.4, o) * (1 - oof*0.85);
+          sy *= i === 0 ? lerp(1, 0.45, al) : lerp(1, 0.9, al);                 // woozy: one eye droops more than the other
+          if (ctx.blink || hic > 0.4) sy = 0.12;
           e.dot.scale.y = sy;
-          e.g.position.y = ey - (1-vE)*0.02 - u*0.01;
+          e.g.position.y = ey - (1-vE)*0.02 - u*0.01 + Math.cos(t*2.1 + i*1.7)*0.012*al;
+          e.g.position.x = ex*(i === 0 ? -1 : 1) + Math.sin(t*2.1 + i*1.7)*0.014*al;   // eyes drift a little
         });
         const openK = Math.max(smooth(x,0.35,0.7), tap);
         const uneasy = (u > 0.35 || o > 0.5) && tap < 0.05;
@@ -497,6 +528,9 @@ input[type=range]::-moz-range-thumb{ width:30px; height:30px; border-radius:50%;
         open.visible = !frown.visible && !uneasy && openK > 0.5;
         smile.visible = !frown.visible && !uneasy && !open.visible && !oMouth.visible;
         open.scale.setScalar(0.7 + 0.4*openK + Math.sin(t*8)*0.05*x);
+        [smile, wobble, open, frown].forEach(m => m.rotation.z = (m === smile ? Math.PI : 0) + 0.28*al);   // lopsided mouth
+        flushMat.opacity = al*0.75;
+        const bz = smooth(al,0.1,0.5); booze.visible = bz > 0.01; booze.scale.setScalar(Math.max(bz,0.001));
         blushMat.opacity = lerp(lerp(0.35, 0.9, Math.max(x, tap)) * (1 - u*0.9), 0.3, o);
         bagMat.opacity = Math.max(smooth(u,0.2,0.7), o*0.6) * 0.55;
 
@@ -559,6 +593,9 @@ input[type=range]::-moz-range-thumb{ width:30px; height:30px; border-radius:50%;
     const gr = g.createLinearGradient(0,0,0,128); gr.addColorStop(0,'rgba(120,214,226,0)'); gr.addColorStop(0.35,'rgba(120,214,226,0.95)'); gr.addColorStop(1,'rgba(120,214,226,0)');
     g.fillStyle = gr; g.beginPath(); g.moveTo(8,0); g.quadraticCurveTo(16,64,8,128); g.quadraticCurveTo(0,64,8,0); g.fill(); return new THREE.CanvasTexture(c); })();
   const sprite = (tex) => new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthWrite:false}));
+  const hicTex = (() => { const c = document.createElement('canvas'); c.width = 128; c.height = 64; const g = c.getContext('2d');
+    g.fillStyle = '#B5546A'; g.font = 'italic 700 36px Outfit, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('hic!', 64, 34);
+    return new THREE.CanvasTexture(c); })();
   const oofTex = (() => { const c = document.createElement('canvas'); c.width = 128; c.height = 64; const g = c.getContext('2d');
     g.fillStyle = '#7C8492'; g.font = 'italic 600 38px Outfit, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('oof…', 64, 34);
     return new THREE.CanvasTexture(c); })();
@@ -577,6 +614,8 @@ input[type=range]::-moz-range-thumb{ width:30px; height:30px; border-radius:50%;
     c.grr = sprite(grumbleTex); c.grr.position.set(0.62, 0.62, 0.5); c.root.add(c.grr);
     c.bub = sprite(bubbleTex); c.root.add(c.bub);
     c.oofS = sprite(oofTex); c.root.add(c.oofS);
+    c.hicS = sprite(hicTex); c.root.add(c.hicS);
+    c.dizzy = [0,1,2].map(() => { const d = sprite(bubbleTex); holder.add(d); return d; });
     // energy FX for Thriving: twinkling sparkles, popping bolts, rising speed streaks, landing ring
     c.sparks = [0,1,2,3].map(k => { const s = sprite(k % 2 ? sparkWTex : sparkTex);
       const a = (k/4)*Math.PI*2 + Math.random()*0.6;
@@ -622,6 +661,8 @@ input[type=range]::-moz-range-thumb{ width:30px; height:30px; border-radius:50%;
   const dayTag = document.getElementById('daytag'), playBtn = document.getElementById('play');
   let target = 92, score = 92, inactive = false, sleepK = 0, overfed = false, overK = 0;
   const overBtn = document.getElementById('p-over');
+  const alcBtn = document.getElementById('p-alc'), rA = document.getElementById('r-alc');
+  let tipsy = false, alcRaw = 0;
   const inactiveBtn = document.getElementById('p-off');
   const copy = {
     inactive:['Shut, dozing','Curled forward, ears down, slow breaths','Floating z’s, washed-out colour'],
@@ -636,6 +677,8 @@ input[type=range]::-moz-range-thumb{ width:30px; height:30px; border-radius:50%;
     scoreNum.textContent = (inactive || overfed) ? '—' : target;
     [rE.textContent, rB.textContent, rX.textContent] = copy[key];
     inactiveBtn.setAttribute('aria-pressed', String(inactive)); overBtn.setAttribute('aria-pressed', String(overfed));
+    alcBtn.setAttribute('aria-pressed', String(tipsy));
+    rA.textContent = !tipsy ? 'Within weekly limit' : inactive ? 'Over limit (hidden while asleep)' : 'Over weekly limit: swaying, hiccups, flushed, woozy eyes, bottle';
   }
   function setScore(n, fromUser){ slider.value = n; target = n; inactive = false; overfed = false; render(); if (fromUser) stopPlay(); }
   function setInactive(fromUser){ inactive = true; overfed = false; render(); if (fromUser) stopPlay(); }
@@ -644,17 +687,18 @@ input[type=range]::-moz-range-thumb{ width:30px; height:30px; border-radius:50%;
   document.querySelectorAll('[data-set]').forEach(b => b.addEventListener('click', () => setScore(+b.dataset.set, true)));
   inactiveBtn.addEventListener('click', () => setInactive(true));
   overBtn.addEventListener('click', () => setOverfed(true));
+  alcBtn.addEventListener('click', () => { tipsy = !tipsy; render(); stopPlay(); });
   const segBtns = document.querySelectorAll('[data-focus]');
   function setFocus(f){ focus = f; segBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.focus === String(f)))); }
   segBtns.forEach(b => b.addEventListener('click', () => setFocus(b.dataset.focus === 'all' ? 'all' : +b.dataset.focus)));
   setFocus(focus);
 
-  const week = [['Mon',58],['Tue',24],['Wed','off'],['Thu',74],['Fri',96],['Sat','feast'],['Sun',62]];
+  const week = [['Mon',58],['Tue',24],['Wed','off'],['Thu',74],['Fri',96,true],['Sat','feast',true],['Sun',62]];
   let playTimer = null, dayIdx = 0;
-  function stepDay(){ const [d,n] = week[dayIdx % week.length]; dayIdx++;
+  function stepDay(){ const [d,n,drink] = week[dayIdx % week.length]; dayIdx++; tipsy = !!drink;
     if (n === 'off'){ dayTag.textContent = 'Example · ' + d + ' · nothing logged'; setInactive(false); }
-    else if (n === 'feast'){ dayTag.textContent = 'Example · ' + d + ' · well over target'; setOverfed(false); }
-    else { dayTag.textContent = 'Example · ' + d + ' · ' + n; setScore(n, false); } }
+    else if (n === 'feast'){ dayTag.textContent = 'Example · ' + d + ' · well over target' + (drink ? ' · over alcohol limit' : ''); setOverfed(false); }
+    else { dayTag.textContent = 'Example · ' + d + ' · ' + n + (drink ? ' · over alcohol limit' : ''); setScore(n, false); } }
   function stopPlay(){ if (!playTimer) return; clearInterval(playTimer); playTimer = null; playBtn.setAttribute('aria-pressed','false'); playBtn.textContent = 'Play example week'; dayTag.hidden = true; }
   playBtn.addEventListener('click', () => {
     if (playTimer){ stopPlay(); return; }
@@ -692,6 +736,8 @@ input[type=range]::-moz-range-thumb{ width:30px; height:30px; border-radius:50%;
     const u = (1 - smooth(score, 22, 50)) * (1 - sleepK) * (1 - overK);   // under-eating, awake only
     const x = smooth(score, 70, 92) * (1 - sleepK) * (1 - overK);         // extra joy for Thriving
     applyColour(vFinal, x, Math.max(u, o*0.3));                      // a touch of queasy pallor when stuffed
+    alcRaw = reduce ? (tipsy ? 1 : 0) : alcRaw + ((tipsy ? 1 : 0) - alcRaw) * Math.min(1, dt*2.5);
+    const alcK = alcRaw * (1 - sleepK);                              // never shown while Inactive
 
     const ct = camTarget();
     cam.x = lerp(cam.x, ct.x, Math.min(1, dt*4)); cam.z = lerp(cam.z, ct.z, Math.min(1, dt*4)); cam.d = lerp(cam.d, ct.d, Math.min(1, dt*4));
@@ -705,11 +751,16 @@ input[type=range]::-moz-range-thumb{ width:30px; height:30px; border-radius:50%;
       const blink = now - c.blinkAt < 0.13 && v > 0.25;
       const hRaw = (now - c.happyAt) / 1.1;
       const happy = (hRaw >= 0 && hRaw <= 1) ? (reduce ? 0.5 : hRaw) : 0;
-      const lift = c.update(t + i*0.7, vFinal, x, {blink, happy:(sleepK > 0.5 ? 0 : happy), unwell:u, over:o});
+      const lift = c.update(t + i*0.7, vFinal, x, {blink, happy:(sleepK > 0.5 ? 0 : happy), unwell:u, over:o, alc:alcK});
       c.grr.material.opacity = (c.grumble || 0) * 0.9; c.grr.visible = (c.grumble || 0) > 0.02;
       c.grr.scale.setScalar(0.22 + (c.grumble || 0)*0.08);
       const bu = c.burp || 0; c.bub.visible = bu > 0.02; c.bub.material.opacity = bu*0.9;
       c.bub.position.set(0.35, c.headTop - 0.45 + (1-bu)*0.25 + bu*0.15, 0.6); c.bub.scale.setScalar(0.12 + bu*0.18);
+      const hc = c.hic || 0; c.hicS.visible = hc > 0.02; c.hicS.material.opacity = hc;
+      c.hicS.position.set(0.7, c.headTop - 0.05 + hc*0.15, 0.4); c.hicS.scale.set(0.42, 0.21, 1);
+      c.dizzy.forEach((d, k) => { const a = (reduce ? 0 : now*1.6) + k*2.09;
+        d.position.set(Math.cos(a)*0.42, c.headTop + 0.12 + Math.sin(a*2)*0.03, Math.sin(a)*0.42); d.scale.setScalar(0.09);
+        d.material.opacity = alcK*0.75; d.visible = alcK > 0.02; });
       const of = c.oof || 0; c.oofS.visible = of > 0.02; c.oofS.material.opacity = of*0.95;
       c.oofS.position.set(-0.75, c.headTop - 0.1 + of*0.12, 0.4); c.oofS.scale.set(0.5 + of*0.1, 0.25 + of*0.05, 1);
       const s = 1 - lift*0.5; c.blob.scale.set(c.blobBase.x*s, c.blobBase.y*s, 1); c.blob.material.opacity = 1 - lift*0.6;

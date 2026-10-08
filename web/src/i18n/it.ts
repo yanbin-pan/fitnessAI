@@ -347,6 +347,8 @@ export const it: Messages = {
     },
     streak: (days: number, of: number) => `${days} giorni su ${of} in linea verso “Alla grande”`,
     rule: "Segue la tua media di 7 giorni, non un singolo giorno.",
+    alcohol: (units: string) => `Oltre la guida britannica di 14 unità a settimana: ${units} unità negli ultimi 7 giorni. Zabaione è un po’ brillo.`,
+    alcoholShort: "oltre la guida sull’alcol",
   },
   companionPrompt: {
     title: "Scegli un compagno",

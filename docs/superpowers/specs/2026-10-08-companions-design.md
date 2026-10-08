@@ -188,6 +188,29 @@ queasy, never sad or ashamed, and never cheerful.
   cannolo that has rolled out of it. A few crumbs sit around the mouth.
 - No hops, no energy FX, no empty bowl.
 
+### Alcohol layer (over the weekly alcohol guide)
+
+A separate on/off layer that **combines with any awake mood** (Sluggish, Okay, Thriving, Overfed),
+for example "Thriving + over limit" or "Overfed + over limit". It's hidden while Inactive. The app sets
+it when the alcohol units of the 7 days ending today, today included, are over the UK guide of 14 (the
+same week as the drinks pill, 2026-10-08 alcohol design §3); the day view's `companion` carries
+`alcohol_units` and `over_alcohol`, as of today whichever day is open. It fades in over about 0.4 s as
+`alc` (0 → 1). The bubble adds a line saying so, and the button's name says "over the alcohol guide".
+
+It should read as tipsy and a bit off: woozy, wobbly and flushed, not a party. Don't add confetti,
+cheers or celebration, even when combined with Thriving.
+
+- **Sway:** slow, off-balance body sway (roll about 0.17 rad, pitch about 0.06 rad, about 1.25 rad/s), with the head
+  swaying out of phase. When combined with Thriving hops, the jumps land slightly off-balance.
+- **Hiccups:** about every 3 s, a quick jolt up (0.09 units). The eyes blink shut, the chin jerks, and a pink
+  italic "hic!" pops beside the head.
+- **Woozy eyes:** one eye droops more than the other (×0.45 versus ×0.9 height), and both drift in small circles.
+- **Flushed cheeks:** red blush (`#E5675F`, 75% opacity) over the usual cheeks.
+- **Lopsided mouth:** whatever mouth the mood uses is tilted about 0.28 rad.
+- **Dizzy bubbles:** 3 small bubbles slowly orbit above the head.
+- **Props:** a green wine bottle (`#3F6E4E`, cream label, cork) on the plinth on the opposite side from the
+  food bowl, plus a tipped-over wine glass and a small dark-red spill (`#8A2F44`).
+
 ## 4. Thriving energy FX (sporty, not cute)
 
 **Don't use hearts.** Use energy effects, with opacity scaled by `x` (and by the tap reaction):
@@ -268,3 +291,4 @@ queasy, never sad or ashamed, and never cheerful.
 - [ ] No body size change in any state except the capped Overfed puff; nothing ever gets thinner.
 - [ ] Tap-to-pet works; reduced-motion mode holds static poses.
 - [ ] Runs at 60 fps on a mid-range phone with one companion on screen.
+- [ ] The alcohol layer combines correctly with Sluggish, Okay, Thriving and Overfed, is hidden while Inactive, and reads as woozy (sway, hiccups, flushed, bottle) rather than celebratory.

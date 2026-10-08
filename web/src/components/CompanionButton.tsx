@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../api.ts";
 import { CompanionView } from "../companions/CompanionView.tsx";
+import { unitsText } from "./Drinks.tsx";
 import { kcal10, thousands } from "../format.ts";
 import { useT } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
@@ -43,6 +44,8 @@ function CompanionBubble({ companion, status, onClose }: { companion: CompanionI
   }, [onClose]);
   const showAverage = status.mood !== "inactive" && status.avg_kcal !== null && status.avg_target_kcal !== null;
   const showStreak = status.mood === "okay" && status.okay_streak > 0;
+  // An older server sends no alcohol; asleep, the layer is hidden, so the bubble doesn't mention it either.
+  const tipsy = status.over_alcohol === true && status.mood !== "inactive";
   return createPortal(
     <>
       <div data-testid="companion-scrim" aria-hidden="true" onClick={onClose} className={`fixed inset-x-0 bottom-0 ${BELOW_BAR} z-40 bg-black/30`} />
@@ -50,7 +53,7 @@ function CompanionBubble({ companion, status, onClose }: { companion: CompanionI
         <div className="companion-pop raised max-w-sm rounded-3xl p-3">
           <div className="pressed relative h-64 overflow-hidden rounded-2xl">
             <CompanionView
-              companion={companion} mood={status.mood} framing="full" interactive plinth className="h-full w-full" badgeClassName="m-auto h-24 w-24 text-4xl"
+              companion={companion} mood={status.mood} overAlcohol={status.over_alcohol === true} framing="full" interactive plinth className="h-full w-full" badgeClassName="m-auto h-24 w-24 text-4xl"
               onPet={() => reportInteraction("pet")}
             />
             <span className="pointer-events-none absolute bottom-2 left-3 text-xs text-muted">{t.companion.hint}</span>
@@ -71,6 +74,7 @@ function CompanionBubble({ companion, status, onClose }: { companion: CompanionI
             </div>
             <p className="mt-1 text-sm font-semibold text-accent-ink">{t.companion.moods[status.mood]}</p>
             <p className="mt-1 text-sm">{whyText(status, t)}</p>
+            {tipsy && <p className="mt-1 text-sm text-danger">{t.companion.alcohol(unitsText(status.alcohol_units, t))}</p>}
             {showAverage && (
               <p className="mt-2 text-xs text-muted tabular-nums">
                 {t.companion.average(thousands(status.avg_kcal ?? 0, t), thousands(kcal10(status.avg_target_kcal ?? 0), t), t.units.kcal)}
@@ -107,7 +111,10 @@ export function CompanionButton({ companion, status }: { companion: CompanionId;
       <button
         ref={button}
         type="button"
-        aria-label={t.companion.open(COMPANION_NAMES[companion], t.companion.moods[status.mood])}
+        aria-label={t.companion.open(
+          COMPANION_NAMES[companion],
+          status.over_alcohol === true && status.mood !== "inactive" ? `${t.companion.moods[status.mood]}, ${t.companion.alcoholShort}` : t.companion.moods[status.mood],
+        )}
         aria-expanded={open}
         aria-haspopup="dialog"
         className={`tap flex h-11 w-11 items-center justify-center overflow-hidden rounded-full ${open ? "pressed" : "raised-sm"}`}
@@ -117,7 +124,7 @@ export function CompanionButton({ companion, status }: { companion: CompanionId;
         }}
       >
         {/* Held still while the bubble shows the same companion large. */}
-        <CompanionView companion={companion} mood={status.mood} framing="mini" fps={30} paused={open} className="h-11 w-11" badgeClassName="h-9 w-9 text-base" />
+        <CompanionView companion={companion} mood={status.mood} overAlcohol={status.over_alcohol === true} framing="mini" fps={30} paused={open} className="h-11 w-11" badgeClassName="h-9 w-9 text-base" />
       </button>
       {open && <CompanionBubble companion={companion} status={status} onClose={close} />}
     </>

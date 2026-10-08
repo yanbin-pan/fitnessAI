@@ -107,6 +107,22 @@ describe("buildDayView", () => {
     expect(buildDayView(db.db, profile, "2026-10-05", "2026-10-05", NOW_ISO, []).alcohol?.units).toBe(4.6);
   });
 
+  it("puts the companion over the alcohol guide from the units of the 7 days ending today, whichever day is open", () => {
+    db = openTestDb();
+    const profile = makeProfile();
+    const pint = sampleFood({ name: "Lager", kcal: 200, alcohol_units: 2.3, drink: "beer" });
+    db.db.transaction((tx) => {
+      insertEntry(tx, sampleEntry({ date: "2026-09-30", foods: [pint, pint, pint, pint] }), NOW_ISO);
+      insertEntry(tx, sampleEntry({ date: "2026-10-03", foods: [pint, pint, pint] }), NOW_ISO);
+    });
+    const today = buildDayView(db.db, profile, "2026-10-03", "2026-10-03", NOW_ISO, []).companion;
+    expect(today).toMatchObject({ alcohol_units: 16.1, over_alcohol: true });
+    // A day before the drinks: its own week has none, but the companion is as of today.
+    const past = buildDayView(db.db, profile, "2026-09-20", "2026-10-03", NOW_ISO, []);
+    expect(past.alcohol).toBeNull();
+    expect(past.companion).toMatchObject({ alcohol_units: 16.1, over_alcohol: true });
+  });
+
   it("gives an untouched past day targets from the current profile without storing it", () => {
     db = openTestDb();
     const view = buildDayView(db.db, makeProfile(), "2026-09-01", "2026-10-03", NOW_ISO, []);

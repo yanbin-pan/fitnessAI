@@ -75,4 +75,13 @@ describe("companionStatus", () => {
     // Stopped logging 6 days ago: still awake, but the week no longer counts.
     expect(companionStatus(run(COMPANION_LOOKBACK_DAYS, 6, 2000), TODAY)).toMatchObject({ mood: "okay", okay_streak: 0 });
   });
+
+  it("adds the alcohol layer over the 14-unit weekly guide, on top of whatever the mood is", () => {
+    expect(companionStatus(run(7, 1, 2000), TODAY, 14)).toMatchObject({ mood: "okay", alcohol_units: 14, over_alcohol: false });
+    expect(companionStatus(run(7, 1, 2000), TODAY, 14.1)).toMatchObject({ mood: "okay", over_alcohol: true });
+    expect(companionStatus(run(7, 1, 3000), TODAY, 20)).toMatchObject({ mood: "overfed", over_alcohol: true });
+    // The flag is set even while asleep; the avatar hides it then.
+    expect(companionStatus([], TODAY, 20)).toMatchObject({ mood: "inactive", over_alcohol: true });
+    expect(companionStatus(run(7, 1, 2000), TODAY)).toMatchObject({ alcohol_units: 0, over_alcohol: false });
+  });
 });

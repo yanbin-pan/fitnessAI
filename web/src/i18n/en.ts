@@ -372,6 +372,9 @@ export const en = {
     },
     streak: (days: number, of: number) => `${days} of ${of} days on track towards Thriving`,
     rule: "Follows your 7-day average, not a single day.",
+    /** Over the weekly alcohol guide: the woozy layer, in the bubble and in the button's name. */
+    alcohol: (units: string) => `Over the UK guide of 14 units a week: ${units} units in the last 7 days. Zabaione is feeling a bit woozy.`,
+    alcoholShort: "over the alcohol guide",
   },
   companionPrompt: {
     title: "Pick a companion",
