@@ -34,6 +34,8 @@ export const profile = sqliteTable("profile", {
   name_prompt: text().notNull().default("show"),
   companion: text().notNull().default("zabaione"),
   companion_prompt: text().notNull().default("show"),
+  /** The person's local date of the last change of companion: it can change again 3 months on. */
+  companion_changed_at: text(),
   updated_at: text().notNull(),
 });
 
@@ -89,6 +91,8 @@ export const foodItems = sqliteTable(
     salt_g: real().notNull(),
     fluid_ml: real().notNull(),
     alcohol_units: real().notNull(),
+    /** beer, wine or cocktail for an alcoholic drink; null for food and drinks without alcohol. */
+    drink: text(),
     assumption: text().notNull(),
     saved_food_id: text(),
     /** The coach's estimate of its vitamins and minerals: [{ nutrient, amount }]. Null when nobody estimated them. */

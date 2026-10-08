@@ -4,8 +4,8 @@ import type { ChangeEvent, FormEvent, InputHTMLAttributes, ReactNode, SelectHTML
 import { ApiError, api } from "../api.ts";
 import { CompanionPicker } from "../components/CompanionPicker.tsx";
 import { Segmented, fieldClass, primaryButton, quietButton } from "../components/ui.tsx";
-import { kcal10 } from "../format.ts";
-import { LANGUAGE_NAMES, isLanguage, useI18n } from "../i18n/index.tsx";
+import { dayAndMonth, kcal10 } from "../format.ts";
+import { LANGUAGE_NAMES, MESSAGES, isLanguage, useI18n, withCompanion } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
 import { useProfile } from "../queries.ts";
 import { deviceTimeZone, timeZoneGroups } from "../timezones.ts";
@@ -127,6 +127,7 @@ function payloadFrom(form: Form, previous: Profile | null, language: Language): 
 
 function saveError(error: unknown, t: Messages): string {
   if (error instanceof ApiError && error.kind === "offline") return t.settings.offline;
+  if (error instanceof ApiError && error.code === "companion_locked") return t.settings.companionLockedError;
   if (error instanceof ApiError && error.kind === "signed_out") return t.settings.signedOut;
   if (error instanceof ApiError && error.code === "invalid_request") return t.settings.invalid;
   return t.settings.failed;
@@ -252,7 +253,11 @@ export function SettingsPage() {
       setCalculated(view.calculated);
       void client.invalidateQueries({ queryKey: ["day"] });
     },
-    onError: (error) => setErrors(serverErrors(error, t)),
+    onError: (error) => {
+      setErrors(serverErrors(error, t));
+      // Changed elsewhere meanwhile: fetch the profile again, so the picker shows the lock and its date.
+      if (error instanceof ApiError && error.code === "companion_locked") void profile.refetch();
+    },
   });
 
   // The app speaks the new language at once. With a profile saved, the choice is saved straight away too (every phone
@@ -311,6 +316,11 @@ export function SettingsPage() {
     save.mutate();
   }
   const hasErrors = Object.values(errors).some(Boolean);
+  // The companion picked just above is who asks for the name: the words follow the pick before it is saved.
+  const picked = COMPANIONS.find((id) => id === form.companion) ?? DEFAULT_COMPANION;
+  const named = withCompanion(MESSAGES[language], picked);
+  // An older server sends no lock.
+  const lockedUntil = profile.data?.companion_locked_until ?? null;
 
   if (profile.isPending) return <main className="p-6 text-muted">{t.common.loading}</main>;
   // No stored profile is `null` (404 no_profile). `undefined` after the load settled means it failed: do not show the blank form,
@@ -339,7 +349,7 @@ export function SettingsPage() {
             value={language}
             onChange={(event) => pickLanguage(event.target.value)}
           />
-          <p className="text-xs text-muted">{t.settings.languageNote}</p>
+          <p className="text-xs text-muted">{named.settings.languageNote}</p>
           {saveLanguage.isError && (
             <p role="alert" className="text-sm text-danger">
               {t.settings.languageFailed}
@@ -348,12 +358,15 @@ export function SettingsPage() {
         </Section>
         <Section title={t.settings.companion}>
           <p className="text-xs text-muted">{t.settings.companionHint}</p>
-          <CompanionPicker legend={t.settings.companion} value={form.companion} onChange={pick("companion")} />
+          <CompanionPicker legend={t.settings.companion} value={form.companion} onChange={pick("companion")} locked={lockedUntil !== null} />
+          <p className={`text-xs ${lockedUntil ? "text-ink" : "text-muted"}`}>
+            {lockedUntil ? t.settings.companionLocked(dayAndMonth(lockedUntil, t)) : t.settings.companionOnce}
+          </p>
         </Section>
         <Section title={t.settings.aboutYou}>
           <div>
-            <TextField label={t.settings.name} autoComplete="given-name" maxLength={MAX_NAME_LENGTH} {...bind("name")} />
-            <p className="mt-1 text-xs text-muted">{t.settings.nameHint}</p>
+            <TextField label={named.settings.name} autoComplete="given-name" maxLength={MAX_NAME_LENGTH} {...bind("name")} />
+            <p className="mt-1 text-xs text-muted">{named.settings.nameHint}</p>
           </div>
           <Segmented
             legend={t.settings.sex}

@@ -139,7 +139,7 @@ export function sampleFood(overrides: Partial<FoodItemData> = {}): FoodItemData 
   return {
     name: "Eggs", quantity: "2 large", grams: 120, kcal: 156, protein_g: 13, carbs_g: 1, fat_g: 11, fibre_g: 0,
     saturated_fat_g: 3.3, sugars_g: 0.4, salt_g: 0.4, fluid_ml: 0, alcohol_units: 0,
-    assumption: "", saved_food_id: null, groups: [], micros: null, ...overrides,
+    assumption: "", saved_food_id: null, drink: null, groups: [], micros: null, ...overrides,
   };
 }
 
@@ -161,7 +161,7 @@ export function sampleEntry(overrides: Partial<NewEntry> = {}): NewEntry {
 /** A complete food item as Claude sends it to log_items. */
 export const TOOL_EGGS = {
   name: "Scrambled eggs", quantity: "2 eggs", grams: 120, kcal: 180, protein_g: 13, carbs_g: 1, fat_g: 14,
-  fibre_g: 0, saturated_fat_g: 4, sugars_g: 0.5, salt_g: 0.5, fluid_ml: 0, alcohol_units: 0,
+  fibre_g: 0, saturated_fat_g: 4, sugars_g: 0.5, salt_g: 0.5, fluid_ml: 0, alcohol_units: 0, drink: null,
   groups: [], assumption: "cooked with a little butter",
   micros: [{ nutrient: "vitamin_b12_ug", amount: 1.1 }, { nutrient: "vitamin_d_ug", amount: 2 }],
 };

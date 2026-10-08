@@ -68,6 +68,30 @@ describe("profile routes", () => {
     expect((await put({ companion: "unicorn" })).statusCode).toBe(400);
   });
 
+  it("let the companion change once every 3 months, the first pick away from Zabaione included", async () => {
+    const clock = { now: new Date("2026-10-03T12:00:00.000Z") };
+    ctx = await testApp(clock);
+    const put = (extra: object) => ctx!.app.inject({ method: "PUT", url: "/api/profile", headers: ctx!.headers, payload: { ...PROFILE, ...extra } });
+    // Setting up on Zabaione is no choice yet.
+    expect((await put({})).json().companion_locked_until).toBeNull();
+    const picked = await put({ companion: "cantuccio" });
+    expect(picked.json()).toMatchObject({ profile: { companion: "cantuccio" }, companion_locked_until: "2027-01-03" });
+    const early = await put({ companion: "meringa" });
+    expect(early.statusCode).toBe(409);
+    expect(early.json()).toEqual({ error: "companion_locked", until: "2027-01-03" });
+    // Anything else still saves, and the lock shows on reading.
+    expect((await put({ companion: "cantuccio", weight_kg: 79 })).statusCode).toBe(200);
+    expect((await ctx.app.inject({ method: "GET", url: "/api/profile", headers: ctx.headers })).json().companion_locked_until).toBe("2027-01-03");
+    clock.now = new Date("2027-01-03T12:00:00.000Z");
+    expect((await put({ companion: "meringa" })).json()).toMatchObject({ profile: { companion: "meringa" }, companion_locked_until: "2027-04-03" });
+  });
+
+  it("lock a companion picked at setup from that day", async () => {
+    ctx = await withProfile({ companion: "tiramisu" });
+    const res = await ctx.app.inject({ method: "PUT", url: "/api/profile", headers: ctx.headers, payload: { ...PROFILE, companion: "bombolone" } });
+    expect(res.json()).toMatchObject({ error: "companion_locked", until: "2027-01-03" });
+  });
+
   it("reject an invalid profile and say what is wrong", async () => {
     ctx = await testApp();
     const res = await ctx.app.inject({ method: "PUT", url: "/api/profile", headers: ctx.headers, payload: { ...PROFILE, height_cm: 20 } });

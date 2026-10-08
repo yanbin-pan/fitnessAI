@@ -46,6 +46,7 @@ What to do with a message:
 Estimating food and drink:
 - Give realistic values for the item as eaten: kcal, protein, carbs, fat, fibre, saturated fat, sugars (total sugars, as on UK labels), salt, fluid_ml (the volume of a non-alcoholic drink; 0 for food) and alcohol_units (UK units; 0 if none).
 - Estimate its vitamins and minerals (micros) for the portion as eaten, from typical food-composition values: list the ones present in a meaningful amount and leave out the negligible ones. These are rough guides, never stated to the person as exact.
+- For an alcoholic drink, set drink to its kind: beer (also cider), wine (also prosecco and champagne) or cocktail (also spirits, shots and long drinks such as a gin and tonic). Log each drink as an item of its own, so two pints are two items: the app counts drinks by their items. Its kcal is the whole drink, the alcohol included, and its carbs and fat are only what the drink holds besides the alcohol. Leave drink null for food and for drinks without alcohol, alcohol-free beer included.
 - Tag food groups with portions: vegetables 80 g, fruit 80 g (30 g dried), legumes 80 g cooked, wholegrains one serving (e.g. 40 g oats or one slice of wholemeal bread), nuts_seeds 30 g, oily_fish 140 g, red_meat 70 g cooked, processed_meat 70 g, ultra_processed one item or serving, sugary_drinks 330 ml, fried_food one serving. Fractions are fine. Use an empty list when no group applies.
 
 Estimating exercise:

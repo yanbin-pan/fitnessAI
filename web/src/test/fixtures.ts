@@ -4,7 +4,7 @@ export function foodItem(overrides: Partial<FoodItem> = {}): FoodItem {
   return {
     id: "f1", position: 0, name: "Porridge", quantity: "1 bowl", grams: 250, kcal: 300, protein_g: 10,
     carbs_g: 50, fat_g: 6, fibre_g: 5, saturated_fat_g: 1.5, sugars_g: 8, salt_g: 0.2, fluid_ml: 0,
-    alcohol_units: 0, assumption: "", saved_food_id: null, groups: [{ group: "wholegrains", portions: 1 }], micros: null,
+    alcohol_units: 0, drink: null, assumption: "", saved_food_id: null, groups: [{ group: "wholegrains", portions: 1 }], micros: null,
     ...overrides,
   };
 }
@@ -39,7 +39,7 @@ export function dayView(overrides: Partial<DayView> = {}): DayView {
     targets: { base: targets, adjusted: targets, add_back_kcal: 0, workout_kcal: 0 },
     totals: { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fibre_g: 0, saturated_fat_g: 0, sugars_g: 0, salt_g: 0, fluid_ml: 0, alcohol_units: 0 },
     entries: [], linked_entries: [], messages: [], featured: ["tennis", "gym", "wakeboarding", "kitesurfing"], suggestions: [],
-    nutrients: { days: 0, levels: {} }, companion: { mood: "okay", avg_kcal: 2100, avg_target_kcal: 2310, days_logged: 7, okay_streak: 3 },
+    nutrients: { days: 0, levels: {} }, companion: { mood: "okay", avg_kcal: 2100, avg_target_kcal: 2310, days_logged: 7, okay_streak: 3 }, alcohol: null,
     ...overrides,
   };
 }
@@ -47,7 +47,7 @@ export function dayView(overrides: Partial<DayView> = {}): DayView {
 export function regular(overrides: Partial<Regular> = {}): Regular {
   const porridge = {
     name: "Porridge", quantity: "1 bowl", grams: 250, kcal: 300, protein_g: 10, carbs_g: 50, fat_g: 6, fibre_g: 5,
-    saturated_fat_g: 1.5, sugars_g: 8, salt_g: 0.2, fluid_ml: 0, alcohol_units: 0, assumption: "", groups: [], micros: null,
+    saturated_fat_g: 1.5, sugars_g: 8, salt_g: 0.2, fluid_ml: 0, alcohol_units: 0, drink: null, assumption: "", groups: [], micros: null,
   };
   return {
     key: "0123456789abcdef", kind: "meal", name: "Porridge", foods: [porridge], exercises: [], kcal: 300,

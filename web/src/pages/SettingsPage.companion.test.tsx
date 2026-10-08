@@ -13,9 +13,11 @@ const EXISTING = {
   timezone: "Europe/London", name: "Bin", name_prompt: "done", companion: "zabaione", companion_prompt: "show",
 };
 
-function serve(stored: object | null, puts: Record<string, unknown>[]) {
+function serve(stored: object | null, puts: Record<string, unknown>[], lockedUntil: string | null = null) {
   mockFetch((_url, init) => {
-    if (init?.method !== "PUT") return stored ? jsonResponse({ profile: stored, calculated: CALCULATED }) : jsonResponse({ error: "no_profile" }, 404);
+    if (init?.method !== "PUT") {
+      return stored ? jsonResponse({ profile: stored, calculated: CALCULATED, companion_locked_until: lockedUntil }) : jsonResponse({ error: "no_profile" }, 404);
+    }
     const body = JSON.parse(String(init.body));
     puts.push(body);
     return jsonResponse({ profile: { ...HIDDEN_SETTINGS, ...body }, calculated: CALCULATED });
@@ -49,5 +51,36 @@ describe("SettingsPage companion", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await screen.findByText("Saved.");
     expect(puts[1]).toMatchObject({ companion: "cantuccio", companion_prompt: "done" });
+  });
+
+  it("asks for the name in the words of the companion picked just above, before it is saved", async () => {
+    serve(EXISTING, []);
+    renderWithProviders(<SettingsPage />);
+    expect(await screen.findByLabelText("What should Zabaione call you?")).toBeInTheDocument();
+    expect(screen.getByText("You can change it once every 3 months, so pick one you like.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("radio", { name: /Sfogliatella/ }));
+    expect(screen.getByLabelText("What should Sfogliatella call you?")).toBeInTheDocument();
+    expect(screen.getByText("Your first name or a nickname. Sfogliatella uses it to say hi.")).toBeInTheDocument();
+  });
+
+  it("keeps the companion while it was changed in the last 3 months, and says from when it can change", async () => {
+    serve({ ...EXISTING, companion: "meringa", companion_prompt: "done" }, [], "2027-01-08");
+    renderWithProviders(<SettingsPage />);
+    expect(await screen.findByText("You can pick another companion from 8 January: it can change once every 3 months.")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Meringa/ })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /Meringa/ })).toBeEnabled();
+    expect(screen.getByRole("radio", { name: /Tiramisù/ })).toBeDisabled();
+  });
+
+  it("says why a change was refused when the companion was changed elsewhere meanwhile", async () => {
+    mockFetch((_url, init) =>
+      init?.method === "PUT"
+        ? jsonResponse({ error: "companion_locked", until: "2027-01-08" }, 409)
+        : jsonResponse({ profile: EXISTING, calculated: CALCULATED, companion_locked_until: null }),
+    );
+    renderWithProviders(<SettingsPage />);
+    await userEvent.click(await screen.findByRole("radio", { name: /Cannolo/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("Your companion can change only once every 3 months, so that wasn't saved.")).toBeInTheDocument();
   });
 });

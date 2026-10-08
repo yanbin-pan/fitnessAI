@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { isIsoDate, isTimeZone } from "./dates.ts";
 import {
-  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, DEFAULT_COMPANION, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, PROFILE_RANGES, SEXES,
+  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, DEFAULT_COMPANION, DRINKS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, PROFILE_RANGES, SEXES,
 } from "./vocab.ts";
 
 // Request bodies the API accepts. Each schema's parsed output (defaults filled in)
@@ -33,6 +33,8 @@ export const FoodItemInput = z.object({
   salt_g: amount.default(0),
   fluid_ml: amount.default(0),
   alcohol_units: amount.default(0),
+  /** The kind of alcoholic drink, for its badge; null for food and for drinks without alcohol. */
+  drink: z.enum(DRINKS).nullable().default(null),
   assumption: z.string().max(500).default(""),
   groups: z.array(FoodGroupPortion).max(FOOD_GROUPS.length).default([]),
   /** The coach's estimate of its vitamins and minerals; null when nobody estimated them (typed in by hand). */

@@ -109,6 +109,16 @@ export const COMPANION_ANIMALS: Record<CompanionId, string> = {
   cantuccio: "horse",
 };
 
+/**
+ * The kinds of alcoholic drink, each with its own badge on Today (2026-10-08 alcohol design §1): cider goes with beer,
+ * prosecco and champagne with wine, spirits and shots with cocktails.
+ */
+export const DRINKS = ["beer", "wine", "cocktail"] as const;
+export type Drink = (typeof DRINKS)[number];
+
+/** How often the companion can be changed (2026-10-08 companions design §7). */
+export const COMPANION_CHANGE_MONTHS = 3;
+
 /** How many photos one message can carry (spec §6.5). */
 export const MAX_PHOTOS_PER_MESSAGE = 4;
 

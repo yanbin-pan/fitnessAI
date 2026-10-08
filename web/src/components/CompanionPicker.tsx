@@ -4,8 +4,13 @@ import { useT } from "../i18n/index.tsx";
 import { COMPANIONS, COMPANION_NAMES } from "../shared.ts";
 import type { CompanionId } from "../shared.ts";
 
-/** The eight companions as a choice of tiles, each a still of it with its name (2026-10-08 companions design §2). */
-export function CompanionPicker({ legend, value, onChange }: { legend: string; value: string; onChange: (companion: CompanionId) => void }) {
+/**
+ * The eight companions as a choice of tiles, each a still of it with its name (2026-10-08 companions design §2).
+ * `locked` while the last change is under 3 months old: only the current one stays choosable.
+ */
+export function CompanionPicker({
+  legend, value, onChange, locked = false,
+}: { legend: string; value: string; onChange: (companion: CompanionId) => void; locked?: boolean }) {
   const t = useT();
   const name = useId();
   const stills = useCompanionStills();
@@ -15,12 +20,13 @@ export function CompanionPicker({ legend, value, onChange }: { legend: string; v
       <div className="grid grid-cols-4 gap-2">
         {COMPANIONS.map((companion) => {
           const chosen = companion === value;
+          const disabled = locked && !chosen;
           return (
             <label
               key={companion}
-              className={`flex cursor-pointer flex-col items-center gap-1 rounded-2xl px-1 pb-2 pt-1 text-center has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${chosen ? "pressed outline-2 outline-accent" : "raised-sm"}`}
+              className={`${disabled ? "cursor-not-allowed opacity-45" : "cursor-pointer"} flex flex-col items-center gap-1 rounded-2xl px-1 pb-2 pt-1 text-center has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${chosen ? "pressed outline-2 outline-accent" : "raised-sm"}`}
             >
-              <input type="radio" name={name} value={companion} checked={chosen} onChange={() => onChange(companion)} className="sr-only" />
+              <input type="radio" name={name} value={companion} checked={chosen} disabled={disabled} onChange={() => onChange(companion)} className="sr-only" />
               {stills?.[companion] ? (
                 <img src={stills[companion]} alt="" className="h-14 w-14" />
               ) : (
