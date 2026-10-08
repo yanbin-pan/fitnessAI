@@ -1,4 +1,5 @@
 import type { Activity, BodyGoal, ExerciseCategory, EntrySource, FoodGroup, Muscle, MuscleRole } from "./vocab.ts";
+import type { CompanionStatus } from "./companions.ts";
 import type { NutrientSignals } from "./nutrients.ts";
 import type { ExerciseItemInput, FoodItemInput, MicroAmount, Profile } from "./schemas.ts";
 
@@ -114,6 +115,8 @@ export interface DayView {
    * day): words, never numbers (2026-10-06 nutrients design).
    */
   nutrients: NutrientSignals;
+  /** How the companion feels as of today, whichever day is open: from the rolling week (2026-10-08 companions design §3). */
+  companion: CompanionStatus;
 }
 
 export type RegularKind = "meal" | "activity";

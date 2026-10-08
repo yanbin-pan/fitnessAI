@@ -32,6 +32,8 @@ export const profile = sqliteTable("profile", {
   language: text().notNull().default("en"),
   name: text(),
   name_prompt: text().notNull().default("show"),
+  companion: text().notNull().default("zabaione"),
+  companion_prompt: text().notNull().default("show"),
   updated_at: text().notNull(),
 });
 

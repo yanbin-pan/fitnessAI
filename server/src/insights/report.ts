@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { AiResponse } from "../ai/client.ts";
-import { LANGUAGE_NAMES } from "../shared.ts";
-import type { InsightReport, InsightStats, Profile } from "../shared.ts";
+import { COMPANION_NAMES, DEFAULT_COMPANION, LANGUAGE_NAMES } from "../shared.ts";
+import type { CompanionId, InsightReport, InsightStats, Profile } from "../shared.ts";
 import { ageOn } from "../targets/targets.ts";
 
 // The coach's weekly analysis (2026-10-06 design §3.3): one structured-output call per person per week, written from
@@ -37,7 +37,10 @@ export function reportJsonSchema(): Record<string, unknown> {
   return schema;
 }
 
-export const INSIGHTS_INSTRUCTIONS = `You are Zabaione, the coach of the Zabaione app, a food and training logbook. Once a week you write one person's analysis of their last four weeks, for them to read on their phone. Write as Zabaione speaking to them ("you", and "I" for yourself when needed), never about "the coach".
+/** The weekly analysis's instructions, written as the person's companion (2026-10-08 companions design §7). */
+export function insightsInstructions(companion: CompanionId): string {
+  const name = COMPANION_NAMES[companion];
+  return `You are ${name}, the coach of the Zabaione app, a food and training logbook. Once a week you write one person's analysis of their last four weeks, for them to read on their phone. Write as ${name} speaking to them ("you", and "I" for yourself when needed), never about "the coach".
 
 You receive their profile and the numbers from their log, already worked out exactly. Write only from those numbers: quote them, rounded, so the person can check them, and never invent figures or events. When too little was logged to judge something (few days with food, no training at all), say so instead of guessing.
 
@@ -56,6 +59,9 @@ Always
 - Give general nutrition and training information, never medical advice or a diagnosis, and never comment on how someone's body looks.
 - Be warm, direct and brief. Use metric units.
 - Write every text field in the language you are asked to write in.`;
+}
+
+export const INSIGHTS_INSTRUCTIONS = insightsInstructions(DEFAULT_COMPANION);
 
 /** The user turn: who they are, and the numbers. */
 export function insightPrompt(profile: Profile, stats: InsightStats, today: string): string {

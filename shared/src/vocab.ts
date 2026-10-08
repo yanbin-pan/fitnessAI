@@ -77,6 +77,38 @@ export const PROFILE_RANGES = {
 /** The longest name Zabaione keeps for the person. */
 export const MAX_NAME_LENGTH = 40;
 
+/**
+ * The companions someone can pick (2026-10-08 companions design §2), named after Italian desserts. The one picked is
+ * also the coach's name; Zabaione is the default for anyone who never picked.
+ */
+export const COMPANIONS = ["tiramisu", "panna-cotta", "zabaione", "cannolo", "bombolone", "sfogliatella", "meringa", "cantuccio"] as const;
+export type CompanionId = (typeof COMPANIONS)[number];
+export const DEFAULT_COMPANION: CompanionId = "zabaione";
+
+/** Each companion's name, accents kept, in every language. */
+export const COMPANION_NAMES: Record<CompanionId, string> = {
+  tiramisu: "Tiramisù",
+  "panna-cotta": "Panna Cotta",
+  zabaione: "Zabaione",
+  cannolo: "Cannolo",
+  bombolone: "Bombolone",
+  sfogliatella: "Sfogliatella",
+  meringa: "Meringa",
+  cantuccio: "Cantuccio",
+};
+
+/** Each companion's animal as the coach is told it. */
+export const COMPANION_ANIMALS: Record<CompanionId, string> = {
+  tiramisu: "bear cub",
+  "panna-cotta": "elephant",
+  zabaione: "Shiba Inu",
+  cannolo: "capybara",
+  bombolone: "pig",
+  sfogliatella: "tiger",
+  meringa: "sheep",
+  cantuccio: "horse",
+};
+
 /** How many photos one message can carry (spec §6.5). */
 export const MAX_PHOTOS_PER_MESSAGE = 4;
 

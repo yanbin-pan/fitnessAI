@@ -58,6 +58,16 @@ describe("profile routes", () => {
     expect((await put({ name: "x".repeat(41) })).statusCode).toBe(400);
   });
 
+  it("keep the companion, Zabaione until one is picked, and ask for one on Today until it is picked or declined", async () => {
+    ctx = await withProfile();
+    const get = async () => (await ctx!.app.inject({ method: "GET", url: "/api/profile", headers: ctx!.headers })).json().profile;
+    const put = (extra: object) => ctx!.app.inject({ method: "PUT", url: "/api/profile", headers: ctx!.headers, payload: { ...PROFILE, ...extra } });
+    expect(await get()).toMatchObject({ companion: "zabaione", companion_prompt: "show" });
+    expect((await put({ companion: "cantuccio", companion_prompt: "done" })).json().profile).toMatchObject({ companion: "cantuccio", companion_prompt: "done" });
+    expect(await get()).toMatchObject({ companion: "cantuccio", companion_prompt: "done" });
+    expect((await put({ companion: "unicorn" })).statusCode).toBe(400);
+  });
+
   it("reject an invalid profile and say what is wrong", async () => {
     ctx = await testApp();
     const res = await ctx.app.inject({ method: "PUT", url: "/api/profile", headers: ctx.headers, payload: { ...PROFILE, height_cm: 20 } });

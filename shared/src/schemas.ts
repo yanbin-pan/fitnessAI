@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { isIsoDate, isTimeZone } from "./dates.ts";
 import {
-  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, PROFILE_RANGES, SEXES,
+  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, DEFAULT_COMPANION, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, PROFILE_RANGES, SEXES,
 } from "./vocab.ts";
 
 // Request bodies the API accepts. Each schema's parsed output (defaults filled in)
@@ -111,6 +111,10 @@ export const ProfileInput = z.object({
   name: z.string().trim().max(MAX_NAME_LENGTH).nullable().default(null).transform((name) => (name ? name : null)),
   /** Whether Today still asks for the name: `show` until it is given or declined, then `done`. */
   name_prompt: z.enum(["show", "done"]).default("show"),
+  /** The companion picked (2026-10-08 companions design): it shows how the week is going, and the coach takes its name. */
+  companion: z.enum(COMPANIONS).default(DEFAULT_COMPANION),
+  /** Whether Today still asks to pick one: `show` until one is picked or declined, then `done`. */
+  companion_prompt: z.enum(["show", "done"]).default("show"),
 });
 /** What a client sends: fields with defaults may be omitted. */
 export type ProfileInput = z.input<typeof ProfileInput>;
