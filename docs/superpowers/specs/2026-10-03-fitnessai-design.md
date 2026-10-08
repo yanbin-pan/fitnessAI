@@ -951,8 +951,9 @@ Tabs: **Today · Trends · Goals · Body · Settings**.
   off, today's AI calls against the cap, month-to-date cost estimate); Apple Health sync
   status (last received, counts).
 
-Stack: React, Vite, TypeScript, React Router, TanStack Query, Tailwind and Recharts. Dark
-mode follows the system setting. The look is §11.4.
+Stack: React, Vite, TypeScript, React Router, TanStack Query, Tailwind and Recharts. The
+theme is Auto (follows the system setting), Light or Dark, chosen in Settings → Appearance
+for each device (kept in the browser, not the profile). The look is §11.4.
 
 ### 11.2 Offline
 
@@ -1038,7 +1039,9 @@ accent fill: 5.4:1 / 8:1. (The mockup's lighter `#0E9F6E` gave white text only 3
   themes (a home-screen web app cannot switch icons), and iOS keeps the icon it saw when
   the app was added, so the owner removes and re-adds the app to see a new one.
 - **Built with** Tailwind 4: the tokens are CSS variables (light, and dark under
-  `prefers-color-scheme`), exposed through `@theme inline`, plus utilities — `raised`,
+  `[data-theme="dark"]` on `<html>`, which an inline script in `index.html` sets before the
+  first paint from the stored choice or `prefers-color-scheme`), exposed through
+  `@theme inline`, plus utilities — `raised`,
   `raised-sm`, `pressed` (pressed in) and `tap` (presses in while tapped). No component
   library.
 

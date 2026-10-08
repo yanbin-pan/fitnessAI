@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { jsonResponse, mockFetch, renderWithProviders } from "../test/render.tsx";
@@ -168,5 +168,25 @@ describe("SettingsPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await screen.findByText("Saved.");
     expect(puts[0]).toMatchObject({ name: null, name_prompt: "show" });
+  });
+
+  it("switches the theme at once, on this device only, without saving the profile", async () => {
+    const calls: string[] = [];
+    mockFetch((url, init) => {
+      calls.push(`${init?.method ?? "GET"} ${url}`);
+      return jsonResponse({ error: "no_profile" }, 404);
+    });
+    renderWithProviders(<SettingsPage />);
+    const theme = await screen.findByRole("group", { name: "Theme" });
+    expect(screen.getByRole("radio", { name: "Auto" })).toBeChecked();
+    await userEvent.click(within(theme).getByRole("radio", { name: "Dark" }));
+    expect(screen.getByRole("radio", { name: "Dark" })).toBeChecked();
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(localStorage.getItem("theme")).toBe("dark");
+    await userEvent.click(within(theme).getByRole("radio", { name: "Light" }));
+    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(calls.filter((call) => !call.startsWith("GET"))).toEqual([]);
+    await userEvent.click(within(theme).getByRole("radio", { name: "Auto" }));
+    localStorage.clear();
   });
 });

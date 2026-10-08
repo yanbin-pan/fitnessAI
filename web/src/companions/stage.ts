@@ -4,6 +4,7 @@ import { buildAnimal, clamp, facet, lerp, smooth } from "./animal.ts";
 import type { Animal } from "./animal.ts";
 import type { MoodInput } from "./mood.ts";
 import { SPECIES } from "./species.ts";
+import { THEME_EVENT } from "../theme.ts";
 
 // One companion on its own canvas (2026-10-08 companions design §5): the plinth, the mood FX and the loop of the
 // reference prototype, for a single animal. Loaded only when a companion is shown, so three.js stays out of the main
@@ -286,9 +287,8 @@ export function createStage(host: HTMLElement, options: StageOptions): Stage {
 
   const tex = makeTextures();
   const plinthMat = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, color: plinthColour() });
-  const dark = typeof matchMedia === "function" ? matchMedia("(prefers-color-scheme: dark)") : null;
   const readPlinth = () => plinthMat.color.set(plinthColour());
-  dark?.addEventListener?.("change", readPlinth);
+  window.addEventListener(THEME_EVENT, readPlinth);
 
   let cast = castOf(options.companion, tex, plinthMat, options.plinth, reduce);
   scene.add(cast.holder);
@@ -499,7 +499,7 @@ export function createStage(host: HTMLElement, options: StageOptions): Stage {
       paused = true;
       cancelAnimationFrame(raf);
       observer?.disconnect();
-      dark?.removeEventListener?.("change", readPlinth);
+      window.removeEventListener(THEME_EVENT, readPlinth);
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerup", onUp);

@@ -3,8 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#e4e9f0" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#262a31" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#e4e9f0" />
+    <script>
+      // The theme before the first paint, so a dark phone never flashes light (src/theme.ts keeps it current).
+      (function () {
+        var theme = "auto";
+        try {
+          theme = localStorage.getItem("theme") || "auto";
+        } catch (e) {}
+        var dark = theme === "dark" || (theme !== "light" && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+        document.querySelector('meta[name="theme-color"]').content = dark ? "#262a31" : "#e4e9f0";
+      })();
+    </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Zabaione" />

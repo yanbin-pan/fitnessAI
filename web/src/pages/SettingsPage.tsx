@@ -8,6 +8,7 @@ import { dayAndMonth, kcal10 } from "../format.ts";
 import { LANGUAGE_NAMES, MESSAGES, isLanguage, useI18n, withCompanion } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
 import { useProfile } from "../queries.ts";
+import { THEMES, useTheme } from "../theme.ts";
 import { deviceTimeZone, timeZoneGroups } from "../timezones.ts";
 import {
   ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, DEFAULT_COMPANION, LANGUAGES, MAX_NAME_LENGTH, PROFILE_RANGES, SEXES, isIsoDate, isTimeZone,
@@ -225,6 +226,7 @@ function SelectField({
 export function SettingsPage() {
   const client = useQueryClient();
   const { language, t, choose } = useI18n();
+  const [theme, chooseTheme] = useTheme();
   const profile = useProfile();
   const [form, setForm] = useState<Form>(blankForm);
   const [errors, setErrors] = useState<Errors>({});
@@ -355,6 +357,15 @@ export function SettingsPage() {
               {t.settings.languageFailed}
             </p>
           )}
+        </Section>
+        <Section title={t.settings.appearance}>
+          <Segmented
+            legend={t.settings.theme}
+            value={theme}
+            onChange={chooseTheme}
+            options={THEMES.map((value) => ({ value, label: t.settings.themes[value] }))}
+          />
+          <p className="text-xs text-muted">{t.settings.themeNote}</p>
         </Section>
         <Section title={t.settings.companion}>
           <p className="text-xs text-muted">{t.settings.companionHint}</p>
