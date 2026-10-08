@@ -39,7 +39,8 @@ export function dayView(overrides: Partial<DayView> = {}): DayView {
     targets: { base: targets, adjusted: targets, add_back_kcal: 0, workout_kcal: 0 },
     totals: { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fibre_g: 0, saturated_fat_g: 0, sugars_g: 0, salt_g: 0, fluid_ml: 0, alcohol_units: 0 },
     entries: [], linked_entries: [], messages: [], featured: ["tennis", "gym", "wakeboarding", "kitesurfing"], suggestions: [],
-    nutrients: { days: 0, levels: {} }, ...overrides,
+    nutrients: { days: 0, levels: {} }, companion: { mood: "okay", avg_kcal: 2100, avg_target_kcal: 2310, days_logged: 7, okay_streak: 3 },
+    ...overrides,
   };
 }
 

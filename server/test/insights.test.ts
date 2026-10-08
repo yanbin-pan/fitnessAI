@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AiError } from "../src/ai/client.ts";
 import { callsOn, recordRun } from "../src/coach/usage.ts";
 import { ensureWeeklyInsight, latestInsight, weekStartOf } from "../src/insights/insights.ts";
-import { INSIGHTS_INSTRUCTIONS, InsightReportSchema, reportJsonSchema } from "../src/insights/report.ts";
+import { INSIGHTS_INSTRUCTIONS, InsightReportSchema, insightsInstructions, reportJsonSchema } from "../src/insights/report.ts";
 import { computeStats, loggedDays } from "../src/insights/stats.ts";
 import { runInsights } from "../src/jobs.ts";
 import { insertEntry } from "../src/log/entries.ts";
@@ -128,6 +128,15 @@ describe("ensureWeeklyInsight", () => {
     const ai = fakeAi([], []);
     expect(await ensureWeeklyInsight(deps(ai))).toBe("collecting");
     expect(ai.structuredRequests).toHaveLength(0);
+  });
+
+  it("writes as the person's companion", async () => {
+    days(db, 14);
+    saveProfile(db, makeProfile({ companion: "meringa" }), MONDAY.toISOString());
+    const ai = fakeAi([], [jsonReply(REPORT)]);
+    expect(await ensureWeeklyInsight(deps(ai))).toBe("written");
+    expect(ai.structuredRequests[0].system).toBe(insightsInstructions("meringa"));
+    expect(ai.structuredRequests[0].system).toContain("You are Meringa, the coach of the Zabaione app");
   });
 
   it("writes the week's analysis from the numbers, in the person's language, and counts the call", async () => {

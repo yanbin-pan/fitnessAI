@@ -3,7 +3,7 @@ import { days } from "../db/schema.ts";
 import type { Sql } from "../db/types.ts";
 import { getEntry, listEntries } from "../log/entries.ts";
 import { listMessages } from "../messages/messages.ts";
-import { addDays, daysBetween } from "../shared.ts";
+import { COMPANION_LOOKBACK_DAYS, addDays, companionStatus, daysBetween } from "../shared.ts";
 import type { Activity, DaySummary, DayView, Entry, MacroTargets, Profile, Totals } from "../shared.ts";
 import { adjustTargets, baselineTargets } from "../targets/targets.ts";
 import type { WorkoutSummary } from "../targets/targets.ts";
@@ -119,6 +119,8 @@ export function buildDayView(sql: Sql, profile: Profile, date: string, today: st
     featured: featuredActivities(sql, date, starter),
     suggestions: date === today ? suggestionsNow(sql, today, profile.timezone, nowIso) : [],
     nutrients: signalsFor(sql, profile, date, today),
+    // As of today whichever day is open: the companion shows how the person is doing now.
+    companion: companionStatus(daySummaries(sql, profile, addDays(today, -COMPANION_LOOKBACK_DAYS), today, nowIso), today),
   };
 }
 

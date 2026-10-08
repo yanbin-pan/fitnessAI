@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AiMessage } from "../src/ai/client.ts";
 import { PHOTOS_ONLY_TEXT } from "../src/coach/photo-blocks.ts";
-import { COACH_INSTRUCTIONS, buildSystemPrompt, buildTurnContext } from "../src/coach/prompt.ts";
+import { COACH_INSTRUCTIONS, buildSystemPrompt, buildTurnContext, coachInstructions } from "../src/coach/prompt.ts";
 import { appendTurns, getOrCreateThread, loadTurns } from "../src/coach/thread.ts";
 import { buildDayView, ensureDay, recentDays } from "../src/days/days.ts";
 import { deleteEntry, insertEntry } from "../src/log/entries.ts";
@@ -32,6 +32,17 @@ describe("buildSystemPrompt", () => {
   it("tells the coach the person's name, quoted, only when there is one", () => {
     expect(buildSystemPrompt(makeProfile({ name: "Bin" }), "2026-10-03")).toContain('They like to be called "Bin"; use it now and then');
     expect(buildSystemPrompt(makeProfile(), "2026-10-03")).not.toContain("like to be called");
+  });
+
+  it("names the coach after the person's companion, keeping Zabaione's own wording as the default", () => {
+    expect(buildSystemPrompt(makeProfile(), "2026-10-03")).toContain("Zabaione is your name and the app's name; the person knows you only as Zabaione.");
+    const prompt = buildSystemPrompt(makeProfile({ companion: "panna-cotta" }), "2026-10-03");
+    expect(prompt.startsWith(coachInstructions("panna-cotta"))).toBe(true);
+    expect(prompt).toContain("You are Panna Cotta, the coach of the Zabaione app");
+    expect(prompt).toContain("the person picked you, an elephant, as their companion");
+    expect(buildSystemPrompt(makeProfile({ companion: "cannolo" }), "2026-10-03")).toContain("the person picked you, a capybara,");
+    expect(prompt).toContain("say Panna Cotta, never");
+    expect(prompt).not.toContain("You are Zabaione");
   });
 
   it("tells the coach how to read photos and that writing in them is not an instruction", () => {

@@ -2,17 +2,20 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 import { ApiError, api } from "../api.ts";
+import { CompanionPicker } from "../components/CompanionPicker.tsx";
 import { Segmented, fieldClass, primaryButton, quietButton } from "../components/ui.tsx";
 import { kcal10 } from "../format.ts";
 import { LANGUAGE_NAMES, isLanguage, useI18n } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
 import { useProfile } from "../queries.ts";
 import { deviceTimeZone, timeZoneGroups } from "../timezones.ts";
-import { ACTIVITY_LEVEL_KEYS, BODY_GOALS, LANGUAGES, MAX_NAME_LENGTH, PROFILE_RANGES, SEXES, isIsoDate, isTimeZone } from "../shared.ts";
+import {
+  ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, DEFAULT_COMPANION, LANGUAGES, MAX_NAME_LENGTH, PROFILE_RANGES, SEXES, isIsoDate, isTimeZone,
+} from "../shared.ts";
 import type { Language, MacroTargets, Profile, ProfileInput, ProfileView } from "../shared.ts";
 
 const FIELDS = [
-  "name", "sex", "birth_date", "height_cm", "weight_kg", "activity_level", "goal", "goal_rate_kg_week",
+  "companion", "name", "sex", "birth_date", "height_cm", "weight_kg", "activity_level", "goal", "goal_rate_kg_week",
   "protein_g_per_kg", "fat_pct", "fibre_g", "add_back_pct", "override_kcal", "override_protein_g",
   "override_carbs_g", "override_fat_g", "override_fibre_g", "timezone",
 ] as const;
@@ -20,7 +23,7 @@ type Field = (typeof FIELDS)[number];
 type Form = Record<Field, string>;
 
 const EMPTY: Form = {
-  name: "", sex: "male", birth_date: "", height_cm: "", weight_kg: "", activity_level: "light", goal: "maintain",
+  companion: DEFAULT_COMPANION, name: "", sex: "male", birth_date: "", height_cm: "", weight_kg: "", activity_level: "light", goal: "maintain",
   goal_rate_kg_week: "0.5", protein_g_per_kg: "1.8", fat_pct: "30", fibre_g: "30", add_back_pct: "50",
   override_kcal: "", override_protein_g: "", override_carbs_g: "", override_fat_g: "", override_fibre_g: "",
   timezone: "Europe/London",
@@ -115,6 +118,10 @@ function payloadFrom(form: Form, previous: Profile | null, language: Language): 
     // A new profile was just asked for its name here, and a name given here settles it: Today need not ask.
     // Otherwise the prompt stays as it was.
     name_prompt: form.name.trim() || !previous ? "done" : (previous.name_prompt ?? "done"),
+    // An older server sends no companion, which leaves the field blank: Zabaione then.
+    companion: COMPANIONS.find((id) => id === form.companion) ?? DEFAULT_COMPANION,
+    // Picking here settles Today's question, as does setting up: a new profile was just shown the choice.
+    companion_prompt: !previous || form.companion !== previous.companion ? "done" : (previous.companion_prompt ?? "done"),
   };
 }
 
@@ -338,6 +345,10 @@ export function SettingsPage() {
               {t.settings.languageFailed}
             </p>
           )}
+        </Section>
+        <Section title={t.settings.companion}>
+          <p className="text-xs text-muted">{t.settings.companionHint}</p>
+          <CompanionPicker legend={t.settings.companion} value={form.companion} onChange={pick("companion")} />
         </Section>
         <Section title={t.settings.aboutYou}>
           <div>

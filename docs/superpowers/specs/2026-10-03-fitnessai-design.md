@@ -867,7 +867,7 @@ Tabs: **Today · Trends · Goals · Body · Settings**.
 - **Today:**
   - **The day bar** (the only part pinned while the feed scrolls): ‹ and › either side of
     the day's name ("Today", "Yesterday", or the date) with a second line beneath — the
-    date in words for today and yesterday ("Sun 4 Oct"), the year for older days — centred, and a **calendar button** in the top right corner. The three days before
+    date in words for today and yesterday ("Sun 4 Oct"), the year for older days — centred, a **calendar button** in the top right corner and the **companion** in the top left (2026-10-08 companions design §7). The three days before
     today keep their thread and composer (the chat window, §6.6), then show their
     logbook only; their entries can always be edited. This replaces a separate History screen.
   - **The calendar** drops down from under the day bar over a dimmed page, open at the

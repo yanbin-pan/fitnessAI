@@ -463,6 +463,55 @@ describe("TodayPage: the name and the greeting", () => {
     expect(puts[0]).toMatchObject({ name: null, name_prompt: "done" });
   });
 
+  it("asks once for a companion after the name, and the day bar shows the one picked", async () => {
+    const puts: Record<string, unknown>[] = [];
+    mockFetch((_url, init) => {
+      if (init?.method === "PUT") {
+        const body = JSON.parse(String(init.body));
+        puts.push(body);
+        return jsonResponse({ profile: body, calculated });
+      }
+      return jsonResponse(dayView());
+    });
+    const { client } = renderDay();
+    client.setQueryData(["profile"], { profile: { ...stored, name: "Bin", name_prompt: "done", companion: "zabaione", companion_prompt: "show" }, calculated });
+    expect(await screen.findByRole("heading", { name: "Pick a companion" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Zabaione, Okay. How your week is going" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("radio", { name: /Meringa/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Choose Meringa" }));
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Pick a companion" })).toBeNull());
+    expect(puts[0]).toMatchObject({ companion: "meringa", companion_prompt: "done", name: "Bin" });
+    expect(screen.getByRole("button", { name: "Meringa, Okay. How your week is going" })).toBeInTheDocument();
+  });
+
+  it("asks for the name before the companion, and Not now keeps Zabaione", async () => {
+    const puts: Record<string, unknown>[] = [];
+    mockFetch((_url, init) => {
+      if (init?.method === "PUT") {
+        const body = JSON.parse(String(init.body));
+        puts.push(body);
+        return jsonResponse({ profile: body, calculated });
+      }
+      return jsonResponse(dayView());
+    });
+    const { client } = renderDay();
+    client.setQueryData(["profile"], { profile: { ...stored, companion: "zabaione", companion_prompt: "show" }, calculated });
+    expect(await screen.findByText("Hey, what should Zabaione call you?")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Pick a companion" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Not now" }));
+    expect(await screen.findByRole("heading", { name: "Pick a companion" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Not now" }));
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Pick a companion" })).toBeNull());
+    expect(puts[1]).toMatchObject({ companion: "zabaione", companion_prompt: "done" });
+  });
+
+  it("keeps the corner empty for an older server that sends no mood", async () => {
+    mockFetch(() => jsonResponse({ ...dayView(), companion: undefined }));
+    renderDay();
+    expect(await screen.findByRole("button", { name: "Calendar" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /How your week is going/ })).toBeNull();
+  });
+
   it("doesn't ask on another day, and greets only on today, never in Log only", async () => {
     mockFetch((url) => jsonResponse(url.endsWith("/today") ? dayView() : dayView({ date: "2026-10-02" })));
     const { client } = renderDay("/day/2026-10-02");

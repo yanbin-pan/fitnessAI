@@ -7,7 +7,7 @@ import type { Sql } from "../db/types.ts";
 import { INSIGHTS_MIN_DATA_DAYS, addDays } from "../shared.ts";
 import type { InsightReport, InsightStats, InsightsView, Profile } from "../shared.ts";
 import { todayIn } from "../time.ts";
-import { INSIGHTS_INSTRUCTIONS, insightPrompt, readReport, reportJsonSchema } from "./report.ts";
+import { insightPrompt, insightsInstructions, readReport, reportJsonSchema } from "./report.ts";
 import { computeStats, loggedDays } from "./stats.ts";
 
 // Weekly insights (2026-10-06 design §3): written once per local week, on its Monday or on the first day after that
@@ -85,7 +85,7 @@ async function write(deps: InsightDeps): Promise<InsightOutcome> {
   let outcome: InsightOutcome = "failed";
   try {
     const response = await ai.structured(
-      { system: INSIGHTS_INSTRUCTIONS, prompt: insightPrompt(profile, stats, today), schema: reportJsonSchema() },
+      { system: insightsInstructions(profile.companion), prompt: insightPrompt(profile, stats, today), schema: reportJsonSchema() },
       controller.signal,
     );
     usage = response.usage;

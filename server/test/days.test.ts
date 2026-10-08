@@ -75,6 +75,21 @@ describe("buildDayView", () => {
     expect(view.today).toBe("2026-10-03");
   });
 
+  it("shows the companion as of today from the week before it, whichever day is open", () => {
+    db = openTestDb();
+    const profile = makeProfile();
+    expect(buildDayView(db.db, profile, "2026-10-03", "2026-10-03", NOW_ISO, []).companion.mood).toBe("inactive");
+    // A week of 500 kcal days against a target near 1860: well under.
+    db.db.transaction((tx) => {
+      for (const date of ["2026-09-26", "2026-09-27", "2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"]) {
+        insertEntry(tx, sampleEntry({ date, foods: [sampleFood({ kcal: 500 })] }), NOW_ISO);
+      }
+    });
+    const today = buildDayView(db.db, profile, "2026-10-03", "2026-10-03", NOW_ISO, []).companion;
+    expect(today).toMatchObject({ mood: "sluggish", avg_kcal: 500, days_logged: 7 });
+    expect(buildDayView(db.db, profile, "2026-09-20", "2026-10-03", NOW_ISO, []).companion).toEqual(today);
+  });
+
   it("gives an untouched past day targets from the current profile without storing it", () => {
     db = openTestDb();
     const view = buildDayView(db.db, makeProfile(), "2026-09-01", "2026-10-03", NOW_ISO, []);

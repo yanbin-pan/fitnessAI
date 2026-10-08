@@ -1,18 +1,32 @@
 import type { RecentDay } from "../days/days.ts";
-import type { DayView, Language, Profile } from "../shared.ts";
-import { LANGUAGE_NAMES, MAX_BACKDATE_DAYS } from "../shared.ts";
+import type { CompanionId, DayView, Language, Profile } from "../shared.ts";
+import { COMPANION_ANIMALS, COMPANION_NAMES, DEFAULT_COMPANION, LANGUAGE_NAMES, MAX_BACKDATE_DAYS } from "../shared.ts";
 import { ageOn } from "../targets/targets.ts";
 import { localDate, localTime, weekdayName } from "../time.ts";
 
 // The day's system prompt is built once at its first message and then frozen
 // (spec §6.2); everything that changes during the day rides in each user turn.
 
-export const COACH_INSTRUCTIONS = `You are Zabaione, the coach of the Zabaione app: a personal food and training logbook that one person uses on their phone. Messages are short, often dictated, and may contain dictation mistakes.
+/**
+ * Who the coach is: the person's companion (2026-10-08 companions design §7). Zabaione is also the app's name, so the
+ * default keeps the original wording, word for word.
+ */
+function identity(companion: CompanionId): string {
+  const name = COMPANION_NAMES[companion];
+  if (companion === DEFAULT_COMPANION) return "Zabaione is your name and the app's name; the person knows you only as Zabaione.";
+  const animal = COMPANION_ANIMALS[companion];
+  return `Your name is ${name}: the person picked you, ${/^[aeiou]/i.test(animal) ? "an" : "a"} ${animal}, as their companion in the Zabaione app, and knows you as ${name}.`;
+}
+
+/** The coach's standing instructions, under the name of the person's companion. */
+export function coachInstructions(companion: CompanionId): string {
+  const name = COMPANION_NAMES[companion];
+  return `You are ${name}, the coach of the Zabaione app: a personal food and training logbook that one person uses on their phone. Messages are short, often dictated, and may contain dictation mistakes.
 
 Who you are:
-- Zabaione is your name and the app's name; the person knows you only as Zabaione. Speak as yourself, in the first person ("I've logged…"), and if you refer to yourself by name, say Zabaione, never "the coach" or "the assistant".
+- ${identity(companion)} Speak as yourself, in the first person ("I've logged…"), and if you refer to yourself by name, say ${name}, never "the coach" or "the assistant".
 - Be warm, encouraging and down to earth, like a friendly personal coach who knows their food and training.
-- If they sincerely ask whether you are an AI, say yes: Zabaione is an AI coach.
+- If they sincerely ask whether you are an AI, say yes: ${name} is an AI coach.
 
 Each new message from the person starts with a context block (JSON) describing their day so far, including the id of every entry. Only the most recent context block is current; earlier ones in the conversation may be out of date.
 
@@ -49,6 +63,9 @@ Replying:
 - Keep replies short: one or two sentences confirming what you logged and its calories, or a brief answer. The person reads on a phone.
 - Use metric units.
 - Give general nutrition and training information, never medical advice or a diagnosis.`;
+}
+
+export const COACH_INSTRUCTIONS = coachInstructions(DEFAULT_COMPANION);
 
 function goalText(profile: Profile): string {
   return profile.goal === "maintain" ? "maintain weight" : `${profile.goal} ${profile.goal_rate_kg_week} kg a week`;
@@ -64,7 +81,7 @@ export function buildSystemPrompt(profile: Profile, date: string): string {
     `- Everyday activity, excluding workouts: ${profile.activity_level}`,
     `- Timezone: ${profile.timezone}`,
   ].join("\n");
-  return `${COACH_INSTRUCTIONS}\n\n${about}`;
+  return `${coachInstructions(profile.companion)}\n\n${about}`;
 }
 
 /** Rounds every numeric field of a flat object, to one decimal place by default. */

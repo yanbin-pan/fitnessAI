@@ -1,8 +1,8 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useProfile } from "../queries.ts";
-import { LANGUAGES } from "../shared.ts";
-import type { Language } from "../shared.ts";
+import { COMPANIONS, COMPANION_NAMES, DEFAULT_COMPANION, LANGUAGES } from "../shared.ts";
+import type { CompanionId, Language } from "../shared.ts";
 import { de } from "./de.ts";
 import { en } from "./en.ts";
 import type { Messages } from "./en.ts";
@@ -58,6 +58,39 @@ function remember(language: Language): void {
   }
 }
 
+const COACH = COMPANION_NAMES[DEFAULT_COMPANION];
+
+/** Every "Zabaione" in `value` as `name`, through nested groups and inside what a message function returns. */
+function rename<T>(value: T, name: string): T {
+  if (typeof value === "string") return value.replaceAll(COACH, name) as T;
+  if (typeof value === "function") {
+    const fn = value as (...args: unknown[]) => unknown;
+    // Only the message's own words: what it is given (another companion's name, say) stays as given.
+    return ((...args: unknown[]) => {
+      const held = args.map((arg, i) => (typeof arg === "string" ? `\uE000${i}\uE000` : arg));
+      const out = rename(fn(...held), name);
+      return typeof out === "string" ? out.replace(/\uE000(\d+)\uE000/g, (_all, i: string) => String(args[Number(i)])) : out;
+    }) as T;
+  }
+  if (Array.isArray(value)) return value.map((inner) => rename(inner, name)) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, rename(inner, name)])) as T;
+  }
+  return value;
+}
+
+/**
+ * The messages with the person's companion as the coach (2026-10-08 companions design §7). The messages say
+ * "Zabaione" wherever they mean the coach; the companion picked takes that name everywhere.
+ */
+export function withCompanion(messages: Messages, companion: CompanionId): Messages {
+  return companion === DEFAULT_COMPANION ? messages : rename(messages, COMPANION_NAMES[companion]);
+}
+
+function isCompanion(value: unknown): value is CompanionId {
+  return typeof value === "string" && (COMPANIONS as readonly string[]).includes(value);
+}
+
 interface I18n {
   language: Language;
   t: Messages;
@@ -75,7 +108,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   // An older server sends no language.
   const saved = profile.data?.profile.language;
   const language = isLanguage(saved) ? saved : chosen;
-  const t = MESSAGES[language];
+  // An older server sends no companion: Zabaione then.
+  const stored = profile.data?.profile.companion;
+  const companion = isCompanion(stored) ? stored : DEFAULT_COMPANION;
+  const t = useMemo(() => withCompanion(MESSAGES[language], companion), [language, companion]);
   useEffect(() => {
     document.documentElement.lang = t.locale;
     remember(language);
