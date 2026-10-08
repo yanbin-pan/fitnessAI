@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { startTheme } from "./theme.ts";
 import { keepCurrent } from "./updates.ts";
 
 // After signing in again the app reloads at /?reauth=…; tidy the address bar.
@@ -11,6 +12,7 @@ if (url.searchParams.has("reauth")) {
   window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
+startTheme();
 keepCurrent();
 
 const root = document.getElementById("root");

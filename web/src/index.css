@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* dark: follows the theme on <html>, which is the system's unless one was chosen in Settings. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* Neumorphic design tokens (spec §11.4): one base colour per theme; depth comes from a pair of shadows. */
 :root {
   --nm-base: #e4e9f0;
@@ -27,27 +30,26 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --nm-base: #262a31;
-    --nm-hi: #31363f;
-    --nm-lo: #17191e;
-    --nm-text: #e8ecf1;
-    --nm-muted: #9aa5b5;
-    --nm-accent: #34d399;
-    --nm-on-accent: #0f2a1f;
-    --nm-accent-text: #34d399;
-    --nm-danger: #f2876f;
-    --nm-tint-within: #3d544c;
-    --nm-tint-near: #575042;
-    --nm-tint-off: #584645;
-    /* Dark, on --nm-base: passes all but CVD separation, which sits in the 6–8 band that is allowed with a label. */
-    --nm-good: #1f9c8c;
-    --nm-watch: #a8922c;
-    --nm-act: #d65a6a;
-    --nm-plinth: #2f343c;
-    color-scheme: dark;
-  }
+/* Dark, set on <html> by index.html and src/theme.ts: the phone's setting, or the one chosen in Settings. */
+:root[data-theme="dark"] {
+  --nm-base: #262a31;
+  --nm-hi: #31363f;
+  --nm-lo: #17191e;
+  --nm-text: #e8ecf1;
+  --nm-muted: #9aa5b5;
+  --nm-accent: #34d399;
+  --nm-on-accent: #0f2a1f;
+  --nm-accent-text: #34d399;
+  --nm-danger: #f2876f;
+  --nm-tint-within: #3d544c;
+  --nm-tint-near: #575042;
+  --nm-tint-off: #584645;
+  /* Dark, on --nm-base: passes all but CVD separation, which sits in the 6–8 band that is allowed with a label. */
+  --nm-good: #1f9c8c;
+  --nm-watch: #a8922c;
+  --nm-act: #d65a6a;
+  --nm-plinth: #2f343c;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -125,15 +127,13 @@ body {
 .stripes-carbs { --s-fg: #b8740f; --s-bg: #f8d79f; }
 .stripes-fat { --s-fg: #b2462f; --s-bg: #f5c1b5; }
 .stripes-fibre { --s-fg: #2f8a5c; --s-bg: #bfe6cf; }
-@media (prefers-color-scheme: dark) {
-  .stripes-kcal { --s-fg: #34d399; --s-bg: #1f4a3c; }
-  .stripes-over { --s-fg: #f2876f; --s-bg: #5a2a22; }
-  .stripes-near { --s-fg: #c9ae3a; --s-bg: #4a4320; }
-  .stripes-protein { --s-fg: #7fa6f2; --s-bg: #26365a; }
-  .stripes-carbs { --s-fg: #f2a93b; --s-bg: #5a4320; }
-  .stripes-fat { --s-fg: #ee8f7a; --s-bg: #5a2f27; }
-  .stripes-fibre { --s-fg: #6fcf9c; --s-bg: #21402f; }
-}
+[data-theme="dark"] .stripes-kcal { --s-fg: #34d399; --s-bg: #1f4a3c; }
+[data-theme="dark"] .stripes-over { --s-fg: #f2876f; --s-bg: #5a2a22; }
+[data-theme="dark"] .stripes-near { --s-fg: #c9ae3a; --s-bg: #4a4320; }
+[data-theme="dark"] .stripes-protein { --s-fg: #7fa6f2; --s-bg: #26365a; }
+[data-theme="dark"] .stripes-carbs { --s-fg: #f2a93b; --s-bg: #5a4320; }
+[data-theme="dark"] .stripes-fat { --s-fg: #ee8f7a; --s-bg: #5a2f27; }
+[data-theme="dark"] .stripes-fibre { --s-fg: #6fcf9c; --s-bg: #21402f; }
 .stripes {
   background: repeating-linear-gradient(135deg, var(--s-fg) 0 2px, var(--s-bg) 2px 5px);
 }
