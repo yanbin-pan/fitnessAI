@@ -905,8 +905,10 @@ Tabs: **Today · Trends · Goals · Body · Settings**.
   - The chat starts under a thin divider ("Chat", or "Logbook" on a day past the chat window) whose
     **All | Log** switch hides the conversation and leaves a clean logbook (Log). It replaces the
     "Log only" row that stood between the badges and the chat.
-  - A day opens at its latest entry, just above the composer, as a chat does; something new
-    arriving (a message sent, a reply, an entry) brings the page back down to it. Once the
+  - Today opens at its latest entry, just above the composer, as a chat does; any other day
+    (from the day bar's arrows or the calendar), and a today with nothing logged yet, opens at
+    the top, on its summary. Something new arriving (a message sent, a reply, an entry) brings
+    the page down to it. Once the
     summary card has scrolled under the day bar, a one-line summary floats beneath the bar (kcal
     left and the four macros as small bars); a tap scrolls back up to the card.
   - The composer pinned at the bottom: a camera button, the text box and Send, with any
