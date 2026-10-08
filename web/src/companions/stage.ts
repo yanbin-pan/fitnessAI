@@ -32,6 +32,8 @@ export interface StageOptions {
   plinth: boolean;
   /** Frames a second at most; the small button draws at 30. */
   fps?: number;
+  /** Told each time a tap pets the companion. */
+  onPet?: () => void;
 }
 
 export interface Stage {
@@ -321,7 +323,10 @@ export function createStage(host: HTMLElement, options: StageOptions): Stage {
     const r = canvas.getBoundingClientRect();
     ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
-    if (ray.intersectObject(cast.animal.root, true).length) cast.happyAt = now();
+    if (ray.intersectObject(cast.animal.root, true).length) {
+      cast.happyAt = now();
+      options.onPet?.();
+    }
   };
   const onCancel = () => {
     dragging = false;

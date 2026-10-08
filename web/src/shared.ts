@@ -15,4 +15,4 @@ export type { CompanionMood, CompanionStatus } from "../../shared/src/companions
 export { MODERATE, SIGNAL_KEYS } from "../../shared/src/nutrients.ts";
 export type { NutrientLevel, NutrientSignals, SignalKey } from "../../shared/src/nutrients.ts";
 export type * from "../../shared/src/api.ts";
-export type { ExerciseItemInput, FoodItemInput, MessageInput, Profile, ProfileInput } from "../../shared/src/schemas.ts";
+export type { CompanionInteractionInput, ExerciseItemInput, FoodItemInput, MessageInput, Profile, ProfileInput } from "../../shared/src/schemas.ts";

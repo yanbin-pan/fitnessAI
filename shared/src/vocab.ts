@@ -116,6 +116,10 @@ export const COMPANION_ANIMALS: Record<CompanionId, string> = {
 export const DRINKS = ["beer", "wine", "cocktail"] as const;
 export type Drink = (typeof DRINKS)[number];
 
+/** What counts as interacting with the companion, for the owner's dashboard: a tap to pet it, and opening its bubble. */
+export const COMPANION_INTERACTIONS = ["pet", "open"] as const;
+export type CompanionInteraction = (typeof COMPANION_INTERACTIONS)[number];
+
 /** How often the companion can be changed (2026-10-08 companions design §7). */
 export const COMPANION_CHANGE_MONTHS = 3;
 

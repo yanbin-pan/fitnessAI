@@ -290,9 +290,10 @@ describe("snapshots", () => {
   it("have a decision for every table: emptied as conversation, or kept as logbook", () => {
     // A table added later fails here until someone decides which it is.
     // regular_overrides and insights hold no conversation: what someone changed about a regular, and the weekly analysis.
+    // companion_interactions holds counts per day only, kept for the owner's monthly dashboard.
     const KEPT = [
       "profile", "days", "entries", "food_items", "food_item_groups", "exercise_items", "exercise_muscles", "ai_usage",
-      "regular_overrides", "insights",
+      "regular_overrides", "insights", "companion_interactions",
     ];
     const db = openTestDb();
     const tables = (db.sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").pluck().all() as string[]).filter(
