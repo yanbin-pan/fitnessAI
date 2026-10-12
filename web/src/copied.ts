@@ -1,8 +1,10 @@
 import { useSyncExternalStore } from "react";
+import { MAX_COPIES } from "./shared.ts";
 import type { Entry } from "./shared.ts";
 
-// Entries copied to paste onto another day, without the coach. Kept in the browser, like a clipboard: it holds only
-// which entries were copied (the server duplicates them, nutrition and all) and their names, to say what a paste adds.
+// Entries copied to paste onto another day, without the coach: each entry card's copy button adds its entry. Kept in the
+// browser, like a clipboard: it holds only which entries were copied (the server duplicates them, nutrition and all) and
+// their names, to say what a paste adds.
 
 export interface CopiedEntry {
   id: string;
@@ -11,8 +13,6 @@ export interface CopiedEntry {
 }
 
 export interface Copied {
-  /** The day they were copied from. */
-  from: string;
   entries: CopiedEntry[];
 }
 
@@ -22,8 +22,7 @@ const listeners = new Set<() => void>();
 function isCopied(value: unknown): value is Copied {
   const v = value as Copied | null;
   return (
-    typeof v?.from === "string" &&
-    Array.isArray(v.entries) &&
+    Array.isArray(v?.entries) &&
     v.entries.length > 0 &&
     v.entries.every((e) => typeof e?.id === "string" && typeof e?.names === "string")
   );
@@ -53,9 +52,13 @@ function set(next: Copied | null): void {
 
 export const entryNames = (entry: Entry) => [...entry.foods.map((f) => f.name), ...entry.exercises.map((x) => x.name)].join(", ");
 
-/** Copies these entries of `from`, replacing whatever was copied before. */
-export function copyEntries(from: string, entries: readonly Entry[]): void {
-  set(entries.length > 0 ? { from, entries: entries.map((entry) => ({ id: entry.id, names: entryNames(entry) })) } : null);
+/** Adds the entry to what is copied, or takes it out again if it is already there. */
+export function toggleCopied(entry: Entry): void {
+  const entries = current?.entries ?? [];
+  const next = entries.some((e) => e.id === entry.id)
+    ? entries.filter((e) => e.id !== entry.id)
+    : [...entries, { id: entry.id, names: entryNames(entry) }].slice(-MAX_COPIES);
+  set(next.length > 0 ? { entries: next } : null);
 }
 
 export function clearCopied(): void {
