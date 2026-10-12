@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { inArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { callsOn, recordRun } from "../coach/usage.ts";
@@ -5,6 +6,7 @@ import { photos } from "../db/schema.ts";
 import { forRequest } from "../deps.ts";
 import type { AppDeps } from "../deps.ts";
 import { LAB_READ_BUDGET_MS, readLabReport } from "../health/labread.ts";
+import { PARSE_BUDGET_MS, parseHealthText } from "../health/parse.ts";
 import {
   addCondition, addLabReport, addMedication, consentedAt, deleteHealthData, grantConsent, healthView, removeCondition, removeLabReport,
   removeMedication, updateMedication,
@@ -12,8 +14,8 @@ import {
 import { deletePhotoFiles, photoData } from "../photos/photos.ts";
 import type { PhotoData } from "../photos/photos.ts";
 import { getProfile } from "../profile/profile.ts";
-import { ConditionInput, LabReadInput, LabReportInput, MedicationInput } from "../shared.ts";
-import type { HealthView, LabReadView } from "../shared.ts";
+import { ConditionInput, HealthParseInput, LANGUAGE_NAMES, LabReadInput, LabReportInput, MedicationInput } from "../shared.ts";
+import type { HealthParseView, HealthView, LabReadView } from "../shared.ts";
 import { todayIn } from "../time.ts";
 import { parseBody } from "./http.ts";
 
@@ -120,7 +122,7 @@ export function registerRecordRoutes(app: FastifyInstance, appDeps: AppDeps): vo
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), LAB_READ_BUDGET_MS);
       try {
-        const outcome = await readLabReport(ai, images, controller.signal);
+        const outcome = await readLabReport(ai, images, LANGUAGE_NAMES[profile.language], controller.signal);
         // Counts against the daily cap like a coach message, a failed read too.
         recordRun(deps.db, { messageId: `labs:${input.photo_ids[0]}`, date: today, model: outcome.model, calls: 1, usage: outcome.usage, nowIso: deps.now().toISOString() });
         if (!outcome.ok) return reply.code(outcome.failure === "unreadable" ? 422 : 502).send({ error: `lab_${outcome.failure}` });
@@ -130,6 +132,30 @@ export function registerRecordRoutes(app: FastifyInstance, appDeps: AppDeps): vo
         forget();
       }
     });
+
+    // A typed sentence into items to confirm. Nothing is saved here: each item the person keeps goes through the
+    // routes above.
+    records.post("/api/records/parse", async (req, reply) => {
+      const deps = forRequest(appDeps, req);
+      const input = parseBody(HealthParseInput, req.body, reply);
+      if (!input) return reply;
+      const profile = getProfile(deps.db);
+      if (!profile) return reply.code(409).send({ error: "no_profile" });
+      const ai = deps.ai;
+      if (!ai) return reply.code(503).send({ error: "ai_unavailable" });
+      const today = todayIn(profile.timezone, deps.now());
+      const cap = deps.person.owner ? deps.callCaps.owner : deps.callCaps.guest;
+      if (callsOn(deps.db, today) >= cap) return reply.code(429).send({ error: "ai_cap" });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), PARSE_BUDGET_MS);
+      try {
+        const outcome = await parseHealthText(ai, input.text, today, controller.signal);
+        recordRun(deps.db, { messageId: `parse:${randomUUID()}`, date: today, model: outcome.model, calls: 1, usage: outcome.usage, nowIso: deps.now().toISOString() });
+        if (!outcome.ok) return reply.code(502).send({ error: `parse_${outcome.failure}` });
+        return outcome.parsed satisfies HealthParseView;
+      } finally {
+        clearTimeout(timer);
+      }
+    });
   });
 }
-

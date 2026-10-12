@@ -123,7 +123,9 @@ export function listLabReports(sql: Sql): LabReportView[] {
         id: r.id,
         marker: r.marker as LabMarker,
         name: r.name,
+        printed_name: r.printed_name,
         value: r.value,
+        text_value: r.text_value,
         unit: r.unit,
         ref_low: r.ref_low,
         ref_high: r.ref_high,
@@ -137,13 +139,19 @@ export function markerKey(result: { marker: LabMarker; name: string }): string {
   return result.marker === "other" ? `other:${result.name.trim().toLowerCase()}` : result.marker;
 }
 
-/** Each marker's values across reports, oldest first, in the unit of its latest result so the points compare. */
+type NumericResult = LabResultView & { value: number };
+const numeric = (r: LabResultView): r is NumericResult => r.value !== null;
+
+/**
+ * Each numeric marker's values across reports, oldest first, in the unit of its latest result so the points compare.
+ * Results printed as words have no trend; they are read from the reports themselves.
+ */
 export function markerTrends(reports: readonly LabReportView[]): MarkerTrend[] {
-  const latest = new Map<string, LabResultView>();
+  const latest = new Map<string, NumericResult>();
   const byKey = new Map<string, MarkerTrend["points"]>();
   // Reports come newest first: the first result seen for a key is its latest.
   for (const report of reports) {
-    for (const result of report.results) {
+    for (const result of report.results.filter(numeric)) {
       const key = markerKey(result);
       const head = latest.get(key) ?? result;
       latest.set(key, head);
@@ -192,7 +200,7 @@ export interface HealthContext {
       /** The same marker on earlier reports, oldest first, so the coach can say how it moved. */
       earlier: { taken_on: string; value: number }[];
     }[];
-    /** The rest of that report, by name: within range, or printed without one. */
+    /** The rest of that report, by name: within range or printed without one; a result in words with its words. */
     other_results: string[];
   };
 }
@@ -224,7 +232,7 @@ export function healthContext(sql: Sql): HealthContext | null {
     context.latest_blood_results = {
       taken_on: latest.taken_on,
       outside_range: latest.results
-        .filter((r): r is LabResultView & { flag: "low" | "high" } => r.flag === "low" || r.flag === "high")
+        .filter((r): r is NumericResult & { flag: "low" | "high" } => r.value !== null && (r.flag === "low" || r.flag === "high"))
         .map((r) => ({
           marker: r.name,
           value: r.value,
@@ -233,7 +241,9 @@ export function healthContext(sql: Sql): HealthContext | null {
           flag: r.flag,
           earlier: (trends.get(markerKey(r)) ?? []).filter((p) => p.taken_on < latest.taken_on).map(({ taken_on, value }) => ({ taken_on, value })),
         })),
-      other_results: latest.results.filter((r) => r.flag === "normal" || r.flag === "unknown").map((r) => r.name),
+      other_results: latest.results
+        .filter((r) => r.flag === "normal" || r.flag === "unknown")
+        .map((r) => (r.value === null ? `${r.name}: ${r.text_value}` : r.name)),
     };
   }
   return context;

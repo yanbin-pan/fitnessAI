@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4b5bd961-824f-4f19-9dc8-c3213acd25bd",
+  "id": "c158ea80-144c-4b71-9223-2d32a24ecb95",
   "prevId": "9a8e0bc1-bbfa-4d03-8b78-8628b0aecf2a",
   "tables": {
     "ai_usage": {
@@ -1034,12 +1034,28 @@
           "notNull": true,
           "autoincrement": false
         },
+        "printed_name": {
+          "name": "printed_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
         "value": {
           "name": "value",
           "type": "real",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
+        },
+        "text_value": {
+          "name": "text_value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
         },
         "unit": {
           "name": "unit",

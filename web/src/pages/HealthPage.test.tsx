@@ -2,10 +2,14 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { jsonResponse, mockFetch, renderWithProviders } from "../test/render.tsx";
-import type { HealthView } from "../shared.ts";
-import { HealthPage } from "./HealthPage.tsx";
+import type { HealthParseView, HealthView, LabReadView, LabResultView } from "../shared.ts";
+import { HealthDataSettings, HealthPage } from "./HealthPage.tsx";
 
 const empty: HealthView = { consented_at: "2026-10-12T08:00:00.000Z", conditions: [], medications: [], reports: [], trends: [] };
+
+const result = (overrides: Partial<LabResultView>): LabResultView => ({
+  id: "x", marker: "ldl", name: "LDL cholesterol", printed_name: "", value: 3.4, text_value: "", unit: "mmol/L", ref_low: null, ref_high: 3, flag: "high", ...overrides,
+});
 
 const full: HealthView = {
   ...empty,
@@ -13,25 +17,16 @@ const full: HealthView = {
     { id: "c1", kind: "high_cholesterol", label: null, added_at: "2026-10-12T08:00:00.000Z" },
     { id: "c2", kind: "other", label: "Gout", added_at: "2026-10-12T08:00:00.000Z" },
   ],
-  medications: [
-    { id: "m1", name: "Atorvastatin", dose: "20 mg", started_on: "2026-03-01", stopped_on: null },
-    { id: "m2", name: "Ibuprofen", dose: "", started_on: null, stopped_on: "2026-05-02" },
-  ],
+  medications: [{ id: "m1", name: "Atorvastatin", dose: "20 mg", started_on: "2026-03-01", stopped_on: null }],
   reports: [
     {
       id: "r2", taken_on: "2026-09-20", lab_name: "Synlab",
-      results: [{ id: "x", marker: "ldl", name: "LDL cholesterol", value: 3.4, unit: "mmol/L", ref_low: null, ref_high: 3, flag: "high" }],
-    },
-    {
-      id: "r1", taken_on: "2026-03-01", lab_name: "",
-      results: [{ id: "y", marker: "ldl", name: "LDL cholesterol", value: 4.1, unit: "mmol/L", ref_low: null, ref_high: 3, flag: "high" }],
+      results: [result({}), result({ id: "h", marker: "hdl", name: "HDL cholesterol", value: 1.4, ref_low: 1, ref_high: null, flag: "normal" }), result({ id: "g", marker: "other", name: "Blood group", value: null, text_value: "A Rh+", unit: "", ref_high: null, flag: "unknown" })],
     },
   ],
   trends: [
-    {
-      key: "ldl", marker: "ldl", name: "LDL cholesterol", unit: "mmol/L", ref_low: null, ref_high: 3,
-      points: [{ taken_on: "2026-03-01", value: 4.1, flag: "high" }, { taken_on: "2026-09-20", value: 3.4, flag: "high" }],
-    },
+    { key: "ldl", marker: "ldl", name: "LDL cholesterol", unit: "mmol/L", ref_low: null, ref_high: 3, points: [{ taken_on: "2026-03-01", value: 4.1, flag: "high" }, { taken_on: "2026-09-20", value: 3.4, flag: "high" }] },
+    { key: "hdl", marker: "hdl", name: "HDL cholesterol", unit: "mmol/L", ref_low: 1, ref_high: null, points: [{ taken_on: "2026-09-20", value: 1.4, flag: "normal" }] },
   ],
 };
 
@@ -44,30 +39,29 @@ describe("HealthPage", () => {
     });
     renderWithProviders(<HealthPage />);
     expect(await screen.findByText("Before you add anything")).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Medications" })).toBeNull();
+    expect(screen.queryByRole("textbox")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Agree and continue" }));
     await waitFor(() => expect(calls).toContain("POST /api/records/consent"));
   });
 
-  it("shows conditions, medications and blood results compactly", async () => {
+  it("shows conditions and medications as chips, and only the results that need attention", async () => {
     mockFetch(() => jsonResponse(full));
     renderWithProviders(<HealthPage />);
-    const conditions = await screen.findByRole("region", { name: "Conditions and diets" });
-    expect(within(conditions).getByText("High cholesterol")).toBeInTheDocument();
-    expect(within(conditions).getByText("Gout")).toBeInTheDocument();
-    const meds = screen.getByRole("region", { name: "Medications" });
-    expect(within(meds).getByText("Atorvastatin")).toBeInTheDocument();
-    expect(within(meds).getByText("since 1 Mar 2026")).toBeInTheDocument();
-    expect(within(meds).getByText("stopped 2 May 2026")).toBeInTheDocument();
-    const blood = screen.getByRole("region", { name: "Blood results" });
+    const about = await screen.findByRole("region", { name: "About you" });
+    expect(within(about).getByText("High cholesterol")).toBeInTheDocument();
+    expect(within(about).getByText("Gout")).toBeInTheDocument();
+    expect(within(about).getByRole("button", { name: "Edit Atorvastatin" })).toBeInTheDocument();
+    const blood = screen.getByRole("region", { name: "Blood · 20 Sept 2026" });
     expect(within(blood).getByText("LDL cholesterol")).toBeInTheDocument();
-    expect(within(blood).getByText(/High · < 3/)).toBeInTheDocument();
-    expect(within(blood).getByText("20 Sept 2026 · Synlab")).toBeInTheDocument();
+    expect(within(blood).queryByText("HDL cholesterol")).toBeNull();
+    await userEvent.click(within(blood).getByRole("button", { name: /2 more in range/ }));
+    expect(within(blood).getByText("HDL cholesterol")).toBeInTheDocument();
+    expect(within(blood).getByText("A Rh+")).toBeInTheDocument();
   });
 
-  it("adds a condition from the picker, and one in the person's own words", async () => {
+  it("adds a common option with one tap", async () => {
     const posts: unknown[] = [];
-    mockFetch((url, init) => {
+    mockFetch((_url, init) => {
       if (init?.method === "POST") {
         posts.push(JSON.parse(String(init.body)));
         return jsonResponse({ id: "n", kind: "vegan", label: null, added_at: "" }, 201);
@@ -75,62 +69,86 @@ describe("HealthPage", () => {
       return jsonResponse(full);
     });
     renderWithProviders(<HealthPage />);
-    const conditions = await screen.findByRole("region", { name: "Conditions and diets" });
-    await userEvent.click(within(conditions).getByRole("button", { name: "Add" }));
+    const options = await screen.findByRole("list", { name: "Common options" });
     // Already added ones are not offered again.
-    expect(within(conditions).queryByRole("button", { name: "High cholesterol" })).toBeNull();
-    await userEvent.click(within(conditions).getByRole("button", { name: "Vegan" }));
-    await userEvent.click(within(conditions).getByRole("button", { name: "Something else" }));
-    await userEvent.type(within(conditions).getByRole("textbox", { name: "Something else" }), "Kidney stones{Enter}");
-    await waitFor(() => expect(posts).toEqual([{ kind: "vegan" }, { kind: "other", label: "Kidney stones" }]));
+    expect(within(options).queryByRole("button", { name: "High cholesterol" })).toBeNull();
+    await userEvent.click(within(options).getByRole("button", { name: "Vegan" }));
+    await waitFor(() => expect(posts).toEqual([{ kind: "vegan" }]));
   });
 
-  it("adds a medication", async () => {
-    const posts: unknown[] = [];
+  it("turns a sentence into items to confirm, updating a medication already listed", async () => {
+    const parsed: HealthParseView = {
+      conditions: [{ kind: "vegetarian", label: null }],
+      medications: [{ name: "atorvastatin", dose: "", started_on: null, stopped_on: "2026-10-10" }],
+      report: null,
+    };
+    const writes: { method: string; url: string; body: unknown }[] = [];
     mockFetch((url, init) => {
-      if (init?.method === "POST") {
-        posts.push({ url, body: JSON.parse(String(init.body)) });
-        return jsonResponse({ id: "m3", name: "Metformin", dose: "500 mg", started_on: null, stopped_on: null }, 201);
+      if (url === "/api/records/parse") return jsonResponse(parsed);
+      if (init?.method && init.method !== "GET") {
+        writes.push({ method: init.method, url, body: JSON.parse(String(init.body)) });
+        return jsonResponse({}, 200);
       }
-      return jsonResponse(empty);
+      return jsonResponse(full);
     });
     renderWithProviders(<HealthPage />);
-    await userEvent.click(await screen.findByRole("button", { name: "Add medication" }));
-    const dialog = screen.getByRole("dialog", { name: "Add medication" });
-    await userEvent.type(within(dialog).getByLabelText("Name"), "Metformin");
-    await userEvent.type(within(dialog).getByLabelText("Dose"), "500 mg");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(posts).toEqual([{ url: "/api/records/medications", body: { name: "Metformin", dose: "500 mg", started_on: null, stopped_on: null } }]);
+    await userEvent.type(await screen.findByRole("textbox", { name: "Add a condition, medication or test…" }), "I'm vegetarian and stopped atorvastatin{Enter}");
+    await userEvent.click(await screen.findByRole("button", { name: "Add atorvastatin" }));
+    await userEvent.click(screen.getByRole("button", { name: "Dismiss Vegetarian" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Add atorvastatin" })).toBeNull());
+    expect(writes).toEqual([
+      { method: "PUT", url: "/api/records/medications/m1", body: { name: "Atorvastatin", dose: "20 mg", started_on: "2026-03-01", stopped_on: "2026-10-10" } },
+    ]);
   });
 
-  it("types in a blood test, reading decimal commas", async () => {
+  it("checks typed-in or read results before saving them, words included", async () => {
+    const read: LabReadView = {
+      taken_on: "2026-10-08", lab_name: "Synlab Milano", language: "Italian",
+      results: [
+        { marker: "vitamin_d", name: "Vitamin D", printed_name: "Vitamina D", value: 47, text_value: "", unit: "nmol/L", ref_low: 50, ref_high: 125 },
+        { marker: "other", name: "Urine glucose", printed_name: "Glucosio urine", value: null, text_value: "Negative", unit: "", ref_low: null, ref_high: null },
+      ],
+    };
     const posts: unknown[] = [];
     mockFetch((url, init) => {
-      if (init?.method === "POST") {
-        posts.push(JSON.parse(String(init.body)));
+      if (url === "/api/records/parse") return jsonResponse({ conditions: [], medications: [], report: read } satisfies HealthParseView);
+      if (url === "/api/records/labs") {
+        posts.push(JSON.parse(String(init?.body)));
         return jsonResponse(full, 201);
       }
       return jsonResponse(empty);
     });
     renderWithProviders(<HealthPage />);
-    await userEvent.click(await screen.findByRole("button", { name: "Type it in" }));
-    const dialog = screen.getByRole("dialog", { name: "Check what I read" });
-    const save = within(dialog).getByRole("button", { name: "Save" });
-    expect(save).toBeDisabled();
-    await userEvent.type(within(dialog).getByLabelText("Blood taken on"), "2026-10-01");
-    await userEvent.type(within(dialog).getByRole("textbox", { name: "Test" }), "Ferritin");
-    await userEvent.type(within(dialog).getByRole("textbox", { name: "Value" }), "18,5");
-    await userEvent.type(within(dialog).getByRole("textbox", { name: "Unit" }), "µg/L");
-    await userEvent.type(within(dialog).getByRole("textbox", { name: "Low" }), "30");
-    await userEvent.click(save);
+    await userEvent.type(await screen.findByRole("textbox", { name: "Add a condition, medication or test…" }), "vitamin d 47{Enter}");
+    const dialog = await screen.findByRole("dialog", { name: "Read 2 results" });
+    expect(within(dialog).getByText("Italian report.", { exact: false })).toBeInTheDocument();
+    expect(within(dialog).getByText("Outside the range")).toBeInTheDocument();
+    expect(within(dialog).getByText("Other findings · 1")).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: /Vitamin D/ }));
+    const value = within(dialog).getByRole("textbox", { name: "Value" });
+    await userEvent.clear(value);
+    await userEvent.type(value, "52,5");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Done" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save 2" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(posts).toEqual([{
-      taken_on: "2026-10-01", lab_name: "",
-      results: [{ marker: "other", name: "Ferritin", value: 18.5, unit: "µg/L", ref_low: 30, ref_high: null }],
+      taken_on: "2026-10-08", lab_name: "Synlab Milano",
+      results: [
+        { marker: "vitamin_d", name: "Vitamin D", printed_name: "Vitamina D", value: 52.5, text_value: "", unit: "nmol/L", ref_low: 50, ref_high: 125 },
+        { marker: "other", name: "Urine glucose", printed_name: "Glucosio urine", value: null, text_value: "Negative", unit: "", ref_low: null, ref_high: null },
+      ],
     }]);
   });
 
+  it("says when a sentence held nothing to add", async () => {
+    mockFetch((url) => jsonResponse(url === "/api/records/parse" ? { conditions: [], medications: [], report: null } : empty));
+    renderWithProviders(<HealthPage />);
+    await userEvent.type(await screen.findByRole("textbox", { name: "Add a condition, medication or test…" }), "hello{Enter}");
+    expect(await screen.findByText("I didn't find a condition, medication or test in that. Try naming it.")).toBeInTheDocument();
+  });
+});
+
+describe("HealthDataSettings", () => {
   it("deletes everything after asking", async () => {
     const calls: string[] = [];
     mockFetch((url, init) => {
@@ -138,7 +156,7 @@ describe("HealthPage", () => {
       return init?.method === "DELETE" ? new Response(null, { status: 204 }) : jsonResponse(full);
     });
     vi.spyOn(window, "confirm").mockReturnValue(true);
-    renderWithProviders(<HealthPage />);
+    renderWithProviders(<HealthDataSettings />);
     await userEvent.click(await screen.findByRole("button", { name: "Delete my health data" }));
     await waitFor(() => expect(calls).toContain("DELETE /api/records"));
   });

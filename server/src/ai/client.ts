@@ -45,6 +45,8 @@ export interface AiStructuredRequest {
   prompt: string | Exclude<AiMessage["content"], string>;
   /** How hard to think; the weekly insights' "high" when unset. */
   effort?: "low" | "medium" | "high";
+  /** Run on the coach's (cheaper, quicker) model instead of the insights' one, for small extraction jobs. */
+  fast?: boolean;
   /** A JSON schema the reply's text must match; every object closed (additionalProperties: false). */
   schema: Record<string, unknown>;
 }

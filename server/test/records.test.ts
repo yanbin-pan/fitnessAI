@@ -24,9 +24,11 @@ afterEach(async () => {
 });
 
 const NOW_ISO = NOW.toISOString();
-type LabResult = { marker: LabMarker; name: string; value: number; unit: string; ref_low: number | null; ref_high: number | null };
+type LabResult = {
+  marker: LabMarker; name: string; printed_name: string; value: number | null; text_value: string; unit: string; ref_low: number | null; ref_high: number | null;
+};
 const result = (overrides: Partial<LabResult> = {}): LabResult => ({
-  marker: "ferritin", name: "Ferritin", value: 12, unit: "ug/L", ref_low: 30, ref_high: 400, ...overrides,
+  marker: "ferritin", name: "Ferritin", printed_name: "", value: 12, text_value: "", unit: "ug/L", ref_low: 30, ref_high: 400, ...overrides,
 });
 
 async function consented(opts: Parameters<typeof testApp>[0] = {}) {
@@ -127,7 +129,11 @@ describe("the coach's health context", () => {
     const db = openTestDb();
     addMedication(db.db, { name: "Atorvastatin", dose: "20 mg", started_on: "2026-05-01", stopped_on: null }, NOW_ISO);
     addLabReport(db.db, { taken_on: "2026-03-01", lab_name: "", results: [result({ value: 15 })] }, NOW_ISO);
-    addLabReport(db.db, { taken_on: "2026-09-01", lab_name: "", results: [result(), result({ marker: "hdl", name: "HDL", value: 1.4, unit: "mmol/L", ref_low: 1, ref_high: null })] }, NOW_ISO);
+    addLabReport(db.db, { taken_on: "2026-09-01", lab_name: "", results: [
+      result(),
+      result({ marker: "hdl", name: "HDL", value: 1.4, unit: "mmol/L", ref_low: 1, ref_high: null }),
+      result({ marker: "other", name: "Blood group", printed_name: "Gruppo sanguigno", value: null, text_value: "A Rh+", unit: "", ref_low: null, ref_high: null }),
+    ] }, NOW_ISO);
     expect(healthContext(db.db)).toBeNull();
 
     grantConsent(db.db, NOW_ISO);
@@ -139,7 +145,7 @@ describe("the coach's health context", () => {
       latest_blood_results: {
         taken_on: "2026-09-01",
         outside_range: [{ marker: "Ferritin", value: 12, unit: "ug/L", range: "30-400", flag: "low", earlier: [{ taken_on: "2026-03-01", value: 15 }] }],
-        other_results: ["HDL"],
+        other_results: ["HDL", "Blood group: A Rh+"],
       },
     });
     const profile = makeProfile();
@@ -170,7 +176,12 @@ describe("reading a lab report", () => {
     readable: true,
     taken_on: "2026-09-20",
     lab_name: "City Lab",
-    results: [result(), { marker: "ldl", name: "LDL", value: 3.4, unit: "mmol/L", ref_low: null, ref_high: 3 }],
+    language: "Italian",
+    results: [
+      result({ printed_name: "Ferritina" }),
+      result({ marker: "ldl", name: "LDL", value: 3.4, unit: "mmol/L", ref_low: null, ref_high: 3 }),
+      result({ marker: "other", name: "Urine glucose", printed_name: "Glucosio urine", value: null, text_value: "Negative", unit: "", ref_low: null, ref_high: null }),
+    ],
   };
 
   it("returns the rows for checking, saves nothing, counts the call and deletes the photos", async () => {
@@ -179,10 +190,12 @@ describe("reading a lab report", () => {
     const id = await uploadPhoto(ctx);
     const res = await ctx.app.inject({ method: "POST", url: "/api/records/labs/read", headers: ctx.headers, payload: { photo_ids: [id] } });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ taken_on: "2026-09-20", lab_name: "City Lab", results: READ.results });
+    expect(res.json()).toEqual({ taken_on: "2026-09-20", lab_name: "City Lab", language: "Italian", results: READ.results });
     expect(ai.structuredRequests[0]!.system).toBe(LAB_READ_INSTRUCTIONS);
     expect(ai.structuredRequests[0]!.effort).toBe("medium");
-    expect((ai.structuredRequests[0]!.prompt as { type: string }[])[0]!.type).toBe("image");
+    const prompt = ai.structuredRequests[0]!.prompt as { type: string; text?: string }[];
+    expect(prompt[0]!.type).toBe("image");
+    expect(prompt.at(-1)!.text).toContain("in English");
     expect(ctx.db.select().from(photos).all()).toEqual([]);
     expect(fs.readdirSync(ctx.photoDir).filter((f) => f.endsWith(".jpg"))).toEqual([]);
     expect(callsOn(ctx.db, "2026-10-03")).toBe(1);
@@ -212,5 +225,44 @@ describe("reading a lab report", () => {
     ctx = await consented({ ai: fakeAi([], []), callCaps: { owner: 0, guest: 0 } });
     const res = await ctx.app.inject({ method: "POST", url: "/api/records/labs/read", headers: ctx.headers, payload: { photo_ids: [await uploadPhoto(ctx)] } });
     expect(res.statusCode).toBe(429);
+  });
+});
+
+describe("typing on the Health tab", () => {
+  const PARSED = {
+    conditions: [{ kind: "vegetarian", label: "" }, { kind: "other", label: "Gout" }, { kind: "other", label: " " }],
+    medications: [{ name: "Metformin", dose: "500 mg twice a day", started_on: "2026-10-03", stopped_on: null }],
+    test: { taken_on: "yesterday", results: [{ marker: "ldl", name: "LDL", value: 3.1, text_value: "", unit: "mmol/L" }] },
+  };
+
+  it("turns a sentence into items to confirm on the quick model, and saves nothing", async () => {
+    const ai = fakeAi([], [jsonReply(PARSED)]);
+    ctx = await consented({ ai });
+    const res = await ctx.app.inject({ method: "POST", url: "/api/records/parse", headers: ctx.headers, payload: { text: "veggie, gout, started metformin 500mg twice a day today, LDL 3.1" } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      conditions: [{ kind: "vegetarian", label: null }, { kind: "other", label: "Gout" }],
+      medications: [{ name: "Metformin", dose: "500 mg twice a day", started_on: "2026-10-03", stopped_on: null }],
+      report: {
+        taken_on: null, lab_name: "", language: "",
+        results: [{ marker: "ldl", name: "LDL", printed_name: "", value: 3.1, text_value: "", unit: "mmol/L", ref_low: null, ref_high: null }],
+      },
+    });
+    const request = ai.structuredRequests[0]!;
+    expect(request.fast).toBe(true);
+    expect(request.effort).toBe("low");
+    expect(request.prompt).toContain("Today is 2026-10-03.");
+    expect(callsOn(ctx.db, "2026-10-03")).toBe(1);
+    const view = (await ctx.app.inject({ method: "GET", url: "/api/records", headers: ctx.headers })).json();
+    expect([view.conditions, view.medications]).toEqual([[], []]);
+  });
+
+  it("needs consent, and is refused at the cap", async () => {
+    ctx = await testApp({ ai: fakeAi([], []), callCaps: { owner: 0, guest: 0 } });
+    saveProfile(ctx.db, makeProfile(), NOW_ISO);
+    const parse = () => ctx!.app.inject({ method: "POST", url: "/api/records/parse", headers: ctx!.headers, payload: { text: "vegan" } });
+    expect((await parse()).statusCode).toBe(409);
+    await ctx.app.inject({ method: "POST", url: "/api/records/consent", headers: ctx.headers });
+    expect((await parse()).statusCode).toBe(429);
   });
 });

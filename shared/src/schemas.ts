@@ -190,11 +190,13 @@ const rangeEnd = z.number().finite().nullable().default(null);
 export const LabResultInput = z.object({
   marker: z.enum(LAB_MARKERS),
   name: z.string().trim().min(1).max(100),
-  value: z.number().finite(),
+  printed_name: z.string().trim().max(100).default(""),
+  value: z.number().finite().nullable(),
+  text_value: z.string().trim().max(60).default(""),
   unit: z.string().trim().max(30).default(""),
   ref_low: rangeEnd,
   ref_high: rangeEnd,
-});
+}).refine((r) => r.value !== null || r.text_value !== "", { message: "A result needs a value", path: ["value"] });
 export type LabResultInput = z.input<typeof LabResultInput>;
 
 /** A blood test report as the person confirmed it: nothing is saved before they do. */
@@ -205,8 +207,12 @@ export const LabReportInput = z.object({
 });
 export type LabReportInput = z.input<typeof LabReportInput>;
 
-/** Photos of a lab report for Claude to read (POST /api/health/labs/read). */
+/** Photos of a lab report for Claude to read (POST /api/records/labs/read). */
 export const LabReadInput = z
   .object({ photo_ids: z.array(PhotoId).min(1).max(MAX_LAB_PHOTOS) })
   .refine((m) => new Set(m.photo_ids).size === m.photo_ids.length, { message: "Each photo can be attached once", path: ["photo_ids"] });
 export type LabReadInput = z.infer<typeof LabReadInput>;
+
+/** A sentence typed on the Health tab, for Claude to turn into conditions and medications. */
+export const HealthParseInput = z.object({ text: z.string().trim().min(1).max(500) });
+export type HealthParseInput = z.infer<typeof HealthParseInput>;

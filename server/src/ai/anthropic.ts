@@ -101,7 +101,7 @@ export function anthropicClient(opts: {
     async structured(request, signal) {
       try {
         return toResponse(
-          await client.beta.messages.create(buildStructuredRequest(opts.model, request), { signal, timeout: STRUCTURED_TIMEOUT_MS }),
+          await client.beta.messages.create(buildStructuredRequest(request.fast ? (opts.coachModel ?? opts.model) : opts.model, request), { signal, timeout: STRUCTURED_TIMEOUT_MS }),
         );
       } catch (err) {
         throw toAiError(err, signal);

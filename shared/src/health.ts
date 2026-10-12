@@ -33,8 +33,8 @@ export const MAX_LAB_RESULTS = 80;
 export const MAX_LAB_PHOTOS = 4;
 
 /** The flag of a value against a range, either end of which may be missing. */
-export function labFlag(value: number, low: number | null, high: number | null): LabFlag {
-  if (low === null && high === null) return "unknown";
+export function labFlag(value: number | null, low: number | null, high: number | null): LabFlag {
+  if (value === null || (low === null && high === null)) return "unknown";
   if (low !== null && value < low) return "low";
   if (high !== null && value > high) return "high";
   return "normal";
@@ -61,9 +61,13 @@ export interface MedicationView {
 export interface LabResultView {
   id: string;
   marker: LabMarker;
-  /** As printed on the report. */
+  /** In the person's language. */
   name: string;
-  value: number;
+  /** The name as printed, when the report is in another language; empty otherwise. */
+  printed_name: string;
+  /** Null for a result printed as words ("Negative", "A Rh+"), which text_value then holds. */
+  value: number | null;
+  text_value: string;
   unit: string;
   ref_low: number | null;
   ref_high: number | null;
@@ -102,5 +106,15 @@ export interface HealthView {
 export interface LabReadView {
   taken_on: string | null;
   lab_name: string;
-  results: { marker: LabMarker; name: string; value: number; unit: string; ref_low: number | null; ref_high: number | null }[];
+  results: Omit<LabResultView, "id" | "flag">[];
+  /** The report's language, named in the person's language; empty when it is their own. */
+  language: string;
+}
+
+/** What Claude found in a sentence typed on the Health tab, for the person to confirm item by item. */
+export interface HealthParseView {
+  conditions: { kind: HealthCondition; label: string | null }[];
+  medications: { name: string; dose: string; started_on: string | null; stopped_on: string | null }[];
+  /** Test results typed in, for the same check a photographed report gets; null when there are none. */
+  report: LabReadView | null;
 }
