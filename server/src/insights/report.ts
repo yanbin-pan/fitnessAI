@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { AiResponse } from "../ai/client.ts";
 import { COMPANION_NAMES, DEFAULT_COMPANION, LANGUAGE_NAMES } from "../shared.ts";
 import type { CompanionId, InsightReport, InsightStats, Profile } from "../shared.ts";
+import type { HealthContext } from "../health/records.ts";
 import { ageOn } from "../targets/targets.ts";
 
 // The coach's weekly analysis (2026-10-06 design §3.3): one structured-output call per person per week, written from
@@ -55,6 +56,10 @@ Training
 - General guidance: 150 minutes of moderate or 75 of vigorous activity a week, and strength training on at least two days. For muscle growth, about 10 to 20 sets per muscle a week; point out clear imbalances (much chest and little back, no legs).
 - Judge recovery from the load ratio (the last 7 days' active kcal over the four-week weekly average: about 0.8 to 1.3 is steady, above 1.5 a sharp rise), the training days in the last 7, the longest run of days without rest, and how well that training is fuelled (a large calorie deficit or low protein with a high load raises the risk of fatigue). This is an estimate from the log, not a measurement of the body: say "suggests", not "is".
 
+Health records
+- When you receive Health (JSON), it is what the person added to the app's Health tab: conditions and diets, medications and their latest blood test. Relate the four weeks to it where it genuinely helps (salt with high blood pressure, saturated fat with high LDL, iron-rich foods with low ferritin), never suggest a food they avoid, and mention a well-known food interaction with a current medication when the log shows that food.
+- Never name a disease from a result, never comment on a medication or its dose, and say to talk to their doctor about results outside the range. With an eating disorder history listed, leave calorie deficits out entirely.
+
 Always
 - Give general nutrition and training information, never medical advice or a diagnosis, and never comment on how someone's body looks.
 - Be warm, direct and brief. Use metric units.
@@ -64,7 +69,7 @@ Always
 export const INSIGHTS_INSTRUCTIONS = insightsInstructions(DEFAULT_COMPANION);
 
 /** The user turn: who they are, and the numbers. */
-export function insightPrompt(profile: Profile, stats: InsightStats, today: string): string {
+export function insightPrompt(profile: Profile, stats: InsightStats, today: string, health: HealthContext | null = null): string {
   const goal = profile.goal === "maintain" ? "maintain weight" : `${profile.goal} ${profile.goal_rate_kg_week} kg a week`;
   const person = {
     sex: profile.sex,
@@ -79,6 +84,7 @@ export function insightPrompt(profile: Profile, stats: InsightStats, today: stri
     `Today is ${today}. The numbers cover ${stats.period_start} to ${stats.period_end}.`,
     `Person (JSON): ${JSON.stringify(person)}`,
     `Numbers (JSON): ${JSON.stringify(stats)}`,
+    ...(health ? [`Health (JSON): ${JSON.stringify(health)}`] : []),
   ].join("\n");
 }
 

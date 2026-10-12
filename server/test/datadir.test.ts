@@ -291,9 +291,11 @@ describe("snapshots", () => {
     // A table added later fails here until someone decides which it is.
     // regular_overrides and insights hold no conversation: what someone changed about a regular, and the weekly analysis.
     // companion_interactions holds counts per day only, kept for the owner's monthly dashboard.
+    // The Health tab's records are kept like the logbook until the person deletes them (2026-10-12 health context design §5).
     const KEPT = [
       "profile", "days", "entries", "food_items", "food_item_groups", "exercise_items", "exercise_muscles", "ai_usage",
       "regular_overrides", "insights", "companion_interactions",
+      "health_consent", "health_conditions", "medications", "lab_reports", "lab_results",
     ];
     const db = openTestDb();
     const tables = (db.sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").pluck().all() as string[]).filter(

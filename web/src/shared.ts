@@ -14,5 +14,7 @@ export type { AlcoholStatus, AlcoholWeek, DrinkTotal } from "../../shared/src/al
 export type { CompanionMood, CompanionStatus } from "../../shared/src/companions.ts";
 export { MODERATE, SIGNAL_KEYS } from "../../shared/src/nutrients.ts";
 export type { NutrientLevel, NutrientSignals, SignalKey } from "../../shared/src/nutrients.ts";
+export { HEALTH_CONDITIONS, LAB_MARKERS, MAX_LAB_PHOTOS, labFlag } from "../../shared/src/health.ts";
+export type * from "../../shared/src/health.ts";
 export type * from "../../shared/src/api.ts";
-export type { CompanionInteractionInput, ExerciseItemInput, FoodItemInput, MessageInput, Profile, ProfileInput } from "../../shared/src/schemas.ts";
+export type { CompanionInteractionInput, ConditionInput, ExerciseItemInput, FoodItemInput, LabReportInput, MedicationInput, MessageInput, Profile, ProfileInput } from "../../shared/src/schemas.ts";

@@ -49,7 +49,7 @@ export function buildStructuredRequest(model: string, request: AiStructuredReque
     ...(hasServerFallback(model) ? { betas: [FALLBACK_BETA] } : {}),
     ...fallbackFields(model),
     thinking: { type: "adaptive" },
-    output_config: { effort: STRUCTURED_EFFORT, format: { type: "json_schema", schema: request.schema } },
+    output_config: { effort: request.effort ?? STRUCTURED_EFFORT, format: { type: "json_schema", schema: request.schema } },
     system: request.system,
     messages: [{ role: "user", content: request.prompt }],
   };

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { AiClient, AiMessage, AiUsage } from "../ai/client.ts";
 import { buildDayView, getDay, recentDays, snapshotValues } from "../days/days.ts";
 import type { Sql } from "../db/types.ts";
+import { healthContext } from "../health/records.ts";
 import { getMessage, insertReply, setMessageStatus } from "../messages/messages.ts";
 import { photoData } from "../photos/photos.ts";
 import { getProfile } from "../profile/profile.ts";
@@ -98,6 +99,7 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
           profile.language,
           fillsInPastDay(message.date, sentAt, profile.timezone),
           recentDays(deps.db, profile, message.date, nowIso),
+          healthContext(deps.db),
         ),
       },
       ...message.photo_ids.map(photoRef),
