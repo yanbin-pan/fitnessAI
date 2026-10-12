@@ -1,7 +1,9 @@
+import { entryNames } from "../copied.ts";
 import { timeOf } from "../format.ts";
 import { useT } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
 import type { Entry } from "../shared.ts";
+import { CopyButton } from "./CopyPaste.tsx";
 import { SportBadge } from "./SportBadge.tsx";
 
 /** One logged entry: what, when, its calories and macros, where it came from, and every assumption made. */
@@ -9,7 +11,7 @@ export function EntryCard({ entry, onEdit }: { entry: Entry; onEdit?: (entry: En
   const t = useT();
   const eaten = entry.foods.reduce((sum, f) => sum + f.kcal, 0);
   const burned = entry.exercises.reduce((sum, x) => sum + x.kcal, 0);
-  const names = [...entry.foods.map((f) => f.name), ...entry.exercises.map((x) => x.name)].join(", ");
+  const names = entryNames(entry);
   const grams = (key: "protein_g" | "carbs_g" | "fat_g") => Math.round(entry.foods.reduce((sum, f) => sum + f[key], 0));
   const facts = [
     eaten > 0 ? `${Math.round(eaten)} ${t.units.kcal}` : null,
@@ -28,7 +30,8 @@ export function EntryCard({ entry, onEdit }: { entry: Entry; onEdit?: (entry: En
           <Icon name="restaurant" size={18} />
         </span>
       )}
-      <span className="min-w-0 flex-1">
+      {/* Room on the right for the copy button in the corner. */}
+      <span className="min-w-0 flex-1 pr-6">
         <span className="flex items-baseline justify-between gap-2">
           <span className="font-medium">{names}</span>
           <span className="shrink-0 text-xs text-muted">{timeOf(entry.logged_at, t)}</span>
@@ -59,11 +62,17 @@ export function EntryCard({ entry, onEdit }: { entry: Entry; onEdit?: (entry: En
       </span>
     </span>
   );
-  return onEdit ? (
-    <button type="button" className="tap raised block w-full rounded-2xl p-3 text-left" onClick={() => onEdit(entry)}>
-      {body}
-    </button>
-  ) : (
-    <div className="raised block w-full rounded-2xl p-3 text-left">{body}</div>
+  // The copy button sits beside the card's own button, not inside it: a button can't hold another.
+  return (
+    <div className="relative">
+      {onEdit ? (
+        <button type="button" className="tap raised block w-full rounded-2xl p-3 text-left" onClick={() => onEdit(entry)}>
+          {body}
+        </button>
+      ) : (
+        <div className="raised block w-full rounded-2xl p-3 text-left">{body}</div>
+      )}
+      <CopyButton entry={entry} />
+    </div>
   );
 }

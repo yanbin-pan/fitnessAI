@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { isIsoDate, isTimeZone } from "./dates.ts";
 import {
-  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, COMPANION_INTERACTIONS, DEFAULT_COMPANION, DRINKS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, PROFILE_RANGES, SEXES,
+  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, COMPANION_INTERACTIONS, DEFAULT_COMPANION, DRINKS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_COPIES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, PROFILE_RANGES, SEXES,
 } from "./vocab.ts";
 
 // Request bodies the API accepts. Each schema's parsed output (defaults filled in)
@@ -76,6 +76,20 @@ export const ManualEntryInput = z
   })
   .refine(hasItems, NEEDS_ITEMS);
 export type ManualEntryInput = z.infer<typeof ManualEntryInput>;
+
+/**
+ * Pasting copied entries onto a day, without the coach. Each copy names the entry it duplicates (`from`) and the id
+ * the phone made for the new one, so pasting again after a lost reply stores each copy once.
+ */
+export const EntryCopyInput = z.object({
+  date: IsoDate,
+  copies: z
+    .array(z.object({ id: z.uuid(), from: z.string().min(1).max(100) }))
+    .min(1)
+    .max(MAX_COPIES)
+    .refine((copies) => new Set(copies.map((c) => c.id)).size === copies.length, { message: "Each copy needs its own id" }),
+});
+export type EntryCopyInput = z.infer<typeof EntryCopyInput>;
 
 export const EntryPatch = z.object(items).refine(hasItems, NEEDS_ITEMS);
 export type EntryPatch = z.infer<typeof EntryPatch>;

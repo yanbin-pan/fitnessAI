@@ -363,3 +363,86 @@ describe("entry routes", () => {
     expect(whole.json()).toEqual({ error: "invalid_request", issues: [{ path: "", message: "An entry needs at least one item" }] });
   });
 });
+
+describe("pasting copied entries", () => {
+  const banana = { name: "Banana", kcal: 105, protein_g: 1.3, carbs_g: 27, fat_g: 0.4 };
+  const oats = {
+    name: "Oats", quantity: "60 g", grams: 60, kcal: 230, protein_g: 8, carbs_g: 40, fat_g: 4, fibre_g: 6,
+    groups: [{ group: "wholegrains", portions: 1 }], micros: [{ nutrient: "iron_mg", amount: 2.5 }], assumption: "Rolled oats",
+  };
+  const log = async (date: string, time: string | null, foods: unknown[], exercises: unknown[] = []) => {
+    const res = await ctx!.app.inject({ method: "POST", url: "/api/entries", headers: ctx!.headers, payload: { id: randomUUID(), date, time, foods, exercises } });
+    return res.json().entry as { id: string; logged_at: string };
+  };
+  const paste = (date: string, copies: { id: string; from: string }[]) =>
+    ctx!.app.inject({ method: "POST", url: "/api/entries/copy", headers: ctx!.headers, payload: { date, copies } });
+
+  it("duplicates entries onto another day with their nutrition, at the same time of day", async () => {
+    ctx = await withProfile();
+    const breakfast = await log("2026-10-01", "07:30", [oats, banana]);
+    const run = await log("2026-10-01", "18:00", [], [{ name: "Run", category: "cardio", activity: "running", duration_min: 30, met: 9 }]);
+    const copies = [{ id: randomUUID(), from: breakfast.id }, { id: randomUUID(), from: run.id }];
+    const res = await paste("2026-10-02", copies);
+    expect(res.statusCode).toBe(201);
+    const [food, exercise] = res.json().entries;
+    expect(food).toMatchObject({ id: copies[0].id, date: "2026-10-02", logged_at: "2026-10-02T06:30:00.000Z", source: "manual", edited: false, message_id: null });
+    expect(food.foods.map((f: { name: string }) => f.name)).toEqual(["Oats", "Banana"]);
+    expect(food.foods[0]).toMatchObject({
+      quantity: "60 g", grams: 60, kcal: 230, fibre_g: 6, assumption: "Rolled oats",
+      groups: [{ group: "wholegrains", portions: 1 }], micros: [{ nutrient: "iron_mg", amount: 2.5 }],
+    });
+    expect(exercise).toMatchObject({ logged_at: "2026-10-02T17:00:00.000Z", exercises: [{ name: "Run", activity: "running", kcal: 320 }] });
+    expect(res.json().day).toMatchObject({ date: "2026-10-02", totals: { kcal: 335 } });
+    // The originals stay where they were.
+    const source = await ctx.app.inject({ method: "GET", url: "/api/days/2026-10-01", headers: ctx.headers });
+    expect(source.json().entries.map((e: { id: string }) => e.id)).toEqual([breakfast.id, run.id]);
+  });
+
+  it("pastes onto today no later than now", async () => {
+    ctx = await withProfile();
+    const dinner = await log("2026-10-02", "19:00", [banana]);
+    const lunch = await log("2026-10-02", "12:00", [banana]);
+    const res = await paste("2026-10-03", [{ id: randomUUID(), from: dinner.id }, { id: randomUUID(), from: lunch.id }]);
+    expect(res.json().entries.map((e: { logged_at: string }) => e.logged_at)).toEqual([NOW.toISOString(), "2026-10-03T11:00:00.000Z"]);
+  });
+
+  it("can paste the same entry twice, and stores each copy once however often it is sent", async () => {
+    ctx = await withProfile();
+    const coffee = await log("2026-10-03", "08:00", [banana]);
+    const copies = [{ id: randomUUID(), from: coffee.id }, { id: randomUUID(), from: coffee.id }];
+    expect((await paste("2026-10-03", copies)).statusCode).toBe(201);
+    const again = await paste("2026-10-03", copies);
+    expect(again.statusCode).toBe(200);
+    expect(again.json().day.entries).toHaveLength(3);
+  });
+
+  it("pastes nothing when a copied entry has been deleted", async () => {
+    ctx = await withProfile();
+    const kept = await log("2026-10-02", null, [banana]);
+    const res = await paste("2026-10-03", [{ id: randomUUID(), from: kept.id }, { id: randomUUID(), from: randomUUID() }]);
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toEqual({ error: "not_found" });
+    const today = await ctx.app.inject({ method: "GET", url: "/api/days/2026-10-03", headers: ctx.headers });
+    expect(today.json().entries).toHaveLength(0);
+  });
+
+  it("refuses a future day, a day too far back, and a request with no copies or a repeated id", async () => {
+    ctx = await withProfile();
+    const entry = await log("2026-10-03", null, [banana]);
+    const one = () => [{ id: randomUUID(), from: entry.id }];
+    expect((await paste("2026-10-04", one())).json()).toEqual({ error: "future_date" });
+    expect((await paste("2026-09-25", one())).json()).toEqual({ error: "too_old" });
+    expect((await paste("2026-09-26", one())).statusCode).toBe(201);
+    expect((await paste("2026-10-03", [])).statusCode).toBe(400);
+    const id = randomUUID();
+    const repeated = await paste("2026-10-03", [{ id, from: entry.id }, { id, from: entry.id }]);
+    expect(repeated.statusCode).toBe(400);
+    expect(repeated.json().error).toBe("invalid_request");
+  });
+
+  it("needs a profile", async () => {
+    ctx = await testApp();
+    const res = await ctx.app.inject({ method: "POST", url: "/api/entries/copy", headers: ctx.headers, payload: { date: "2026-10-03", copies: [{ id: randomUUID(), from: "x" }] } });
+    expect(res.statusCode).toBe(409);
+  });
+});

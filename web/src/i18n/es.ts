@@ -70,6 +70,12 @@ export const es: Messages = {
     fromPhoto: "desde foto",
     fromRegular: "habitual",
   },
+  copy: {
+    copy: "Copiar",
+    paste: (n: number) => `Pegar ${n}`,
+    clear: "Descartar lo copiado",
+    gone: "Algo que copiaste se ha borrado desde entonces, así que no se pegó nada. Vuelve a copiar.",
+  },
   feed: {
     photoUnavailable: "Foto no disponible",
     removed: "Entrada eliminada",

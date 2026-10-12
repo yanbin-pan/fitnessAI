@@ -7,6 +7,7 @@ import { markPending } from "../coach/pending.ts";
 import { streamCoach } from "../coach/stream.ts";
 import { ActivitiesCard } from "../components/ActivitiesCard.tsx";
 import { Composer } from "../components/Composer.tsx";
+import { PasteChip } from "../components/CopyPaste.tsx";
 import { DayNav } from "../components/DayNav.tsx";
 import { EntryEditor } from "../components/EntryEditor.tsx";
 import { NutrientCard } from "../components/NutrientCard.tsx";
@@ -160,6 +161,8 @@ export function TodayPage() {
   const view = day.data;
   const stored = profile.data?.profile ?? null;
   const isToday = view.date === view.today;
+  // The server refuses a new entry dated more than MAX_BACKDATE_DAYS back (too_old), so don't offer one there.
+  const addable = view.date <= view.today && daysBetween(view.date, view.today) <= MAX_BACKDATE_DAYS;
   // An older server sends no name fields: then there is nothing to ask and the hello has no name.
   const greeting = isToday ? greetingFor(view, stored?.name ?? null, new Date(), t) : null;
   // An older server sends no companion fields: Zabaione, and no mood to show.
@@ -211,12 +214,13 @@ export function TodayPage() {
         }}
         greeting={greeting}
       />
-      {/* The server refuses a new entry dated more than MAX_BACKDATE_DAYS back (too_old), so don't offer one there. */}
-      {view.date <= view.today && daysBetween(view.date, view.today) <= MAX_BACKDATE_DAYS && (
-        <div className="px-4">
+      {addable && (
+        <div className="flex flex-wrap items-center gap-2 px-4">
           <button type="button" onClick={() => setEditing({ date: view.date, entry: null })} className={`${quietButton} text-sm text-accent-ink`}>
             {t.day.addManually}
           </button>
+          {/* Only once something is copied, from any day's entry cards. */}
+          <PasteChip date={view.date} />
         </div>
       )}
       {/* Each day open to chat gets its own composer, so a draft never moves to another day. An older server sends no suggestions. */}

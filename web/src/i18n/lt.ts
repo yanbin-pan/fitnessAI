@@ -70,6 +70,12 @@ export const lt: Messages = {
     fromPhoto: "iš nuotraukos",
     fromRegular: "įprotis",
   },
+  copy: {
+    copy: "Kopijuoti",
+    paste: (n: number) => `Įklijuoti (${n})`,
+    clear: "Išvalyti nukopijuotus įrašus",
+    gone: "Kažkas, ką nukopijavai, jau ištrinta, todėl nieko neįklijuota. Nukopijuok iš naujo.",
+  },
   feed: {
     photoUnavailable: "Nuotrauka nepasiekiama",
     removed: "Įrašas pašalintas",

@@ -72,6 +72,12 @@ export const fr: Messages = {
     fromPhoto: "d’après photo",
     fromRegular: "habitude",
   },
+  copy: {
+    copy: "Copier",
+    paste: (n: number) => `Coller ${n}`,
+    clear: "Effacer les entrées copiées",
+    gone: "Une entrée copiée a été supprimée depuis, donc rien n'a été collé. Copie à nouveau.",
+  },
   feed: {
     photoUnavailable: "Photo indisponible",
     removed: "Entrée supprimée",

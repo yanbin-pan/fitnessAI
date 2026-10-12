@@ -4,11 +4,11 @@ import { starterFor } from "../days/featured.ts";
 import { forRequest } from "../deps.ts";
 import type { AppDeps, RequestDeps } from "../deps.ts";
 import { exerciseData, foodData } from "../log/convert.ts";
-import { deleteEntry, getEntry, insertEntry, replaceEntryItems } from "../log/entries.ts";
+import { deleteEntry, getEntry, insertEntry, itemsOf, replaceEntryItems } from "../log/entries.ts";
 import { getProfile } from "../profile/profile.ts";
-import { EntryPatch, MAX_BACKDATE_DAYS, ManualEntryInput, daysBetween } from "../shared.ts";
-import type { DeleteResult, EntryResult, Profile } from "../shared.ts";
-import { todayIn, zonedTimeToInstant } from "../time.ts";
+import { EntryCopyInput, EntryPatch, MAX_BACKDATE_DAYS, ManualEntryInput, daysBetween } from "../shared.ts";
+import type { DeleteResult, Entry, EntriesResult, EntryResult, Profile } from "../shared.ts";
+import { localTime, todayIn, zonedTimeToInstant } from "../time.ts";
 import { parseBody } from "./http.ts";
 
 function entryResult(deps: RequestDeps, profile: Profile, id: string, now: Date): EntryResult {
@@ -52,6 +52,57 @@ export function registerEntryRoutes(app: FastifyInstance, appDeps: AppDeps): voi
       reply.code(201);
     }
     return entryResult(deps, profile, input.id, now);
+  });
+
+  // Pastes copies of logged entries onto a day: the same items with the same nutrition, and no coach (so no tokens).
+  // A copy keeps the time of day of the entry it came from, except that one pasted onto today is never later than now.
+  app.post("/api/entries/copy", async (req, reply) => {
+    const deps = forRequest(appDeps, req);
+    const input = parseBody(EntryCopyInput, req.body, reply);
+    if (!input) return reply;
+    const profile = getProfile(deps.db);
+    if (!profile) return reply.code(409).send({ error: "no_profile" });
+    const now = deps.now();
+    const nowIso = now.toISOString();
+    const today = todayIn(profile.timezone, now);
+
+    // As with a manual entry, a copy already stored is answered with what was stored, whatever the date now.
+    const missing = input.copies.filter((copy) => !getEntry(deps.db, copy.id));
+    if (missing.length > 0) {
+      if (input.date > today) return reply.code(400).send({ error: "future_date" });
+      if (daysBetween(input.date, today) > MAX_BACKDATE_DAYS) return reply.code(400).send({ error: "too_old" });
+      const pastes: { id: string; source: Entry }[] = [];
+      for (const copy of missing) {
+        const source = getEntry(deps.db, copy.from);
+        // Deleted since it was copied: nothing is pasted, so the phone can say so and forget the copy.
+        if (!source) return reply.code(404).send({ error: "not_found" });
+        pastes.push({ id: copy.id, source });
+      }
+      deps.db.transaction((tx) => {
+        ensureDay(tx, profile, input.date, nowIso);
+        for (const { id, source } of pastes) {
+          const at = zonedTimeToInstant(input.date, localTime(new Date(source.logged_at), profile.timezone), profile.timezone);
+          insertEntry(tx, {
+            id,
+            date: input.date,
+            logged_at: (input.date === today && at > now ? now : at).toISOString(),
+            source: "manual",
+            message_id: null,
+            ...itemsOf(source),
+          }, nowIso);
+        }
+      });
+      reply.code(201);
+    }
+    const result: EntriesResult = {
+      entries: input.copies.map((copy) => {
+        const entry = getEntry(deps.db, copy.id);
+        if (!entry) throw new Error(`entry ${copy.id} disappeared`);
+        return entry;
+      }),
+      day: buildDayView(deps.db, profile, input.date, today, nowIso, starterFor(deps.person.owner)),
+    };
+    return result;
   });
 
   app.patch<{ Params: { id: string } }>("/api/entries/:id", async (req, reply) => {

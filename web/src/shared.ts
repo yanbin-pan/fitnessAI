@@ -5,7 +5,7 @@ export type { CalorieStatus } from "../../shared/src/calendar.ts";
 export { addDays, chatOpen, daysBetween, isIsoDate, isTimeZone } from "../../shared/src/dates.ts";
 export {
   ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, COMPANION_CHANGE_MONTHS, COMPANION_NAMES, DEFAULT_COMPANION, DRINKS, EXERCISE_CATEGORIES,
-  LANGUAGES, MAX_BACKDATE_DAYS, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, PROFILE_RANGES, SEXES,
+  LANGUAGES, MAX_BACKDATE_DAYS, MAX_COPIES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, PROFILE_RANGES, SEXES,
 } from "../../shared/src/vocab.ts";
 export type { Activity, ActivityLevel, BodyGoal, CompanionId, Drink, ExerciseCategory, Language, Sex } from "../../shared/src/vocab.ts";
 export { COMPANION_THRIVE_DAYS } from "../../shared/src/companions.ts";

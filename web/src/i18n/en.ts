@@ -84,6 +84,12 @@ export const en = {
     fromPhoto: "from photo",
     fromRegular: "regular",
   },
+  copy: {
+    copy: "Copy",
+    paste: (n: number) => `Paste ${n}`,
+    clear: "Clear copied entries",
+    gone: "Something you copied has been deleted since, so nothing was pasted. Copy again.",
+  },
   feed: {
     photoUnavailable: "Photo unavailable",
     removed: "Entry removed",

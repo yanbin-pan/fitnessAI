@@ -57,6 +57,14 @@ export interface NewEntry {
   exercises: ExerciseItemData[];
 }
 
+/** An entry's items as they would be stored again: what pasting a copy duplicates, nutrition and all. */
+export function itemsOf(entry: Entry): { foods: FoodItemData[]; exercises: ExerciseItemData[] } {
+  return {
+    foods: entry.foods.map(({ id: _id, position: _position, ...food }) => food),
+    exercises: entry.exercises.map(({ id: _id, position: _position, ...exercise }) => exercise),
+  };
+}
+
 /** One row per food group: repeats are summed and empty portions dropped. */
 export function normalizeGroups(groups: FoodItemData["groups"]): FoodItemData["groups"] {
   const totals = new Map<FoodGroup, number>();

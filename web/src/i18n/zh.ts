@@ -70,6 +70,12 @@ export const zh: Messages = {
     fromPhoto: "来自照片",
     fromRegular: "常规",
   },
+  copy: {
+    copy: "复制",
+    paste: (n: number) => `粘贴 ${n} 条`,
+    clear: "清除已复制的记录",
+    gone: "你复制的某条记录已被删除，因此没有粘贴任何内容。请重新复制。",
+  },
   feed: {
     photoUnavailable: "照片不可用",
     removed: "记录已删除",

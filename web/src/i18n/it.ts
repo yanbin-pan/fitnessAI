@@ -70,6 +70,12 @@ export const it: Messages = {
     fromPhoto: "da foto",
     fromRegular: "abituale",
   },
+  copy: {
+    copy: "Copia",
+    paste: (n: number) => `Incolla ${n}`,
+    clear: "Annulla la copia",
+    gone: "Qualcosa che hai copiato è stato eliminato nel frattempo, quindi non è stato incollato nulla. Copia di nuovo.",
+  },
   feed: {
     photoUnavailable: "Foto non disponibile",
     removed: "Voce eliminata",

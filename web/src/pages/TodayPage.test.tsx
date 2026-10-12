@@ -272,7 +272,7 @@ describe("TodayPage", () => {
     });
     renderDay();
     expect(await screen.findByText("Logged to Yesterday")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /Scrambled eggs/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^Scrambled eggs/ }));
     const kcal = screen.getByLabelText("kcal");
     await userEvent.clear(kcal);
     await userEvent.type(kcal, "350");
@@ -300,7 +300,7 @@ describe("TodayPage", () => {
     });
     renderDay();
     expect(await screen.findByText("Logged to Yesterday")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /Scrambled eggs/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^Scrambled eggs/ }));
     await userEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(await screen.findByText("Entry removed")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
