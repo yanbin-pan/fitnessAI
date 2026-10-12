@@ -24,7 +24,12 @@ const owner = people.store(ownerKey);
 // loadConfig guarantees Access settings whenever the development bypass is off.
 const verifier = config.devAuthEmail ? devVerifier(config.devAuthEmail) : createVerifier(config.access!);
 const ai = config.anthropic.apiKey
-  ? anthropicClient({ apiKey: config.anthropic.apiKey, model: config.anthropic.model, effort: config.anthropic.effort })
+  ? anthropicClient({
+      apiKey: config.anthropic.apiKey,
+      model: config.anthropic.model,
+      coachModel: config.anthropic.coachModel,
+      effort: config.anthropic.effort,
+    })
   : null;
 // The metrics name everyone on the list by email, so the owner's dashboard shows who is who; a guest taken off the list
 // is named by short id. The logs keep using short ids.

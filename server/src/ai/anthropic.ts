@@ -10,13 +10,24 @@ import type { AiClient, AiRequest, AiResponse, AiStructuredRequest } from "./cli
  * the tools or system prompt mid-day degrades instead of failing with a 400.
  */
 export const COACH_BETAS = ["server-side-fallback-2026-07-01", "thinking-binding-controls-2026-08-01"];
+const FALLBACK_BETA = "server-side-fallback-2026-07-01";
+
+/** Haiku has no server-side fallback: `fallbacks` would leave a refusal a refusal at best, so it is left out. */
+export function hasServerFallback(model: string): boolean {
+  return !model.startsWith("claude-haiku-");
+}
+
+/** The fallback beta and parameter, for a model that has them. */
+function fallbackFields(model: string) {
+  return hasServerFallback(model) ? { fallbacks: "default" as const } : {};
+}
 
 export function buildRequest(model: string, effort: Effort, request: AiRequest): Anthropic.Beta.MessageCreateParamsNonStreaming {
   return {
     model,
     max_tokens: 16000, // thinking counts toward this, so leave room beyond the short reply
-    betas: COACH_BETAS,
-    fallbacks: "default",
+    betas: hasServerFallback(model) ? COACH_BETAS : COACH_BETAS.filter((beta) => beta !== FALLBACK_BETA),
+    ...fallbackFields(model),
     thinking: { type: "adaptive", block_binding: { prefix_mismatch_behavior: "drop_block" } },
     output_config: { effort },
     cache_control: { type: "ephemeral" }, // caches the growing thread
@@ -35,8 +46,8 @@ export function buildStructuredRequest(model: string, request: AiStructuredReque
   return {
     model,
     max_tokens: 16000,
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
+    ...(hasServerFallback(model) ? { betas: [FALLBACK_BETA] } : {}),
+    ...fallbackFields(model),
     thinking: { type: "adaptive" },
     output_config: { effort: STRUCTURED_EFFORT, format: { type: "json_schema", schema: request.schema } },
     system: request.system,
@@ -69,7 +80,10 @@ export function toAiError(err: unknown, signal: AbortSignal): unknown {
 
 export function anthropicClient(opts: {
   apiKey: string;
+  /** Writes the weekly insights. */
   model: string;
+  /** Answers chat messages; the insights' model when unset. */
+  coachModel?: string;
   effort: Effort;
   maxRetries?: number;
   fetch?: (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
@@ -79,7 +93,7 @@ export function anthropicClient(opts: {
   return {
     async complete(request, signal) {
       try {
-        return toResponse(await client.beta.messages.create(buildRequest(opts.model, opts.effort, request), { signal }));
+        return toResponse(await client.beta.messages.create(buildRequest(opts.coachModel ?? opts.model, opts.effort, request), { signal }));
       } catch (err) {
         throw toAiError(err, signal);
       }

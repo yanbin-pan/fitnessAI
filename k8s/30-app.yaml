@@ -78,8 +78,10 @@ spec:
                   optional: true
             - name: ANTHROPIC_MODEL
               value: claude-opus-5-5
+            - name: ANTHROPIC_COACH_MODEL
+              value: claude-haiku-5-5
             - name: ANTHROPIC_EFFORT
-              value: medium
+              value: low
             - name: SNAPSHOT_KEEP
               value: "7"
           volumeMounts:

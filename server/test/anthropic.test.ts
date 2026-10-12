@@ -34,6 +34,23 @@ describe("buildRequest", () => {
   });
 });
 
+describe("buildRequest on Haiku", () => {
+  it("leaves out the server-side fallback, which Haiku does not have, and keeps the rest", () => {
+    const built = buildRequest("claude-haiku-5-5", "low", request);
+    expect(built).toMatchObject({
+      model: "claude-haiku-5-5",
+      betas: ["thinking-binding-controls-2026-08-01"],
+      thinking: { type: "adaptive", block_binding: { prefix_mismatch_behavior: "drop_block" } },
+      output_config: { effort: "low" },
+      cache_control: { type: "ephemeral" },
+    });
+    expect(built).not.toHaveProperty("fallbacks");
+    const structured = buildStructuredRequest("claude-haiku-5-5", { system: "s", prompt: "p", schema: {} });
+    expect(structured).not.toHaveProperty("fallbacks");
+    expect(structured).not.toHaveProperty("betas");
+  });
+});
+
 describe("buildStructuredRequest", () => {
   it("asks for JSON matching the schema, at high effort, with thinking and fallbacks", () => {
     const schema = { type: "object", properties: { a: { type: "string" } }, required: ["a"], additionalProperties: false };
@@ -51,6 +68,16 @@ describe("buildStructuredRequest", () => {
 });
 
 describe("anthropicClient", () => {
+  it("answers chat on the coach model and writes insights on the other", async () => {
+    const coach: { init?: RequestInit } = {};
+    const insights: { init?: RequestInit } = {};
+    const opts = { apiKey: "k", model: "claude-opus-5-5", coachModel: "claude-haiku-5-5", effort: "low" as const, maxRetries: 0 };
+    await anthropicClient({ ...opts, fetch: fakeFetch(200, OK_REPLY, coach) }).complete(request, new AbortController().signal);
+    await anthropicClient({ ...opts, fetch: fakeFetch(200, OK_REPLY, insights) }).structured({ system: "s", prompt: "p", schema: {} }, new AbortController().signal);
+    expect(JSON.parse(String(coach.init?.body)).model).toBe("claude-haiku-5-5");
+    expect(JSON.parse(String(insights.init?.body)).model).toBe("claude-opus-5-5");
+  });
+
   it("sends the betas as a header and maps the reply", async () => {
     const seen: { init?: RequestInit; url?: string } = {};
     const client = anthropicClient({ apiKey: "test-key", model: "claude-opus-5-5", effort: "medium", maxRetries: 0, fetch: fakeFetch(200, OK_REPLY, seen) });

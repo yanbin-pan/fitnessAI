@@ -17,7 +17,7 @@ describe("loadConfig", () => {
     });
     expect(c.access).toEqual({ teamDomain: "team.cloudflareaccess.com", audience: "aud", ownerEmail: "owner@example.com", allowedEmails: [], testJwks: null });
     expect(c.ownerEmail).toBe("owner@example.com");
-    expect(c.anthropic).toEqual({ apiKey: null, model: "claude-opus-5-5", effort: "medium" });
+    expect(c.anthropic).toEqual({ apiKey: null, model: "claude-opus-5-5", coachModel: "claude-haiku-5-5", effort: "medium" });
   });
 
   it("treats a missing NODE_ENV as production", () => {
@@ -68,8 +68,10 @@ describe("loadConfig", () => {
   });
 
   it("reads the Anthropic settings", () => {
-    const c = loadConfig({ ...production, ANTHROPIC_API_KEY: "k", ANTHROPIC_MODEL: "claude-sonnet-5-5", ANTHROPIC_EFFORT: "low" });
-    expect(c.anthropic).toEqual({ apiKey: "k", model: "claude-sonnet-5-5", effort: "low" });
+    const c = loadConfig({
+      ...production, ANTHROPIC_API_KEY: "k", ANTHROPIC_MODEL: "claude-sonnet-5-5", ANTHROPIC_COACH_MODEL: "claude-opus-5-5", ANTHROPIC_EFFORT: "low",
+    });
+    expect(c.anthropic).toEqual({ apiKey: "k", model: "claude-sonnet-5-5", coachModel: "claude-opus-5-5", effort: "low" });
   });
 
   it("reads the port, path and budget overrides", () => {
