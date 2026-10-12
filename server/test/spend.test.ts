@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { AiUsage } from "../src/ai/client.ts";
 import { PRICES, costDollars } from "../src/ai/pricing.ts";
 import { recordRun, tokensByModel } from "../src/coach/usage.ts";
-import { DEFAULT_MODEL } from "../src/config.ts";
+import { DEFAULT_COACH_MODEL, DEFAULT_MODEL } from "../src/config.ts";
 import { personPaths, preparePersonDir } from "../src/db/location.ts";
 import { createMetrics, personLabels, registerSpend } from "../src/metrics.ts";
 import { personKey } from "../src/people/people.ts";
@@ -78,13 +78,15 @@ describe("costDollars", () => {
   });
 
   // Switching the model without adding its price would quietly leave every call out of the dashboard's estimate.
-  it("has a price for the model the cluster runs", () => {
+  it("has a price for the models the cluster runs", () => {
     const manifest = fs.readFileSync(new URL("../../k8s/30-app.yaml", import.meta.url), "utf8");
-    const configured = /name: ANTHROPIC_MODEL\s+value: "?([\w.-]+)"?/.exec(manifest)?.[1];
-    // Without the variable the app calls its default model.
-    const model = manifest.includes("ANTHROPIC_MODEL") ? configured : DEFAULT_MODEL;
-    expect(model, "k8s/30-app.yaml sets ANTHROPIC_MODEL in a form this test can't read").toBeDefined();
-    expect(PRICES[model!], `add ${model}'s list price to server/src/ai/pricing.ts`).toBeDefined();
+    for (const [name, fallback] of [["ANTHROPIC_MODEL", DEFAULT_MODEL], ["ANTHROPIC_COACH_MODEL", DEFAULT_COACH_MODEL]] as const) {
+      const configured = new RegExp(`name: ${name}\\s+value: "?([\\w.-]+)"?`).exec(manifest)?.[1];
+      // Without the variable the app calls its default model.
+      const model = manifest.includes(`name: ${name}\n`) ? configured : fallback;
+      expect(model, `k8s/30-app.yaml sets ${name} in a form this test can't read`).toBeDefined();
+      expect(PRICES[model!], `add ${model}'s list price to server/src/ai/pricing.ts`).toBeDefined();
+    }
   });
 });
 

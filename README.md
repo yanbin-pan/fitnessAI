@@ -79,7 +79,8 @@ npm run icons --workspace web  # after changing web/public/logo.svg
 | `ALLOWED_EMAILS` | unset (the owner alone) | Friends and family who may also sign in, comma-separated (see [Friends and family](#friends-and-family)) |
 | `AI_DAILY_CALL_CAP` / `GUEST_DAILY_CALL_CAP` | `200` / `60` | Claude calls a day for the owner / for each guest |
 | `ANTHROPIC_API_KEY` | unset | Turns the coach on |
-| `ANTHROPIC_MODEL` / `ANTHROPIC_EFFORT` | `claude-opus-5-5` / `medium` | `claude-sonnet-5-5` costs about 40–50% less here (cache reads cost the same on both); a new model needs its list price in `server/src/ai/pricing.ts` (a test checks the one in `k8s/30-app.yaml`) |
+| `ANTHROPIC_MODEL` | `claude-opus-5-5` | Writes the weekly insights (one call a week) |
+| `ANTHROPIC_COACH_MODEL` / `ANTHROPIC_EFFORT` | `claude-haiku-5-5` / `medium` | The coach chat, nearly all of the spend; the cluster runs it at `low`. `claude-sonnet-5-5` or `claude-opus-5-5` estimate photos more carefully at 20–40× the price. A new model needs its list price in `server/src/ai/pricing.ts` (a test checks the ones in `k8s/30-app.yaml`) |
 | `DATA_DIR` | `./.data` | Everyone's databases, photos and snapshots |
 | `PORT` / `METRICS_PORT` | `8080` / `9464` | App and Prometheus ports |
 | `COACH_BUDGET_MS` | `90000` | Time one coach message may take |

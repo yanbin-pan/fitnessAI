@@ -1,8 +1,13 @@
 export const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
 export type Effort = (typeof EFFORTS)[number];
 
-/** The model the coach and the insights call when ANTHROPIC_MODEL is unset; its list price is in ai/pricing.ts. */
+/** The model the weekly insights call when ANTHROPIC_MODEL is unset; its list price is in ai/pricing.ts. */
 export const DEFAULT_MODEL = "claude-opus-5-5";
+/**
+ * The model the coach calls when ANTHROPIC_COACH_MODEL is unset. Logging and estimating is well within a small model's
+ * reach, and the coach is nearly all of the spend: Haiku 5.5 costs about a fortieth of Opus 5.5 per token.
+ */
+export const DEFAULT_COACH_MODEL = "claude-haiku-5-5";
 
 export interface AccessConfig {
   teamDomain: string;
@@ -25,7 +30,8 @@ export interface Config {
   devAuthEmail: string | null;
   /** The owner: OWNER_EMAIL, or DEV_AUTH_EMAIL when development skips Access (2.2 §3). */
   ownerEmail: string;
-  anthropic: { apiKey: string | null; model: string; effort: Effort };
+  /** `model` writes the weekly insights; `coachModel` answers chat messages, at `effort`. */
+  anthropic: { apiKey: string | null; model: string; coachModel: string; effort: Effort };
   coachBudgetMs: number;
   snapshotKeep: number;
   /** Model calls a day for the owner (AI_DAILY_CALL_CAP) and for each guest (GUEST_DAILY_CALL_CAP) (2.2 §6). */
@@ -115,6 +121,7 @@ export function loadConfig(env: Env): Config {
     anthropic: {
       apiKey: trimmed(env, "ANTHROPIC_API_KEY"),
       model: trimmed(env, "ANTHROPIC_MODEL") ?? DEFAULT_MODEL,
+      coachModel: trimmed(env, "ANTHROPIC_COACH_MODEL") ?? DEFAULT_COACH_MODEL,
       effort: effort as Effort,
     },
     coachBudgetMs: positiveInt(env, "COACH_BUDGET_MS", 90_000),

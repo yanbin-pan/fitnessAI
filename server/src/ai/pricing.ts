@@ -17,7 +17,7 @@ const SONNET_4: Price = { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75
 /**
  * Anthropic's list prices on the Claude API, from platform.claude.com/docs/en/about-claude/pricing (checked 2026-10-07),
  * for the dashboard's spend estimate; the bill in the Claude Console is the authority. Every current model is here, not
- * only ANTHROPIC_MODEL: with `fallbacks: "default"` a refused request can be answered by another model, and the usage
+ * only ANTHROPIC_MODEL and ANTHROPIC_COACH_MODEL: with `fallbacks: "default"` a refused request can be answered by another model, and the usage
  * record names the one that answered. A model missing here is logged and left out of the estimate. Editing a price
  * re-prices everything recorded so far, so the spend panels jump once.
  */
@@ -34,6 +34,8 @@ export const PRICES: Readonly<Record<string, Price>> = {
   "claude-sonnet-5": SONNET_5,
   "claude-sonnet-4-6": SONNET_4,
   "claude-sonnet-4-5": SONNET_4,
+  // Up to 100K prompt tokens; a longer prompt costs five times as much, which a day's coach thread never reaches.
+  "claude-haiku-5-5": { input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.125 },
   "claude-haiku-4-5": { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
 };
 
