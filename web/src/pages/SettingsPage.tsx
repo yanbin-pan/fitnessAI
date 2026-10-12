@@ -8,6 +8,7 @@ import { dayAndMonth, kcal10 } from "../format.ts";
 import { LANGUAGE_NAMES, MESSAGES, isLanguage, useI18n, withCompanion } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
 import { useProfile } from "../queries.ts";
+import { HealthDataSettings } from "./HealthPage.tsx";
 import { THEMES, useTheme } from "../theme.ts";
 import { deviceTimeZone, timeZoneGroups } from "../timezones.ts";
 import {
@@ -437,6 +438,7 @@ export function SettingsPage() {
           {t.common.save}
         </button>
       </form>
+      <HealthDataSettings />
     </main>
   );
 }

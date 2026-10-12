@@ -9,7 +9,6 @@ import { Icon } from "../icons/Icon.tsx";
 import type { IconName } from "../icons/paths.ts";
 import { useInsights } from "../queries.ts";
 import type { FindingSeverity, InsightFinding, InsightReport, InsightStats, NutrientStat, RecoveryStatus } from "../shared.ts";
-import { Progress } from "./RegularsPage.tsx";
 
 // The weekly analysis (2026-10-06 design §3.4). Severity always travels with its word: the colour repeats it, never
 // carries it alone (dataviz: status colours ship with a label). Text stays in the ink tokens.
@@ -288,5 +287,18 @@ export function InsightsPage() {
         </>
       )}
     </main>
+  );
+}
+
+export function Progress({ value, max }: { value: number; max: number }) {
+  const t = useT();
+  const share = Math.min(1, value / max);
+  return (
+    <div className="mt-3 flex items-center gap-3">
+      <div role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={max} aria-valuetext={t.insights.progress(value, max)} className="pressed h-2.5 flex-1 rounded-full">
+        <div className="h-2.5 rounded-full bg-accent" style={{ width: `${share * 100}%` }} />
+      </div>
+      <span className="shrink-0 text-sm tabular-nums text-muted">{t.insights.progress(value, max)}</span>
+    </div>
   );
 }

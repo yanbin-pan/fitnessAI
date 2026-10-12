@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isIsoDate, isTimeZone } from "./dates.ts";
+import { HEALTH_CONDITIONS, LAB_MARKERS, MAX_LAB_PHOTOS, MAX_LAB_RESULTS } from "./health.ts";
 import {
   ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, COMPANION_INTERACTIONS, DEFAULT_COMPANION, DRINKS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_COPIES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, PROFILE_RANGES, SEXES,
 } from "./vocab.ts";
@@ -166,3 +167,52 @@ export type RegularLogInput = z.infer<typeof RegularLogInput>;
 /** One interaction with the companion, counted per day for the owner's dashboard (2026-10-08 companions design §8). */
 export const CompanionInteractionInput = z.object({ kind: z.enum(COMPANION_INTERACTIONS) });
 export type CompanionInteractionInput = z.infer<typeof CompanionInteractionInput>;
+
+/** A condition chip from the Health tab; `other` carries the person's own words. */
+export const ConditionInput = z
+  .object({ kind: z.enum(HEALTH_CONDITIONS), label: z.string().trim().max(80).nullable().default(null) })
+  .refine((c) => c.kind !== "other" || Boolean(c.label), { message: "Say what the condition is", path: ["label"] })
+  .transform((c) => ({ kind: c.kind, label: c.kind === "other" ? c.label : null }));
+export type ConditionInput = z.input<typeof ConditionInput>;
+
+export const MedicationInput = z
+  .object({
+    name: z.string().trim().min(1).max(100),
+    dose: z.string().trim().max(100).default(""),
+    started_on: IsoDate.nullable().default(null),
+    stopped_on: IsoDate.nullable().default(null),
+  })
+  .refine((m) => !m.started_on || !m.stopped_on || m.started_on <= m.stopped_on, { message: "Stopped before it started", path: ["stopped_on"] });
+export type MedicationInput = z.input<typeof MedicationInput>;
+
+const rangeEnd = z.number().finite().nullable().default(null);
+
+export const LabResultInput = z.object({
+  marker: z.enum(LAB_MARKERS),
+  name: z.string().trim().min(1).max(100),
+  printed_name: z.string().trim().max(100).default(""),
+  value: z.number().finite().nullable(),
+  text_value: z.string().trim().max(60).default(""),
+  unit: z.string().trim().max(30).default(""),
+  ref_low: rangeEnd,
+  ref_high: rangeEnd,
+}).refine((r) => r.value !== null || r.text_value !== "", { message: "A result needs a value", path: ["value"] });
+export type LabResultInput = z.input<typeof LabResultInput>;
+
+/** A blood test report as the person confirmed it: nothing is saved before they do. */
+export const LabReportInput = z.object({
+  taken_on: IsoDate,
+  lab_name: z.string().trim().max(100).default(""),
+  results: z.array(LabResultInput).min(1).max(MAX_LAB_RESULTS),
+});
+export type LabReportInput = z.input<typeof LabReportInput>;
+
+/** Photos of a lab report for Claude to read (POST /api/records/labs/read). */
+export const LabReadInput = z
+  .object({ photo_ids: z.array(PhotoId).min(1).max(MAX_LAB_PHOTOS) })
+  .refine((m) => new Set(m.photo_ids).size === m.photo_ids.length, { message: "Each photo can be attached once", path: ["photo_ids"] });
+export type LabReadInput = z.infer<typeof LabReadInput>;
+
+/** A sentence typed on the Health tab, for Claude to turn into conditions and medications. */
+export const HealthParseInput = z.object({ text: z.string().trim().min(1).max(500) });
+export type HealthParseInput = z.infer<typeof HealthParseInput>;

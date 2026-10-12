@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "./api.ts";
 import { isLive } from "./coach/live.ts";
-import type { DaySummaries, DayView, InsightsView, ProfileView, RegularsView } from "./shared.ts";
+import type { DaySummaries, DayView, HealthView, InsightsView, ProfileView } from "./shared.ts";
 
 export const dayKey = (date: string) => ["day", date] as const;
 
@@ -56,9 +56,9 @@ export function useLoadedProfile() {
   return useQuery({ queryKey: ["profile"], queryFn: loadProfile, enabled: false });
 }
 
-/** Everything found to recur in the log, for the Regulars tab (2026-10-06 design §2.3). */
-export function useRegulars() {
-  return useQuery({ queryKey: ["regulars"], queryFn: () => api<RegularsView>("/api/regulars") });
+/** Conditions, medications and blood results, for the Health tab (2026-10-12 health context design). */
+export function useHealth() {
+  return useQuery({ queryKey: ["health"], queryFn: () => api<HealthView>("/api/records") });
 }
 
 /** The weekly analysis (2026-10-06 design §3.4). While it is being written, ask again every 10 seconds. */

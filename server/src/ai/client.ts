@@ -38,10 +38,15 @@ export interface AiResponse {
   usage: AiUsage;
 }
 
-/** A one-off request whose answer must follow a JSON schema (structured outputs): the weekly insights. */
+/** A one-off request whose answer must follow a JSON schema (structured outputs): the weekly insights, reading a lab report. */
 export interface AiStructuredRequest {
   system: string;
-  prompt: string;
+  /** The user turn: text, or blocks when it carries images. */
+  prompt: string | Exclude<AiMessage["content"], string>;
+  /** How hard to think; the weekly insights' "high" when unset. */
+  effort?: "low" | "medium" | "high";
+  /** Run on the coach's (cheaper, quicker) model instead of the insights' one, for small extraction jobs. */
+  fast?: boolean;
   /** A JSON schema the reply's text must match; every object closed (additionalProperties: false). */
   schema: Record<string, unknown>;
 }

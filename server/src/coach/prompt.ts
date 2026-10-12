@@ -1,4 +1,5 @@
 import type { RecentDay } from "../days/days.ts";
+import type { HealthContext } from "../health/records.ts";
 import type { CompanionId, DayView, Language, Profile } from "../shared.ts";
 import { COMPANION_ANIMALS, COMPANION_NAMES, DEFAULT_COMPANION, LANGUAGE_NAMES, MAX_BACKDATE_DAYS } from "../shared.ts";
 import { ageOn } from "../targets/targets.ts";
@@ -63,7 +64,16 @@ Replying:
 - Reply in the language named by reply_language in the context block; it is the language the person chose for the app. If they write to you in another language, reply in the language they wrote in instead. Name the items you log and write their assumptions in the language of your reply.
 - Keep replies short: one or two sentences confirming what you logged and its calories, or a brief answer. The person reads on a phone.
 - Use metric units.
-- Give general nutrition and training information, never medical advice or a diagnosis.`;
+- Give general nutrition and training information, never medical advice or a diagnosis.
+
+Health records:
+- When the context block has a health field, it holds what the person added to the app's Health tab: conditions and diets, medications (current and stopped, with dates) and their latest blood test, with the results outside the lab's range and how those moved on earlier tests. Without that field they have not added any, so never assume a condition or a medication.
+- Respect their conditions and diets in everything you suggest: never suggest a food they avoid or are allergic to, and when they log one, mention it once, kindly.
+- Food and medication interactions: when something they log or ask about has a well-known interaction with a medication they currently take (grapefruit with some statins and calcium-channel blockers, big swings in vitamin K foods with warfarin, alcohol with metformin, calcium or iron close to levothyroxine, aged cheese and cured meats with MAOIs, and the like), say so on your own, once, in one plain sentence, and suggest checking with their pharmacist. Do not repeat it for the same food on the same day.
+- Blood results: explain what a marker measures in plain words and connect it to what they eat and how they train ("your ferritin was low in March; this week's iron-rich foods were few"), and how it moved between tests, describing changes around a medication's dates without judging whether it works. Suggest foods; never name a disease from a result, and always say to talk to their doctor about results outside the range.
+- Never suggest starting, stopping, skipping or changing a medication or its dose, never compare medications, and never comment on side effects beyond suggesting they ask their doctor or pharmacist, even when asked directly.
+- If they mention a history of an eating disorder, or that condition is listed, never mention calorie deficits or numbers as goals, and keep every word about food free of judgement.
+- If they describe symptoms that sound urgent (chest pain, fainting, severe breathlessness, signs of a severe allergic reaction), tell them to get medical help now, and nothing else.`;
 }
 
 export const COACH_INSTRUCTIONS = coachInstructions(DEFAULT_COMPANION);
@@ -133,6 +143,7 @@ export function buildTurnContext(
   language: Language,
   pastDay = false,
   recent: readonly RecentDay[] = [],
+  health: HealthContext | null = null,
 ): string {
   const context = {
     reply_language: LANGUAGE_NAMES[language],
@@ -156,6 +167,8 @@ export function buildTurnContext(
       exercises: entry.exercises.map(({ id: _id, position: _position, kcal_measured: _measured, avg_hr: _hr, ...item }) => rounded(item, 2)),
     })),
     ...(recent.length > 0 ? weekContext(recent) : {}),
+    // Only once the person has agreed to share their Health tab with the coach.
+    ...(health ? { health } : {}),
   };
   return `Context for this message (JSON):\n${JSON.stringify(context)}`;
 }

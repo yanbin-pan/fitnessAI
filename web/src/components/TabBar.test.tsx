@@ -10,9 +10,9 @@ describe("TabBar", () => {
     expect(screen.getByRole("link", { name: "Today" })).not.toHaveAttribute("aria-current");
   });
 
-  it("puts Insights between Today and Settings, with Regulars beside it", () => {
+  it("puts Insights between Today and Settings, with Health beside it", () => {
     renderWithProviders(<TabBar />, { route: "/insights" });
-    expect(screen.getAllByRole("link").map((link) => link.textContent)).toEqual(["Today", "Insights", "Regulars", "Settings"]);
+    expect(screen.getAllByRole("link").map((link) => link.textContent)).toEqual(["Today", "Insights", "Health", "Settings"]);
     expect(screen.getByRole("link", { name: "Insights" })).toHaveAttribute("aria-current", "page");
   });
 });

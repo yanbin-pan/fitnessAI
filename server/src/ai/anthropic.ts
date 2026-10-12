@@ -49,7 +49,7 @@ export function buildStructuredRequest(model: string, request: AiStructuredReque
     ...(hasServerFallback(model) ? { betas: [FALLBACK_BETA] } : {}),
     ...fallbackFields(model),
     thinking: { type: "adaptive" },
-    output_config: { effort: STRUCTURED_EFFORT, format: { type: "json_schema", schema: request.schema } },
+    output_config: { effort: request.effort ?? STRUCTURED_EFFORT, format: { type: "json_schema", schema: request.schema } },
     system: request.system,
     messages: [{ role: "user", content: request.prompt }],
   };
@@ -101,7 +101,7 @@ export function anthropicClient(opts: {
     async structured(request, signal) {
       try {
         return toResponse(
-          await client.beta.messages.create(buildStructuredRequest(opts.model, request), { signal, timeout: STRUCTURED_TIMEOUT_MS }),
+          await client.beta.messages.create(buildStructuredRequest(request.fast ? (opts.coachModel ?? opts.model) : opts.model, request), { signal, timeout: STRUCTURED_TIMEOUT_MS }),
         );
       } catch (err) {
         throw toAiError(err, signal);
