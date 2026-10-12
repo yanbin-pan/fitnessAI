@@ -7,6 +7,7 @@ import { markPending } from "../coach/pending.ts";
 import { streamCoach } from "../coach/stream.ts";
 import { ActivitiesCard } from "../components/ActivitiesCard.tsx";
 import { Composer } from "../components/Composer.tsx";
+import { CopyPicker, PasteBar } from "../components/CopyPaste.tsx";
 import { DayNav } from "../components/DayNav.tsx";
 import { EntryEditor } from "../components/EntryEditor.tsx";
 import { NutrientCard } from "../components/NutrientCard.tsx";
@@ -19,6 +20,7 @@ import { Summary } from "../components/Summary.tsx";
 import { SummaryStrip } from "../components/SummaryStrip.tsx";
 import { quietButton } from "../components/ui.tsx";
 import { useT } from "../i18n/index.tsx";
+import { Icon } from "../icons/Icon.tsx";
 import type { Messages } from "../i18n/index.tsx";
 import { greetingFor } from "../greeting.ts";
 import { storeDay, useDay, useLoadedProfile } from "../queries.ts";
@@ -86,6 +88,8 @@ export function TodayPage() {
   }, [shownDate, shownToday, itemCount]);
   // An open editor belongs to the day it was opened on; Back or Forward to another day must not carry it along.
   const [editing, setEditing] = useState<{ date: string; entry: Entry | null } | null>(null);
+  // Likewise the copy picker: it lists the entries of the day it was opened on.
+  const [copying, setCopying] = useState<string | null>(null);
   // After a failure the screen may be out of step with the server (a half-finished Undo, a message
   // that was already retried), so fetch the days again rather than trusting what is on screen.
   const refresh = () => void client.invalidateQueries({ queryKey: ["day"] });
@@ -160,6 +164,8 @@ export function TodayPage() {
   const view = day.data;
   const stored = profile.data?.profile ?? null;
   const isToday = view.date === view.today;
+  // The server refuses a new entry dated more than MAX_BACKDATE_DAYS back (too_old), so don't offer one there.
+  const addable = view.date <= view.today && daysBetween(view.date, view.today) <= MAX_BACKDATE_DAYS;
   // An older server sends no name fields: then there is nothing to ask and the hello has no name.
   const greeting = isToday ? greetingFor(view, stored?.name ?? null, new Date(), t) : null;
   // An older server sends no companion fields: Zabaione, and no mood to show.
@@ -211,16 +217,28 @@ export function TodayPage() {
         }}
         greeting={greeting}
       />
-      {/* The server refuses a new entry dated more than MAX_BACKDATE_DAYS back (too_old), so don't offer one there. */}
-      {view.date <= view.today && daysBetween(view.date, view.today) <= MAX_BACKDATE_DAYS && (
+      {(addable || view.entries.length > 0) && (
         <div className="px-4">
-          <button type="button" onClick={() => setEditing({ date: view.date, entry: null })} className={`${quietButton} text-sm text-accent-ink`}>
-            {t.day.addManually}
-          </button>
+          <div className="flex flex-wrap gap-3">
+            {addable && (
+              <button type="button" onClick={() => setEditing({ date: view.date, entry: null })} className={`${quietButton} text-sm text-accent-ink`}>
+                {t.day.addManually}
+              </button>
+            )}
+            {/* Copying works from any day; pasting only where a new entry may go. */}
+            {view.entries.length > 0 && (
+              <button type="button" onClick={() => setCopying(view.date)} className={`${quietButton} flex items-center gap-1.5 text-sm text-accent-ink`}>
+                <Icon name="content_copy" size={16} />
+                {t.copy.action}
+              </button>
+            )}
+          </div>
+          {addable && <PasteBar date={view.date} today={view.today} />}
         </div>
       )}
       {/* Each day open to chat gets its own composer, so a draft never moves to another day. An older server sends no suggestions. */}
       {chatOpen(view.date, view.today) && <Composer key={view.date} date={view.date} suggestions={view.suggestions ?? []} />}
+      {copying === view.date && <CopyPicker date={view.date} entries={view.entries} onClose={() => setCopying(null)} />}
       {editing?.date === view.date && (
         <EntryEditor
           date={view.date}

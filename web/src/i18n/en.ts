@@ -84,6 +84,18 @@ export const en = {
     fromPhoto: "from photo",
     fromRegular: "regular",
   },
+  copy: {
+    action: "Copy entries",
+    title: "Copy entries",
+    hint: "Pick what to copy, then paste it on another day. Zabaione isn't asked, so nothing is used up.",
+    all: "Select all",
+    none: "Select none",
+    copy: (n: number) => (n === 0 ? "Copy" : `Copy ${n}`),
+    paste: (n: number) => (n === 1 ? "Paste 1 copied entry" : `Paste ${n} copied entries`),
+    from: (day: string) => `From ${day}`,
+    clear: "Clear copied entries",
+    gone: "Something you copied has been deleted since, so nothing was pasted. Copy again.",
+  },
   feed: {
     photoUnavailable: "Photo unavailable",
     removed: "Entry removed",

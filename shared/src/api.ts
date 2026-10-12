@@ -169,6 +169,12 @@ export interface EntryResult {
   day: DayView;
 }
 
+/** Pasted entries, in the order they were asked for, and the day they went to. */
+export interface EntriesResult {
+  entries: Entry[];
+  day: DayView;
+}
+
 export interface DeleteResult {
   day: DayView;
 }

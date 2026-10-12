@@ -70,6 +70,18 @@ export const es: Messages = {
     fromPhoto: "desde foto",
     fromRegular: "habitual",
   },
+  copy: {
+    action: "Copiar registros",
+    title: "Copiar registros",
+    hint: "Elige qué copiar y pégalo en otro día. No se le pregunta a Zabaione, así que no se gasta nada.",
+    all: "Seleccionar todo",
+    none: "No seleccionar nada",
+    copy: (n: number) => (n === 0 ? "Copiar" : `Copiar ${n}`),
+    paste: (n: number) => (n === 1 ? "Pegar 1 registro copiado" : `Pegar ${n} registros copiados`),
+    from: (day: string) => `De ${day}`,
+    clear: "Descartar lo copiado",
+    gone: "Algo que copiaste se ha borrado desde entonces, así que no se pegó nada. Vuelve a copiar.",
+  },
   feed: {
     photoUnavailable: "Foto no disponible",
     removed: "Entrada eliminada",

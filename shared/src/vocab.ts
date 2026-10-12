@@ -57,6 +57,9 @@ export type EntrySource = (typeof ENTRY_SOURCES)[number];
 /** How far back the coach may log or change things (spec §7.5). */
 export const MAX_BACKDATE_DAYS = 7;
 
+/** Most entries pasted onto a day at once: a full day's worth. */
+export const MAX_COPIES = 50;
+
 /**
  * How many days before today keep the full chat: the coach on that day, and its conversation and photos (spec §6.6).
  * Today and the three before it; on a rolling basis, an older day keeps only its logbook.

@@ -70,6 +70,18 @@ export const lt: Messages = {
     fromPhoto: "iš nuotraukos",
     fromRegular: "įprotis",
   },
+  copy: {
+    action: "Kopijuoti įrašus",
+    title: "Kopijuoti įrašus",
+    hint: "Pasirink, ką kopijuoti, ir įklijuok kitą dieną. Zabaione neklausiama, todėl niekas neišnaudojama.",
+    all: "Pažymėti visus",
+    none: "Nieko nežymėti",
+    copy: (n: number) => (n === 0 ? "Kopijuoti" : `Kopijuoti (${n})`),
+    paste: (n: number) => `Įklijuoti nukopijuotus įrašus (${n})`,
+    from: (day: string) => `Iš: ${day}`,
+    clear: "Išvalyti nukopijuotus įrašus",
+    gone: "Kažkas, ką nukopijavai, jau ištrinta, todėl nieko neįklijuota. Nukopijuok iš naujo.",
+  },
   feed: {
     photoUnavailable: "Nuotrauka nepasiekiama",
     removed: "Įrašas pašalintas",

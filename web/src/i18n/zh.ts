@@ -70,6 +70,18 @@ export const zh: Messages = {
     fromPhoto: "来自照片",
     fromRegular: "常规",
   },
+  copy: {
+    action: "复制记录",
+    title: "复制记录",
+    hint: "选择要复制的内容，然后粘贴到另一天。不会询问 Zabaione，所以不消耗任何额度。",
+    all: "全选",
+    none: "全不选",
+    copy: (n: number) => (n === 0 ? "复制" : `复制 ${n} 条`),
+    paste: (n: number) => `粘贴 ${n} 条已复制的记录`,
+    from: (day: string) => `来自${day}`,
+    clear: "清除已复制的记录",
+    gone: "你复制的某条记录已被删除，因此没有粘贴任何内容。请重新复制。",
+  },
   feed: {
     photoUnavailable: "照片不可用",
     removed: "记录已删除",

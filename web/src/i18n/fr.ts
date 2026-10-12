@@ -72,6 +72,18 @@ export const fr: Messages = {
     fromPhoto: "d’après photo",
     fromRegular: "habitude",
   },
+  copy: {
+    action: "Copier des entrées",
+    title: "Copier des entrées",
+    hint: "Choisis quoi copier, puis colle-le sur un autre jour. Zabaione n'est pas sollicité, donc rien n'est consommé.",
+    all: "Tout sélectionner",
+    none: "Ne rien sélectionner",
+    copy: (n: number) => (n === 0 ? "Copier" : `Copier ${n}`),
+    paste: (n: number) => (n === 1 ? "Coller 1 entrée copiée" : `Coller ${n} entrées copiées`),
+    from: (day: string) => `De ${day}`,
+    clear: "Effacer les entrées copiées",
+    gone: "Une entrée copiée a été supprimée depuis, donc rien n'a été collé. Copie à nouveau.",
+  },
   feed: {
     photoUnavailable: "Photo indisponible",
     removed: "Entrée supprimée",

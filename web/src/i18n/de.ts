@@ -70,6 +70,18 @@ export const de: Messages = {
     fromPhoto: "aus Foto",
     fromRegular: "Gewohnheit",
   },
+  copy: {
+    action: "Einträge kopieren",
+    title: "Einträge kopieren",
+    hint: "Wähle, was du kopieren willst, und füge es an einem anderen Tag ein. Zabaione wird nicht gefragt, also wird nichts verbraucht.",
+    all: "Alle auswählen",
+    none: "Keine auswählen",
+    copy: (n: number) => (n === 0 ? "Kopieren" : `${n} kopieren`),
+    paste: (n: number) => (n === 1 ? "1 kopierten Eintrag einfügen" : `${n} kopierte Einträge einfügen`),
+    from: (day: string) => `Von ${day}`,
+    clear: "Kopierte Einträge verwerfen",
+    gone: "Etwas Kopiertes wurde inzwischen gelöscht, daher wurde nichts eingefügt. Kopiere es erneut.",
+  },
   feed: {
     photoUnavailable: "Foto nicht verfügbar",
     removed: "Eintrag entfernt",

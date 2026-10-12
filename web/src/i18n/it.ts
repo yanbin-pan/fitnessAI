@@ -70,6 +70,18 @@ export const it: Messages = {
     fromPhoto: "da foto",
     fromRegular: "abituale",
   },
+  copy: {
+    action: "Copia voci",
+    title: "Copia voci",
+    hint: "Scegli cosa copiare, poi incollalo in un altro giorno. Zabaione non viene interpellato, quindi non si consuma nulla.",
+    all: "Seleziona tutto",
+    none: "Deseleziona tutto",
+    copy: (n: number) => (n === 0 ? "Copia" : `Copia ${n}`),
+    paste: (n: number) => (n === 1 ? "Incolla 1 voce copiata" : `Incolla ${n} voci copiate`),
+    from: (day: string) => `Da ${day}`,
+    clear: "Annulla la copia",
+    gone: "Qualcosa che hai copiato è stato eliminato nel frattempo, quindi non è stato incollato nulla. Copia di nuovo.",
+  },
   feed: {
     photoUnavailable: "Foto non disponibile",
     removed: "Voce eliminata",
