@@ -18,10 +18,10 @@ afterEach(async () => {
   ctx = undefined;
 });
 
-async function appWith(steps: FakeStep[]) {
+async function appWith(steps: FakeStep[], profile = makeProfile()) {
   const ai = fakeAi(steps);
   ctx = await testApp({ ai });
-  saveProfile(ctx.db, makeProfile(), NOW.toISOString());
+  saveProfile(ctx.db, profile, NOW.toISOString());
   return { app: ctx, ai };
 }
 
@@ -58,7 +58,13 @@ describe("the coach and photos", () => {
   it("says when a message is only photos", async () => {
     const { app, ai } = await appWith([textReply("Noted.")]);
     await send(app, { photo_ids: [addPhoto(app, fakeJpeg(30, 20))] });
-    expect(blocksOf(ai.requests[0].messages[0]).at(-1)?.text).toBe(PHOTOS_ONLY_TEXT);
+    expect(blocksOf(ai.requests[0].messages[0]).at(-1)?.text).toBe(`${PHOTOS_ONLY_TEXT} Reply in English.`);
+  });
+
+  it("names the app's language on a message that is only photos, so the reply is not in English", async () => {
+    const { app, ai } = await appWith([textReply("Annotato.")], makeProfile({ language: "it" }));
+    await send(app, { photo_ids: [addPhoto(app, fakeJpeg(30, 20))] });
+    expect(blocksOf(ai.requests[0].messages[0]).at(-1)?.text).toBe(`${PHOTOS_ONLY_TEXT} Reply in Italian.`);
   });
 
   it("stores a reference for each photo, never the image", async () => {

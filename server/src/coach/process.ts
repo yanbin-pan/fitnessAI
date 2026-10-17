@@ -8,7 +8,7 @@ import { getProfile } from "../profile/profile.ts";
 import { todayIn } from "../time.ts";
 import { runCoachLoop } from "./loop.ts";
 import type { CoachFailure, LoopStep } from "./loop.ts";
-import { PHOTOS_ONLY_TEXT, hydrateTurns, photoRef } from "./photo-blocks.ts";
+import { hydrateTurns, photoRef, photosOnlyText } from "./photo-blocks.ts";
 import { buildSystemPrompt, buildTurnContext } from "./prompt.ts";
 import { applyStaging, executeTool, fillsInPastDay, newStaging } from "./staging.ts";
 import type { ToolContext } from "./staging.ts";
@@ -101,7 +101,7 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
         ),
       },
       ...message.photo_ids.map(photoRef),
-      { type: "text", text: message.text || PHOTOS_ONLY_TEXT },
+      { type: "text", text: message.text || photosOnlyText(profile.language) },
     ] as unknown as AiMessage["content"],
   };
   const [userTurn] = hydrateTurns([storedTurn], load);
