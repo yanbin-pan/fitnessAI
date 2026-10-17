@@ -31,6 +31,8 @@ export const FoodItemInput = z.object({
   fibre_g: amount.default(0),
   saturated_fat_g: amount.default(0),
   sugars_g: amount.default(0),
+  /** Free sugars (2026-10-17 fat & sugar design): added to food, plus juice, honey and syrups; null when nobody estimated them. */
+  added_sugars_g: amount.nullable().default(null),
   salt_g: amount.default(0),
   fluid_ml: amount.default(0),
   alcohol_units: amount.default(0),

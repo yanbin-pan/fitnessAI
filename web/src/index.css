@@ -72,6 +72,8 @@
   --color-carbs: #f2a93b;
   --color-fat: #e8735a;
   --color-fibre: #4cb782;
+  /* Saturated fat (2026-10-17 fat & sugar design): the fat colour, darker. */
+  --color-fat-sat: #9c3320;
 }
 
 /* Raised from the surface: cards, the summary, the composer, sheets. */

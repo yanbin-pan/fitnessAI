@@ -17,6 +17,7 @@ const FoodToolItem = z.strictObject({
   fibre_g: z.number(),
   saturated_fat_g: z.number(),
   sugars_g: z.number().describe("Total sugars, as on UK labels"),
+  added_sugars_g: z.number().describe("Free sugars, part of sugars_g: sugar added to food plus honey, syrups and fruit juice; 0 for whole fruit, vegetables and plain milk"),
   salt_g: z.number(),
   fluid_ml: z.number().describe("Volume of a non-alcoholic drink; 0 for food"),
   alcohol_units: z.number().describe("UK alcohol units; 0 if none"),
@@ -118,7 +119,7 @@ export const COACH_TOOLS: AiTool[] = [
 
 const FOOD_AMOUNTS = [
   "kcal", "protein_g", "carbs_g", "fat_g", "fibre_g",
-  "saturated_fat_g", "sugars_g", "salt_g", "fluid_ml", "alcohol_units",
+  "saturated_fat_g", "sugars_g", "added_sugars_g", "salt_g", "fluid_ml", "alcohol_units",
 ] as const;
 const EXERCISE_OPTIONALS = ["sets", "reps", "weight_kg", "distance_km"] as const;
 

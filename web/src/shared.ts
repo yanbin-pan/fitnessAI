@@ -1,4 +1,4 @@
-// The web app's view of the shared code. Only dates, vocabularies, the calendar rule, the companion's constants and the alcohol helpers are runtime
+// The web app's view of the shared code. Only dates, vocabularies, the calendar rule, the companion's constants, the alcohol and the fat & sugar helpers are runtime
 // imports; the rest is types, so Zod never ends up in the browser bundle.
 export { calorieStatus } from "../../shared/src/calendar.ts";
 export type { CalorieStatus } from "../../shared/src/calendar.ts";
@@ -11,6 +11,8 @@ export type { Activity, ActivityLevel, BodyGoal, CompanionId, Drink, ExerciseCat
 export { COMPANION_THRIVE_DAYS } from "../../shared/src/companions.ts";
 export { ALCOHOL_WEEK_GUIDE, KCAL_PER_UNIT, isDrink } from "../../shared/src/alcohol.ts";
 export type { AlcoholStatus, AlcoholWeek, DrinkTotal } from "../../shared/src/alcohol.ts";
+export { ADDED_SUGARS_MAX_G, SATURATED_FAT_MAX_G, fatSugarDay } from "../../shared/src/fatsugar.ts";
+export type { FatSugarDay } from "../../shared/src/fatsugar.ts";
 export type { CompanionMood, CompanionStatus } from "../../shared/src/companions.ts";
 export { MODERATE, SIGNAL_KEYS } from "../../shared/src/nutrients.ts";
 export type { NutrientLevel, NutrientSignals, SignalKey } from "../../shared/src/nutrients.ts";

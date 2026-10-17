@@ -35,6 +35,8 @@ export interface FoodItem extends Totals {
   groups: { group: FoodGroup; portions: number }[];
   /** The coach's estimate of its vitamins and minerals; null when nobody estimated them. */
   micros: MicroAmount[] | null;
+  /** Free sugars: added to food, plus juice, honey and syrups; null when nobody estimated them (logged before 2026-10-17). */
+  added_sugars_g: number | null;
 }
 
 export interface ExerciseItem {

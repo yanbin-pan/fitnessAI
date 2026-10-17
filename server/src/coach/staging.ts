@@ -51,7 +51,8 @@ function zodFailure(error: z.ZodError): ToolOutcome {
 }
 
 function foodFromTool(food: FoodToolItem): FoodItemData {
-  return { ...food, saved_food_id: null };
+  // Free sugars are part of the total: an estimate above it is held to it rather than sent back, which would cost a turn.
+  return { ...food, added_sugars_g: Math.min(food.added_sugars_g, food.sugars_g), saved_food_id: null };
 }
 
 function exerciseFromTool(item: ExerciseToolItem, weightKg: number): ExerciseItemData {
