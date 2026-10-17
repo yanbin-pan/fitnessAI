@@ -4,14 +4,13 @@ import { entries } from "../db/schema.ts";
 import type { Sql } from "../db/types.ts";
 import { signalDays } from "../days/signals.ts";
 import { listEntriesBetween } from "../log/entries.ts";
-import { INSIGHTS_WINDOW_DAYS, addDays, daysBetween, nutrientSignals } from "../shared.ts";
+import { INSIGHTS_WINDOW_DAYS, SATURATED_FAT_MAX_G, addDays, daysBetween, nutrientSignals } from "../shared.ts";
 import type { Activity, Entry, FoodGroup, InsightStats, Muscle, NutrientStat, Profile } from "../shared.ts";
 
 // The numbers behind the weekly insights (2026-10-06 design §3.2). Worked out here, exactly, so the analysis is written
 // from facts: the model interprets them, it never adds them up.
 
-/** Upper limits with no personal target: UK reference intakes (saturated fat by sex), and drinks a day by sex (EFSA). */
-const SATURATED_FAT_MAX_G = { male: 30, female: 20 } as const;
+/** Upper limits with no personal target: UK reference intakes (saturated fat by sex, from shared), and drinks a day by sex (EFSA). */
 const SUGARS_REFERENCE_G = 90;
 const SALT_MAX_G = 6;
 const DRINKS_ML = { male: 2000, female: 1600 } as const;

@@ -190,7 +190,9 @@ export function TodayPage() {
           <Summary view={view} />
         </div>
         {/* An older server sends no signals. */}
-        {view.nutrients && <NutrientCard signals={view.nutrients} />}
+        {view.nutrients && <NutrientCard
+            signals={view.nutrients} foods={view.entries.flatMap((entry) => entry.foods)} isToday={view.date === view.today} sex={stored?.sex}
+          />}
         <ActivitiesCard view={view} onEdit={(entry) => setEditing({ date: view.date, entry })} />
       </div>
       <FeedDivider chat={chatOpen(view.date, view.today)} logOnly={logOnly} onChange={setLogOnly} />

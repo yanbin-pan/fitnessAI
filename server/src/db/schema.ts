@@ -97,6 +97,8 @@ export const foodItems = sqliteTable(
     saved_food_id: text(),
     /** The coach's estimate of its vitamins and minerals: [{ nutrient, amount }]. Null when nobody estimated them. */
     micros: text({ mode: "json" }).$type<{ nutrient: string; amount: number }[]>(),
+    /** Free sugars: added to food, plus juice, honey and syrups. Null for items logged before they were estimated. */
+    added_sugars_g: real(),
   },
   (t) => [index("food_items_entry_idx").on(t.entry_id)],
 );

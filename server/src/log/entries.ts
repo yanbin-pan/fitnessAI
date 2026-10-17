@@ -26,6 +26,7 @@ export interface FoodItemData {
   saved_food_id: string | null;
   groups: { group: FoodGroup; portions: number }[];
   micros: MicroAmount[] | null;
+  added_sugars_g: number | null;
 }
 
 export interface ExerciseItemData {

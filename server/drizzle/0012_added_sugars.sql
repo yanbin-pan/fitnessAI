@@ -1,0 +1,1 @@
+ALTER TABLE `food_items` ADD `added_sugars_g` real;

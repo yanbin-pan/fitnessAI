@@ -5,7 +5,7 @@ import { applyStaging, executeTool, newStaging } from "../src/coach/staging.ts";
 import type { ToolContext } from "../src/coach/staging.ts";
 import { COACH_TOOLS, LogItemsInput, amountIssues, strictJsonSchema } from "../src/coach/tools.ts";
 import { ACTIVITIES, MICROS } from "../src/shared.ts";
-import { TOOL_EGGS, TOOL_RUN, logItemsInput, makeProfile, openTestDb, sampleEntry } from "./helpers.ts";
+import { TOOL_EGGS, TOOL_RUN, logItemsInput, makeProfile, openTestDb, sampleEntry, sampleFood } from "./helpers.ts";
 
 const NOW_ISO = "2026-10-03T12:00:00.000Z";
 let db: ReturnType<typeof openTestDb>;
@@ -200,6 +200,23 @@ describe("executeTool and applyStaging", () => {
     expect(getEntry(db.db, "entry-1")).toMatchObject({ source: "coach", message_id: "msg-1" });
     expect(getEntry(db.db, "stored-1")).toMatchObject({ edited: true });
     expect(getDay(db.db, "2026-10-03")).not.toBeNull();
+  });
+});
+
+describe("added sugars", () => {
+  it("are stored as sent, held to the total sugars, and refused when negative", () => {
+    const ctx = context();
+    const juice = { ...TOOL_EGGS, name: "Orange juice", sugars_g: 18, added_sugars_g: 18 };
+    const cake = { ...TOOL_EGGS, name: "Cake", sugars_g: 20, added_sugars_g: 25 };
+    executeTool("log_items", logItemsInput({ foods: [juice, cake] }), ctx);
+    db.db.transaction((tx) => applyStaging(tx, ctx.staging, ctx.profile, NOW_ISO));
+    expect(getEntry(db.db, "entry-1")?.foods.map((f) => f.added_sugars_g)).toEqual([18, 20]);
+    expect(executeTool("log_items", logItemsInput({ foods: [{ ...TOOL_EGGS, added_sugars_g: -1 }] }), context()).isError).toBe(true);
+  });
+
+  it("stay unknown on an item logged by hand", () => {
+    db.db.transaction((tx) => insertEntry(tx, sampleEntry({ id: "old", foods: [sampleFood({ added_sugars_g: null })] }), NOW_ISO));
+    expect(getEntry(db.db, "old")?.foods[0].added_sugars_g).toBeNull();
   });
 });
 

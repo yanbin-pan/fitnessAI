@@ -20,6 +20,8 @@ export function toFoodInput(f: FoodItem): FoodItemInput {
     fluid_ml: f.fluid_ml, alcohol_units: f.alcohol_units, drink: f.drink ?? null, assumption: f.assumption, groups: f.groups,
     // Not shown in the editor, but kept: an edit to the portion must not throw the coach's estimate away.
     micros: f.micros ?? null,
+    // An older server sends none.
+    added_sugars_g: f.added_sugars_g ?? null,
   };
 }
 
@@ -33,7 +35,7 @@ export function toExerciseInput(x: ExerciseItem): ExerciseItemInput {
 
 export const blankFood = (): FoodItemInput => ({
   name: "", quantity: "", grams: null, kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, fibre_g: 0,
-  saturated_fat_g: 0, sugars_g: 0, salt_g: 0, fluid_ml: 0, alcohol_units: 0, drink: null, assumption: "", groups: [], micros: null,
+  saturated_fat_g: 0, sugars_g: 0, salt_g: 0, fluid_ml: 0, alcohol_units: 0, drink: null, assumption: "", groups: [], micros: null, added_sugars_g: null,
 });
 
 export const blankExercise = (): ExerciseItemInput => ({

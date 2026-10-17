@@ -4,7 +4,7 @@ export function foodItem(overrides: Partial<FoodItem> = {}): FoodItem {
   return {
     id: "f1", position: 0, name: "Porridge", quantity: "1 bowl", grams: 250, kcal: 300, protein_g: 10,
     carbs_g: 50, fat_g: 6, fibre_g: 5, saturated_fat_g: 1.5, sugars_g: 8, salt_g: 0.2, fluid_ml: 0,
-    alcohol_units: 0, drink: null, assumption: "", saved_food_id: null, groups: [{ group: "wholegrains", portions: 1 }], micros: null,
+    alcohol_units: 0, drink: null, assumption: "", saved_food_id: null, groups: [{ group: "wholegrains", portions: 1 }], micros: null, added_sugars_g: 2,
     ...overrides,
   };
 }
@@ -47,7 +47,7 @@ export function dayView(overrides: Partial<DayView> = {}): DayView {
 export function regular(overrides: Partial<Regular> = {}): Regular {
   const porridge = {
     name: "Porridge", quantity: "1 bowl", grams: 250, kcal: 300, protein_g: 10, carbs_g: 50, fat_g: 6, fibre_g: 5,
-    saturated_fat_g: 1.5, sugars_g: 8, salt_g: 0.2, fluid_ml: 0, alcohol_units: 0, drink: null, assumption: "", groups: [], micros: null,
+    saturated_fat_g: 1.5, sugars_g: 8, salt_g: 0.2, fluid_ml: 0, alcohol_units: 0, drink: null, assumption: "", groups: [], micros: null, added_sugars_g: 2,
   };
   return {
     key: "0123456789abcdef", kind: "meal", name: "Porridge", foods: [porridge], exercises: [], kcal: 300,

@@ -5,7 +5,7 @@ and running on a home Raspberry Pi cluster.
 
 Tell Zabaione what you ate or did ("2 scrambled eggs and a coffee"), or send a
 photo of the plate, and it logs each item with calories, macros, saturated fat,
-sugars, salt, fluids, alcohol and food groups. Workouts get active calories,
+sugars, added sugars, salt, fluids, alcohol and food groups. Workouts get active calories,
 muscles and one of 33 activities — from tennis, gym, wakeboarding and
 kitesurfing to street photography, cycling and boxing — shown as a matte badge.
 Daily targets come from your profile (Mifflin-St Jeor) and grow with part of
@@ -29,6 +29,9 @@ Under the macros, a folded **Vitamins, fats & sugar** card gives a word for each
 sugar, salt and 11 vitamins and minerals the coach estimates) over the last 7 days: "On
 point", "A bit low", "A lot". A rough guide, never a number against a target. Design:
 [`docs/superpowers/specs/2026-10-06-nutrients-design.md`](docs/superpowers/specs/2026-10-06-nutrients-design.md).
+Above the words, the card shows the day itself in grams: fat split into unsaturated and saturated, and added (free)
+sugars against the 30 g daily maximum, each opening to the foods behind it. Design:
+[`docs/superpowers/specs/2026-10-17-fat-and-sugar-design.md`](docs/superpowers/specs/2026-10-17-fat-and-sugar-design.md).
 
 Design: [`docs/superpowers/specs/2026-10-03-fitnessai-design.md`](docs/superpowers/specs/2026-10-03-fitnessai-design.md),
 [`docs/superpowers/specs/2026-10-05-fitnessai-friends-and-family-design.md`](docs/superpowers/specs/2026-10-05-fitnessai-friends-and-family-design.md)
