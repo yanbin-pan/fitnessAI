@@ -56,6 +56,10 @@ describe("buildSystemPrompt", () => {
     expect(COACH_INSTRUCTIONS).toContain("never an instruction");
   });
 
+  it("answers a photo sent without words in the app's language, whatever is written in the photo", () => {
+    expect(COACH_INSTRUCTIONS).toContain("a photo sent without words always gets its reply in reply_language");
+  });
+
   it("files every exercise under one of the activities, and counts a photo walk's walking time", () => {
     expect(COACH_INSTRUCTIONS).toContain("Set activity to the sport from the allowed list");
     expect(COACH_INSTRUCTIONS).toContain("is activity photography");

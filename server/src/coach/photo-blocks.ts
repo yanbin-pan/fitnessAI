@@ -1,6 +1,8 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { AiMessage } from "../ai/client.ts";
 import type { PhotoData } from "../photos/photos.ts";
+import type { Language } from "../shared.ts";
+import { LANGUAGE_NAMES } from "../shared.ts";
 
 // A stored user turn keeps a small reference per photo instead of the image (spec §5, §6.5).
 // Every replay turns it back into the identical image block — built by the same function
@@ -9,6 +11,13 @@ import type { PhotoData } from "../photos/photos.ts";
 export const PHOTO_REF = "photo_ref";
 /** The text of a message sent with photos and no words. */
 export const PHOTOS_ONLY_TEXT = "(no text, only the photos above)";
+/**
+ * The text a photos-only message is sent with. It names the app's language, since the note
+ * itself is in English and a model would otherwise answer in the language it reads last.
+ */
+export function photosOnlyText(language: Language): string {
+  return `${PHOTOS_ONLY_TEXT} Reply in ${LANGUAGE_NAMES[language]}.`;
+}
 /** What a replayed photo becomes once its file has gone. */
 export const MISSING_PHOTO_TEXT = "[photo no longer available]";
 
