@@ -79,14 +79,14 @@ describe("buildDayView", () => {
     db = openTestDb();
     const profile = makeProfile();
     expect(buildDayView(db.db, profile, "2026-10-03", "2026-10-03", NOW_ISO, []).companion.mood).toBe("inactive");
-    // A week of 500 kcal days against a target near 1860: well under.
+    // A week of 1000 kcal days against a target near 1860: well under, though logged fully enough to count.
     db.db.transaction((tx) => {
       for (const date of ["2026-09-26", "2026-09-27", "2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"]) {
-        insertEntry(tx, sampleEntry({ date, foods: [sampleFood({ kcal: 500 })] }), NOW_ISO);
+        insertEntry(tx, sampleEntry({ date, foods: [sampleFood({ kcal: 1000 })] }), NOW_ISO);
       }
     });
     const today = buildDayView(db.db, profile, "2026-10-03", "2026-10-03", NOW_ISO, []).companion;
-    expect(today).toMatchObject({ mood: "sluggish", avg_kcal: 500, days_logged: 7 });
+    expect(today).toMatchObject({ mood: "sluggish", avg_kcal: 1000, days_logged: 7 });
     expect(buildDayView(db.db, profile, "2026-09-20", "2026-10-03", NOW_ISO, []).companion).toEqual(today);
   });
 

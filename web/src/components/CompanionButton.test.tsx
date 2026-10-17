@@ -19,7 +19,7 @@ describe("CompanionButton", () => {
     expect(bubble).toHaveTextContent("Right around target this week. Steady.");
     expect(bubble).toHaveTextContent("7-day average: 2,104 of 2,320 kcal");
     expect(bubble).toHaveTextContent("3 of 14 days on track towards Thriving");
-    expect(bubble).toHaveTextContent("Follows your 7-day average, not a single day.");
+    expect(bubble).toHaveTextContent("Follows your last 7 fully logged days, not a single day.");
     expect(button).toHaveAttribute("aria-expanded", "true");
   });
 

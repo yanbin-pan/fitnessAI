@@ -439,7 +439,7 @@ export const zh: Messages = {
       fresh: "又醒过来了。继续记录，这周的数据会慢慢补上。",
     },
     streak: (days: number, of: number) => `已达标 ${days}/${of} 天，离“活力满满”更近一步`,
-    rule: "看的是 7 天平均，而不是某一天。",
+    rule: "看的是最近 7 个完整记录的日子，而不是某一天。漏记或记得太少的日子不算。",
     alcohol: (units: string) => `超出英国每周 14 单位的建议：近 7 天 ${units} 单位。Zabaione 有点微醺了。`,
     alcoholShort: "超出饮酒建议",
   },
