@@ -439,7 +439,7 @@ export const it: Messages = {
       fresh: "Di nuovo sveglio. Continua a registrare e la settimana si riempie.",
     },
     streak: (days: number, of: number) => `${days} giorni su ${of} in linea verso “Alla grande”`,
-    rule: "Segue la tua media di 7 giorni, non un singolo giorno.",
+    rule: "Segue i tuoi ultimi 7 giorni registrati per intero, non un singolo giorno. I giorni saltati o quasi vuoti non contano.",
     alcohol: (units: string) => `Oltre la guida britannica di 14 unità a settimana: ${units} unità negli ultimi 7 giorni. Zabaione è un po’ brillo.`,
     alcoholShort: "oltre la guida sull’alcol",
   },

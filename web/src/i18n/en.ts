@@ -465,7 +465,7 @@ export const en = {
       fresh: "Awake again. Keep logging and the week fills in.",
     },
     streak: (days: number, of: number) => `${days} of ${of} days on track towards Thriving`,
-    rule: "Follows your 7-day average, not a single day.",
+    rule: "Follows your last 7 fully logged days, not a single day. Missed or barely logged days are skipped.",
     /** Over the weekly alcohol guide: the woozy layer, in the bubble and in the button's name. */
     alcohol: (units: string) => `Over the UK guide of 14 units a week: ${units} units in the last 7 days. Zabaione is feeling a bit woozy.`,
     alcoholShort: "over the alcohol guide",

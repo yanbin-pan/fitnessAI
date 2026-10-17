@@ -24,10 +24,33 @@ describe("companionStatus", () => {
     expect(companionStatus(run(0, 0, 500), TODAY)).toMatchObject({ mood: "okay", avg_kcal: null, okay_streak: 0 });
   });
 
-  it("averages the 7 days before today, leaving out today and the days with nothing logged", () => {
-    const days = [...run(8, 8, 9000), ...run(5, 4, 1000), ...run(2, 1, 1400), ...run(0, 0, 9000)];
-    // 1000, 1000, 1400, 1400 over 4 logged days: 1200 of 2000, 60 %.
-    expect(companionStatus(days, TODAY)).toMatchObject({ mood: "sluggish", avg_kcal: 1200, avg_target_kcal: 2000, days_logged: 4 });
+  it("averages the last 7 fully logged days before today, leaving out today and the days with nothing logged", () => {
+    const days = [...run(12, 12, 9000), ...run(9, 7, 1000), ...run(5, 4, 1000), ...run(2, 1, 1400), ...run(0, 0, 9000)];
+    // 1000 × 5 and 1400 × 2, reaching back past the missed days: 1114 of 2000, 56 %. The feast 12 days ago is an 8th day.
+    expect(companionStatus(days, TODAY)).toMatchObject({ mood: "sluggish", avg_kcal: 1114, avg_target_kcal: 2000, days_logged: 7 });
+  });
+
+  it("skips days logged at under a third of their target, as forgotten rather than starved", () => {
+    // A week on target with three thin days in it (a snack, a forgotten dinner): still Okay, from the four real days.
+    const days = [...run(7, 4, 2000), ...run(3, 1, 400)];
+    expect(companionStatus(days, TODAY)).toMatchObject({ mood: "okay", avg_kcal: 2000, days_logged: 4 });
+    // Exactly a third counts.
+    expect(companionStatus(run(7, 1, 667), TODAY)).toMatchObject({ mood: "sluggish", days_logged: 7 });
+    expect(companionStatus(run(7, 1, 666), TODAY)).toMatchObject({ mood: "okay", avg_kcal: null, days_logged: 0 });
+  });
+
+  it("looks back up to 28 days for 7 fully logged days, and stays neutral when there are none", () => {
+    // Only thin days lately, but a steady fortnight before them: the companion follows the steady days.
+    const days = [...run(20, 8, 2000), ...run(7, 1, 300)];
+    expect(companionStatus(days, TODAY)).toMatchObject({ mood: "okay", avg_kcal: 2000, days_logged: 7 });
+    // Nothing full within the 28 days before today: awake, with nothing to judge.
+    expect(companionStatus([...run(29, 29, 2000), ...run(3, 1, 300)], TODAY)).toMatchObject({ mood: "okay", avg_kcal: null, okay_streak: 0 });
+    expect(companionStatus([...run(28, 28, 2000), ...run(3, 1, 300)], TODAY)).toMatchObject({ avg_kcal: 2000, days_logged: 1 });
+  });
+
+  it("does not thrive on old days alone: Thriving needs 4 fully logged days in each week", () => {
+    const days = [...run(COMPANION_LOOKBACK_DAYS, 8, 2000), ...run(7, 1, 300)];
+    expect(companionStatus(days, TODAY)).toMatchObject({ mood: "okay", okay_streak: 0 });
   });
 
   it("is Okay within 15 % of the target either way, Sluggish below and Overfed above", () => {

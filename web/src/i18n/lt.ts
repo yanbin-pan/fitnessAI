@@ -439,7 +439,7 @@ export const lt: Messages = {
       fresh: "Vėl budrus. Toliau įrašinėkite, ir savaitė pasipildys.",
     },
     streak: (days: number, of: number) => `${days} iš ${of} dienų pagal tikslą iki „Puikiai“`,
-    rule: "Seka jūsų 7 dienų vidurkį, o ne vieną dieną.",
+    rule: "Seka paskutines 7 pilnai užpildytas dienas, o ne vieną dieną. Praleistos ar vos užpildytos dienos neskaičiuojamos.",
     alcohol: (units: string) => `Daugiau nei JK rekomendacija – 14 vienetų per savaitę: ${units} vnt. per paskutines 7 dienas. Zabaione kiek apsvaigęs.`,
     alcoholShort: "virš alkoholio rekomendacijos",
   },

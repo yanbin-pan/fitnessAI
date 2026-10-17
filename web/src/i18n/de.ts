@@ -439,7 +439,7 @@ export const de: Messages = {
       fresh: "Wieder wach. Trag weiter ein, dann füllt sich die Woche.",
     },
     streak: (days: number, of: number) => `${days} von ${of} Tagen im Ziel bis „Topfit“`,
-    rule: "Folgt deinem 7-Tage-Schnitt, nicht einem einzelnen Tag.",
+    rule: "Folgt deinen letzten 7 vollständig erfassten Tagen, nicht einem einzelnen Tag. Fehlende oder kaum erfasste Tage zählen nicht.",
     alcohol: (units: string) => `Über der britischen Empfehlung von 14 Einheiten pro Woche: ${units} Einheiten in den letzten 7 Tagen. Zabaione ist etwas beschwipst.`,
     alcoholShort: "über der Alkohol-Empfehlung",
   },
