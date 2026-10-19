@@ -360,11 +360,13 @@ describe("startNightlySnapshot", () => {
     const job = startNightlySnapshot({ people, keep: 7, timeZone: "Europe/London", log, now: () => NOW });
     try {
       await job.trigger();
-      expect(fs.readdirSync(stores[0].snapshotDir)).toEqual(["fitness-2026-10-03.db"]);
-      expect(fs.readdirSync(stores[1].snapshotDir)).toEqual(["fitness-2026-10-04.db"]);
+      // health.db's beside fitness.db's (2026-10-19 health tab design §1).
+      expect(fs.readdirSync(stores[0].snapshotDir).sort()).toEqual(["fitness-2026-10-03.db", "health-2026-10-03.db"]);
+      expect(fs.readdirSync(stores[1].snapshotDir).sort()).toEqual(["fitness-2026-10-04.db", "health-2026-10-04.db"]);
       expect(calls.map((c) => c.level)).toEqual(["info", "info"]);
       expect(calls.map((c) => c.fields.person).sort()).toEqual(stores.map((s) => shortKey(s.key)).sort());
       expect(calls.map((c) => c.fields.file).sort()).toEqual(["fitness-2026-10-03.db", "fitness-2026-10-04.db"]);
+      expect(calls.map((c) => c.fields.health).sort()).toEqual(["health-2026-10-03.db", "health-2026-10-04.db"]);
       const text = JSON.stringify(calls);
       expect(text).not.toContain("@");
       for (const store of stores) expect(text).not.toContain(store.key);
@@ -386,7 +388,7 @@ describe("startNightlySnapshot", () => {
       expect(errors[0].msg).toBe("nightly snapshot failed");
       // Exactly the error and the start of the key: no email, no whole key, nothing else.
       expect(errors[0].fields).toEqual({ err: expect.any(Error), person: shortKey(stores[0].key) });
-      expect(fs.readdirSync(stores[1].snapshotDir)).toHaveLength(1);
+      expect(fs.readdirSync(stores[1].snapshotDir)).toHaveLength(2);
     } finally {
       job.stop();
       people.close();
@@ -407,7 +409,7 @@ describe("startNightlySnapshot", () => {
         { level: "error", msg: "nightly snapshot failed", fields: { err: expect.objectContaining({ code: "SQLITE_NOTADB" }), person: shortKey(broken) } },
       ]);
       expect(calls.filter((c) => c.level === "info").map((c) => c.fields.person)).toEqual([shortKey(stores[0].key)]);
-      expect(fs.readdirSync(stores[0].snapshotDir)).toEqual(["fitness-2026-10-03.db"]);
+      expect(fs.readdirSync(stores[0].snapshotDir).sort()).toEqual(["fitness-2026-10-03.db", "health-2026-10-03.db"]);
     } finally {
       job.stop();
       people.close();

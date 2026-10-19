@@ -33,6 +33,7 @@ COPY --from=build /app/shared/src shared/src
 COPY --from=build /app/server/package.json server/package.json
 COPY --from=build /app/server/src server/src
 COPY --from=build /app/server/drizzle server/drizzle
+COPY --from=build /app/server/drizzle-health server/drizzle-health
 COPY --from=build /app/web/dist web/dist
 USER node
 EXPOSE 8080 9464

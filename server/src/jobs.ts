@@ -3,7 +3,8 @@ import { Cron } from "croner";
 import type { FastifyBaseLogger } from "fastify";
 import path from "node:path";
 import type { AiClient } from "./ai/client.ts";
-import { pruneSnapshots, snapshot } from "./db/snapshot.ts";
+import { pruneSnapshots, snapshot, stripHealthConversations } from "./db/snapshot.ts";
+import { purgeHealthChat } from "./health/chat.ts";
 import { ensureWeeklyInsight } from "./insights/insights.ts";
 import { shortKey } from "./people/people.ts";
 import type { People, Store } from "./people/people.ts";
@@ -14,6 +15,13 @@ import { localDate } from "./time.ts";
 export function runNightlySnapshot(sqlite: Database.Database, dir: string, keep: number, timeZone: string, now: Date): string {
   const file = snapshot(sqlite, dir, `fitness-${localDate(now, timeZone)}.db`);
   pruneSnapshots(dir, "fitness-", keep);
+  return file;
+}
+
+/** health.db's nightly copy, beside fitness.db's, without the Health chat (2026-10-19 health tab design §1). */
+export function runNightlyHealthSnapshot(sqlite: Database.Database, dir: string, keep: number, timeZone: string, now: Date): string {
+  const file = snapshot(sqlite, dir, `health-${localDate(now, timeZone)}.db`, stripHealthConversations);
+  pruneSnapshots(dir, "health-", keep);
   return file;
 }
 
@@ -65,8 +73,9 @@ export function startNightlySnapshot(opts: {
     forEachPerson(opts.people, opts.log, "nightly snapshot failed", (store) => {
       const timeZone = getProfile(store.db)?.timezone ?? opts.timeZone;
       const file = runNightlySnapshot(store.sqlite, store.snapshotDir, opts.keep, timeZone, now());
-      // The file's name only: its path holds the whole key.
-      opts.log.info({ person: shortKey(store.key), file: path.basename(file) }, "nightly snapshot written");
+      const health = runNightlyHealthSnapshot(store.healthSqlite, store.snapshotDir, opts.keep, timeZone, now());
+      // The files' names only: their paths hold the whole key.
+      opts.log.info({ person: shortKey(store.key), file: path.basename(file), health: path.basename(health) }, "nightly snapshot written");
     });
   });
 }
@@ -81,7 +90,8 @@ export function startRetention(opts: {
   const run = () =>
     forEachPerson(opts.people, opts.log, "retention purge failed", (store) => {
       // Without a profile there is no conversation yet, only perhaps a stray upload.
-      const counts = purgeExpired(store.db, store.photoDir, now(), getProfile(store.db)?.timezone ?? "UTC");
+      const timeZone = getProfile(store.db)?.timezone ?? "UTC";
+      const counts = { ...purgeExpired(store.db, store.photoDir, now(), timeZone), healthMessages: purgeHealthChat(store.health, now(), timeZone) };
       // Counts only: never what was deleted.
       if (Object.values(counts).some((n) => n > 0)) opts.log.info({ person: shortKey(store.key), ...counts }, "expired conversations deleted");
     });
@@ -127,7 +137,7 @@ export async function runInsights(
       if (!profile) continue;
       const owner = key === opts.ownerKey;
       const outcome = await ensureWeeklyInsight({
-        sql: store.db, profile, ai: opts.ai, now: now(), dailyCallCap: owner ? opts.callCaps.owner : opts.callCaps.guest,
+        sql: store.db, health: store.health, profile, ai: opts.ai, now: now(), dailyCallCap: owner ? opts.callCaps.owner : opts.callCaps.guest,
       });
       if (outcome === "written" || outcome === "failed") opts.log.info({ person: shortKey(key), outcome }, "weekly insight");
     } catch (err) {

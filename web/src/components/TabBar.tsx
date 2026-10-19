@@ -29,7 +29,7 @@ export function TabBar() {
       <div className="flex w-full max-w-xl">
         <Tab to="/day/today" icon="sunny" label={t.nav.today} active={pathname.startsWith("/day")} />
         <Tab to="/insights" icon="monitoring" label={t.nav.insights} active={pathname === "/insights"} />
-        <Tab to="/health" icon="ecg_heart" label={t.nav.health} active={pathname === "/health"} />
+        <Tab to="/health" icon="ecg_heart" label={t.nav.health} active={pathname.startsWith("/health")} />
         <Tab to="/settings" icon="settings" label={t.nav.settings} active={pathname === "/settings"} />
       </div>
     </nav>

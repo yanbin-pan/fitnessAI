@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { openDatabase } from "../src/db/open.ts";
+import { openHealthDatabase } from "../src/health/store.ts";
 import { ProfileInput } from "../src/shared.ts";
 import type { Profile } from "../src/shared.ts";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
@@ -36,6 +37,11 @@ export function tempDir(): string {
 /** A migrated database in a fresh temporary directory. Call `.close()` when done. */
 export function openTestDb() {
   return openDatabase({ file: path.join(tempDir(), "fitness.db"), snapshotDir: null });
+}
+
+/** A migrated health.db in a fresh temporary directory. Call `.close()` when done. */
+export function openTestHealthDb() {
+  return openHealthDatabase({ file: path.join(tempDir(), "health.db"), snapshotDir: null });
 }
 
 /** A registry over a fresh data folder, with these people's databases already open. Call `people.close()` when done. */
@@ -117,6 +123,8 @@ export async function testApp(opts: { now?: Date; webDist?: string | null; ai?: 
     app,
     /** The owner's database and photo folder: what every one-person test reads and seeds. */
     db: owner.db,
+    /** The owner's health.db (2026-10-19 health tab design §1). */
+    health: owner.health,
     photoDir: owner.photoDir,
     dataDir,
     people,

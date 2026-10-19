@@ -22,6 +22,7 @@ async function runSafely(deps: RequestDeps, id: string, log: FastifyBaseLogger, 
     outcome = await processMessage(
       {
         db: deps.db,
+        health: deps.health,
         ai: deps.ai,
         now: deps.now,
         budgetMs: deps.coachBudgetMs,

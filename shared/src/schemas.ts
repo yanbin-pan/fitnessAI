@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { isIsoDate, isTimeZone } from "./dates.ts";
-import { HEALTH_CONDITIONS, LAB_MARKERS, MAX_LAB_PHOTOS, MAX_LAB_RESULTS } from "./health.ts";
+import {
+  DOCUMENT_KINDS, FACT_KINDS, FACT_STATUSES, FOOD_LEVELS, HEALTH_CONDITIONS, LAB_MARKERS, LEVELLED_KINDS, MAX_DOCUMENT_FACTS, MAX_LAB_PHOTOS, MAX_OBSERVATIONS, hasLevel,
+} from "./health.ts";
+import type { FactKind, FoodLevel, HealthCondition } from "./health.ts";
 import {
   ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, COMPANION_INTERACTIONS, DEFAULT_COMPANION, DRINKS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_COPIES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, PROFILE_RANGES, SEXES,
 } from "./vocab.ts";
@@ -170,27 +173,41 @@ export type RegularLogInput = z.infer<typeof RegularLogInput>;
 export const CompanionInteractionInput = z.object({ kind: z.enum(COMPANION_INTERACTIONS) });
 export type CompanionInteractionInput = z.infer<typeof CompanionInteractionInput>;
 
-/** A condition chip from the Health tab; `other` carries the person's own words. */
-export const ConditionInput = z
-  .object({ kind: z.enum(HEALTH_CONDITIONS), label: z.string().trim().max(80).nullable().default(null) })
-  .refine((c) => c.kind !== "other" || Boolean(c.label), { message: "Say what the condition is", path: ["label"] })
-  .transform((c) => ({ kind: c.kind, label: c.kind === "other" ? c.label : null }));
-export type ConditionInput = z.input<typeof ConditionInput>;
+const isoOrNull = IsoDate.nullable().default(null);
 
-export const MedicationInput = z
-  .object({
-    name: z.string().trim().min(1).max(100),
-    dose: z.string().trim().max(100).default(""),
-    started_on: IsoDate.nullable().default(null),
-    stopped_on: IsoDate.nullable().default(null),
-  })
-  .refine((m) => !m.started_on || !m.stopped_on || m.started_on <= m.stopped_on, { message: "Stopped before it started", path: ["stopped_on"] });
-export type MedicationInput = z.input<typeof MedicationInput>;
+const factFields = {
+  kind: z.enum(FACT_KINDS),
+  code: z.enum(HEALTH_CONDITIONS).nullable().default(null),
+  label: z.string().trim().min(1).max(100),
+  detail: z.string().trim().max(200).default(""),
+  level: z.enum(FOOD_LEVELS).nullable().default(null),
+  started_on: isoOrNull,
+  ended_on: isoOrNull,
+};
+
+const datesInOrder = (f: { started_on: string | null; ended_on: string | null }) => !f.started_on || !f.ended_on || f.started_on <= f.ended_on;
+const DATES_IN_ORDER = { message: "Ended before it started", path: ["ended_on"] };
+
+/** A level belongs to foods only, and a food without one takes its kind's; `other` is no code at all. */
+function normaliseFact<T extends { kind: FactKind; code: HealthCondition | null; level: FoodLevel | null }>(f: T): T {
+  return { ...f, code: f.code === "other" ? null : f.code, level: hasLevel(f.kind) ? (f.level ?? LEVELLED_KINDS[f.kind] ?? null) : null };
+}
+
+/** A fact as the coach proposes it or a record states it (2026-10-19 health tab design §1). */
+export const FactDraftInput = z.object(factFields).refine(datesInOrder, DATES_IN_ORDER).transform(normaliseFact);
+export type FactDraftInput = z.input<typeof FactDraftInput>;
+
+/** A fact as the person adds or edits it on the Health tab. */
+export const FactInput = z
+  .object({ ...factFields, status: z.enum(FACT_STATUSES).default("active"), shared: z.boolean().default(true) })
+  .refine(datesInOrder, DATES_IN_ORDER)
+  .transform(normaliseFact);
+export type FactInput = z.input<typeof FactInput>;
 
 const rangeEnd = z.number().finite().nullable().default(null);
 
-export const LabResultInput = z.object({
-  marker: z.enum(LAB_MARKERS),
+export const ObservationInput = z.object({
+  code: z.enum(LAB_MARKERS),
   name: z.string().trim().min(1).max(100),
   printed_name: z.string().trim().max(100).default(""),
   value: z.number().finite().nullable(),
@@ -199,22 +216,43 @@ export const LabResultInput = z.object({
   ref_low: rangeEnd,
   ref_high: rangeEnd,
 }).refine((r) => r.value !== null || r.text_value !== "", { message: "A result needs a value", path: ["value"] });
-export type LabResultInput = z.input<typeof LabResultInput>;
+export type ObservationInput = z.input<typeof ObservationInput>;
 
-/** A blood test report as the person confirmed it: nothing is saved before they do. */
-export const LabReportInput = z.object({
+/**
+ * A record as the person checked it: nothing is saved before they do. `facts` are the ones they ticked, added at once;
+ * `suggestions` the ones they left, kept on the record with an Add button.
+ */
+export const DocumentInput = z.object({
+  kind: z.enum(DOCUMENT_KINDS),
   taken_on: IsoDate,
-  lab_name: z.string().trim().max(100).default(""),
-  results: z.array(LabResultInput).min(1).max(MAX_LAB_RESULTS),
+  /** Empty for a record the app names by its kind ("Blood test"). */
+  title: z.string().trim().max(100).default(""),
+  source: z.string().trim().max(100).default(""),
+  language: z.string().trim().max(40).default(""),
+  summary: z.string().trim().max(1000).default(""),
+  observations: z.array(ObservationInput).max(MAX_OBSERVATIONS).default([]),
+  facts: z.array(FactDraftInput).max(MAX_DOCUMENT_FACTS).default([]),
+  suggestions: z.array(FactDraftInput).max(MAX_DOCUMENT_FACTS).default([]),
+  /** The chat message whose read this is, so the chat shows it saved. */
+  message_id: z.uuid().nullable().default(null),
 });
-export type LabReportInput = z.input<typeof LabReportInput>;
+export type DocumentInput = z.input<typeof DocumentInput>;
 
-/** Photos of a lab report for Claude to read (POST /api/records/labs/read). */
-export const LabReadInput = z
-  .object({ photo_ids: z.array(PhotoId).min(1).max(MAX_LAB_PHOTOS) })
-  .refine((m) => new Set(m.photo_ids).size === m.photo_ids.length, { message: "Each photo can be attached once", path: ["photo_ids"] });
-export type LabReadInput = z.infer<typeof LabReadInput>;
+const photoIds = z
+  .array(PhotoId)
+  .max(MAX_LAB_PHOTOS)
+  .refine((ids) => new Set(ids).size === ids.length, { message: "Each photo can be attached once" });
 
-/** A sentence typed on the Health tab, for Claude to turn into conditions and medications. */
-export const HealthParseInput = z.object({ text: z.string().trim().min(1).max(500) });
-export type HealthParseInput = z.infer<typeof HealthParseInput>;
+/** Photos of a record for Claude to read (POST /api/records/read). */
+export const DocumentReadInput = z.object({ photo_ids: photoIds.min(1) });
+export type DocumentReadInput = z.infer<typeof DocumentReadInput>;
+
+/** A message to the Health chat: words, photos of a record, or both. The id is made on the phone, so a resend is a repeat. */
+export const HealthChatInput = z
+  .object({ id: z.uuid(), text: z.string().trim().max(1000).default(""), photo_ids: photoIds.default([]) })
+  .refine((m) => m.text !== "" || m.photo_ids.length > 0, { message: "Say something or attach a photo", path: ["text"] });
+export type HealthChatInput = z.input<typeof HealthChatInput>;
+
+/** Adding a suggestion, as found or as the person edited it. */
+export const SuggestionAcceptInput = z.object({ fact: FactDraftInput.optional() });
+export type SuggestionAcceptInput = z.input<typeof SuggestionAcceptInput>;

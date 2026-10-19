@@ -31,6 +31,8 @@ export interface AppDeps {
 export interface RequestDeps extends Omit<AppDeps, "people"> {
   person: Person;
   db: Sql;
+  /** This person's health records: health.db (2026-10-19 health tab design §1). */
+  health: Sql;
   /** Where this person's photos live: <DATA_DIR>/users/<key>/photos (spec §6.5). */
   photoDir: string;
 }
@@ -39,5 +41,5 @@ export interface RequestDeps extends Omit<AppDeps, "people"> {
 export function forRequest(deps: AppDeps, req: FastifyRequest): RequestDeps {
   const person = req.person;
   if (!person) throw new Error("this request has no signed-in person");
-  return { ...deps, person, db: person.db, photoDir: person.photoDir };
+  return { ...deps, person, db: person.db, health: person.health, photoDir: person.photoDir };
 }

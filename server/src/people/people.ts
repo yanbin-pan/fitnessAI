@@ -5,10 +5,13 @@ import path from "node:path";
 import type { Identity } from "../auth/access.ts";
 import { PERSON_KEY, preparePersonDir } from "../db/location.ts";
 import { openDatabase } from "../db/open.ts";
+import type { OpenDatabase } from "../db/open.ts";
 import type { Sql } from "../db/types.ts";
+import { moveLegacyHealth, openHealthDatabase } from "../health/store.ts";
 import { failInterrupted } from "../messages/messages.ts";
 
-// One database and one photo folder per person (2.2 §4). Nobody's data is ever reachable from another's.
+// Two databases and one photo folder per person (2.2 §4): the logbook in fitness.db, the health records in health.db
+// (2026-10-19 health tab design §1). Nobody's data is ever reachable from another's.
 
 /** A person's folder name: the sha256 of their verified, lowercased email, in lowercase hex (2.2 §3). */
 export function personKey(email: string): string {
@@ -25,6 +28,8 @@ export interface Store {
   key: string;
   db: Sql;
   sqlite: Database.Database;
+  health: Sql;
+  healthSqlite: Database.Database;
   photoDir: string;
   snapshotDir: string;
 }
@@ -34,6 +39,7 @@ export interface Person {
   key: string;
   owner: boolean;
   db: Sql;
+  health: Sql;
   photoDir: string;
 }
 
@@ -64,25 +70,47 @@ export function createPeople(opts: { dataDir: string }): People {
     const existing = open.get(key);
     if (existing) return existing.store;
     const paths = preparePersonDir(opts.dataDir, key);
-    // The settings and startup snapshot milestone 1 gave the one database (spec §14.4).
-    const database = openDatabase({ file: paths.dbFile, snapshotDir: paths.snapshotDir, lockWaitMs });
+    // health.db first: fitness.db's migrations drop the old health tables, so their rows move across just before.
+    const health = openHealthDatabase({ file: paths.healthFile, snapshotDir: paths.snapshotDir, lockWaitMs });
+    let database: OpenDatabase;
+    try {
+      // The settings and startup snapshot milestone 1 gave the one database (spec §14.4).
+      database = openDatabase({
+        file: paths.dbFile,
+        snapshotDir: paths.snapshotDir,
+        lockWaitMs,
+        beforeMigrate: (sqlite) => void moveLegacyHealth(sqlite, health.sqlite),
+      });
+    } catch (err) {
+      health.close();
+      throw err;
+    }
+    const close = () => {
+      try {
+        database.close();
+      } finally {
+        health.close();
+      }
+    };
     try {
       // Nothing in this process has touched this database yet, so a message still pending was cut off by the last restart.
       failInterrupted(database.db);
     } catch (err) {
       // Not open after all: its exclusive lock would be held for the life of the process, and every retry refused.
-      database.close();
+      close();
       throw err;
     }
-    const opened: Store = { key, db: database.db, sqlite: database.sqlite, photoDir: paths.photoDir, snapshotDir: paths.snapshotDir };
-    open.set(key, { store: opened, close: database.close });
+    const opened: Store = {
+      key, db: database.db, sqlite: database.sqlite, health: health.db, healthSqlite: health.sqlite, photoDir: paths.photoDir, snapshotDir: paths.snapshotDir,
+    };
+    open.set(key, { store: opened, close });
     return opened;
   }
 
   return {
     personFor(identity) {
       const opened = store(personKey(identity.email));
-      return { key: opened.key, owner: identity.owner, db: opened.db, photoDir: opened.photoDir };
+      return { key: opened.key, owner: identity.owner, db: opened.db, health: opened.health, photoDir: opened.photoDir };
     },
     store,
     keys() {

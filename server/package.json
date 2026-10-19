@@ -5,6 +5,7 @@
   "scripts": {
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
+    "db:generate:health": "drizzle-kit generate --config drizzle.health.config.ts",
     "dev": "NODE_ENV=development DEV_AUTH_EMAIL=dev@localhost DATA_DIR=../.data node --watch src/main.ts",
     "start": "node --disable-warning=ExperimentalWarning src/main.ts"
   },

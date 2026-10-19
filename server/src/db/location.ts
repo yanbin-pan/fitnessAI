@@ -23,6 +23,8 @@ function writeTag(dir: string): void {
 export interface PersonPaths {
   dir: string;
   dbFile: string;
+  /** The health records, in a database of their own (2026-10-19 health tab design §1). */
+  healthFile: string;
   photoDir: string;
   snapshotDir: string;
 }
@@ -34,7 +36,7 @@ export function personPaths(dataDir: string, key: string): PersonPaths {
   // The one place a key becomes part of a path, so the one place to refuse anything that isn't a hash.
   if (!PERSON_KEY.test(key)) throw new Error("not a person key");
   const dir = path.join(dataDir, "users", key);
-  return { dir, dbFile: path.join(dir, "db", "fitness.db"), photoDir: path.join(dir, "photos"), snapshotDir: path.join(dir, "snapshots") };
+  return { dir, dbFile: path.join(dir, "db", "fitness.db"), healthFile: path.join(dir, "db", "health.db"), photoDir: path.join(dir, "photos"), snapshotDir: path.join(dir, "snapshots") };
 }
 
 /**
@@ -48,8 +50,9 @@ export function preparePersonDir(dataDir: string, key: string): PersonPaths {
   writeTag(dbDir);
   writeTag(paths.photoDir);
   // A crash during a snapshot leaves its copy, conversations still in it, beside the database until the next one.
-  const part = snapshotPartFile(paths.dbFile);
-  for (const stale of [part, `${part}-journal`]) fs.rmSync(stale, { force: true });
+  for (const part of [snapshotPartFile(paths.dbFile), snapshotPartFile(paths.healthFile)]) {
+    for (const stale of [part, `${part}-journal`]) fs.rmSync(stale, { force: true });
+  }
   return paths;
 }
 

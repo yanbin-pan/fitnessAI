@@ -42,6 +42,8 @@ function isCurrent(stored: StoredInsight | null, week: string, profile: Profile)
 
 export interface InsightDeps {
   sql: Sql;
+  /** The person's health.db (2026-10-19 health tab design §6); without it the analysis sees no health records. */
+  health?: Sql;
   profile: Profile;
   ai: AiClient | null;
   now: Date;
@@ -86,7 +88,7 @@ async function write(deps: InsightDeps): Promise<InsightOutcome> {
   let outcome: InsightOutcome = "failed";
   try {
     const response = await ai.structured(
-      { system: insightsInstructions(profile.companion), prompt: insightPrompt(profile, stats, today, healthContext(sql)), schema: reportJsonSchema() },
+      { system: insightsInstructions(profile.companion), prompt: insightPrompt(profile, stats, today, deps.health ? healthContext(deps.health) : null), schema: reportJsonSchema() },
       controller.signal,
     );
     usage = response.usage;
