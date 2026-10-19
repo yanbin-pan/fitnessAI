@@ -1,169 +1,280 @@
 import { randomUUID } from "node:crypto";
 import { asc, desc, eq, inArray } from "drizzle-orm";
-import { healthConditions, healthConsent, labReports, labResults, medications } from "../db/schema.ts";
+import { chat, consent, documents, facts, observations, suggestions } from "../db/health-schema.ts";
 import type { Sql } from "../db/types.ts";
-import { labFlag } from "../shared.ts";
+import { CODE_LABELS, FactDraftInput, labFlag } from "../shared.ts";
 import type {
-  ConditionView, HealthCondition, HealthView, LabMarker, LabReportInput, LabReportView, LabResultView, MarkerTrend,
-  MedicationInput, MedicationView,
+  DocumentKind, DocumentView, FactDraft, FactKind, FactStatus, FactView, FoodLevel, HealthCondition, HealthView,
+  LabMarker, MarkerTrend, ObservationView, SuggestionStatus, SuggestionView,
 } from "../shared.ts";
 
-// The Health tab's records (2026-10-12 health context design): conditions, medications and blood results, kept in the
-// person's own database until they remove them. Nothing here is ever logged.
+// The Health tab's records (2026-10-19 health tab design): facts, the documents behind them, and the suggestions waiting
+// for the person's OK, all in health.db. Nothing here is ever logged.
 
-export function consentedAt(sql: Sql): string | null {
-  return sql.select().from(healthConsent).get()?.granted_at ?? null;
+export function consentedAt(health: Sql): string | null {
+  return health.select().from(consent).get()?.granted_at ?? null;
 }
 
-export function grantConsent(sql: Sql, nowIso: string): void {
-  sql.insert(healthConsent).values({ id: 1, granted_at: nowIso }).onConflictDoNothing().run();
+export function grantConsent(health: Sql, nowIso: string): void {
+  health.insert(consent).values({ id: 1, granted_at: nowIso }).onConflictDoNothing().run();
 }
 
-/** "Delete my health data": every record and the consent, in one transaction. */
-export function deleteHealthData(sql: Sql): void {
-  sql.transaction((tx) => {
-    tx.delete(labResults).run();
-    tx.delete(labReports).run();
-    tx.delete(medications).run();
-    tx.delete(healthConditions).run();
-    tx.delete(healthConsent).run();
+/** "Delete my health data": every record, the chat and the consent, in one transaction. */
+export function deleteHealthData(health: Sql): void {
+  health.transaction((tx) => {
+    tx.delete(suggestions).run();
+    tx.delete(chat).run();
+    tx.delete(facts).run();
+    tx.delete(observations).run();
+    tx.delete(documents).run();
+    tx.delete(consent).run();
   });
 }
 
-export function listConditions(sql: Sql): ConditionView[] {
-  return sql
-    .select()
-    .from(healthConditions)
-    .orderBy(asc(healthConditions.added_at))
-    .all()
-    .map((row) => ({ id: row.id, kind: row.kind as HealthCondition, label: row.label, added_at: row.added_at }));
+// --- Facts ---
+
+type FactRow = typeof facts.$inferSelect;
+/** A fact as the routes have parsed it: FactInput's output. */
+export type Fact = { [K in keyof FactDraft]: FactDraft[K] } & { status: FactStatus; shared: boolean };
+
+function factView(row: FactRow): FactView {
+  return {
+    id: row.id,
+    kind: row.kind as FactKind,
+    code: row.code as HealthCondition | null,
+    label: row.label,
+    detail: row.detail,
+    level: row.level as FoodLevel | null,
+    status: row.status as FactStatus,
+    started_on: row.started_on,
+    ended_on: row.ended_on,
+    shared: row.shared,
+    document_id: row.document_id,
+    created_at: row.created_at,
+  };
 }
 
-/** Adds a condition; a fixed chip already there is returned instead of added twice. */
-export function addCondition(sql: Sql, input: { kind: HealthCondition; label: string | null }, nowIso: string): ConditionView {
-  if (input.kind !== "other") {
-    const existing = listConditions(sql).find((c) => c.kind === input.kind);
-    if (existing) return existing;
-  }
-  const row = { id: randomUUID(), kind: input.kind, label: input.label, added_at: nowIso };
-  sql.insert(healthConditions).values(row).run();
-  return row;
+/** Oldest first: the order they were added in. */
+export function listFacts(health: Sql): FactView[] {
+  return health.select().from(facts).orderBy(asc(facts.created_at), asc(facts.id)).all().map(factView);
 }
 
-export function removeCondition(sql: Sql, id: string): boolean {
-  return sql.delete(healthConditions).where(eq(healthConditions.id, id)).run().changes > 0;
+/**
+ * Adds a fact. One the person already has (the same code, or the same kind and words) is returned instead of added twice,
+ * so accepting "Lactose intolerance" again changes nothing.
+ */
+export function addFact(health: Sql, input: Fact, nowIso: string, documentId: string | null = null): FactView {
+  const same = (f: FactView) => f.kind === input.kind && f.status === "active" && (input.code ? f.code === input.code : f.label.trim().toLowerCase() === input.label.trim().toLowerCase());
+  const existing = listFacts(health).find(same);
+  if (existing) return existing;
+  const row: FactRow = { id: randomUUID(), ...input, document_id: documentId, details: {}, created_at: nowIso, updated_at: nowIso };
+  health.insert(facts).values(row).run();
+  return factView(row);
 }
 
-function medicationView(row: typeof medications.$inferSelect): MedicationView {
-  return { id: row.id, name: row.name, dose: row.dose, started_on: row.started_on, stopped_on: row.stopped_on };
-}
-
-/** Current medications first, then stopped ones, newest first within each. */
-export function listMedications(sql: Sql): MedicationView[] {
-  const rows = sql.select().from(medications).orderBy(desc(medications.added_at)).all().map(medicationView);
-  return [...rows.filter((m) => !m.stopped_on), ...rows.filter((m) => m.stopped_on)];
-}
-
-type Medication = Required<{ [K in keyof MedicationInput]: Exclude<MedicationInput[K], undefined> }>;
-
-export function addMedication(sql: Sql, input: Medication, nowIso: string): MedicationView {
-  const row = { id: randomUUID(), ...input, added_at: nowIso, updated_at: nowIso };
-  sql.insert(medications).values(row).run();
-  return medicationView(row);
-}
-
-export function updateMedication(sql: Sql, id: string, input: Medication, nowIso: string): MedicationView | null {
-  const changed = sql.update(medications).set({ ...input, updated_at: nowIso }).where(eq(medications.id, id)).run().changes;
+export function updateFact(health: Sql, id: string, input: Fact, nowIso: string): FactView | null {
+  const changed = health.update(facts).set({ ...input, updated_at: nowIso }).where(eq(facts.id, id)).run().changes;
   if (changed === 0) return null;
-  const row = sql.select().from(medications).where(eq(medications.id, id)).get();
-  return row ? medicationView(row) : null;
+  const row = health.select().from(facts).where(eq(facts.id, id)).get();
+  return row ? factView(row) : null;
 }
 
-export function removeMedication(sql: Sql, id: string): boolean {
-  return sql.delete(medications).where(eq(medications.id, id)).run().changes > 0;
+export function removeFact(health: Sql, id: string): boolean {
+  return health.delete(facts).where(eq(facts.id, id)).run().changes > 0;
 }
 
-type LabReport = { taken_on: string; lab_name: string; results: Required<{ [K in keyof LabReportInput["results"][number]]: Exclude<LabReportInput["results"][number][K], undefined> }>[] };
+// --- Documents ---
 
-export function addLabReport(sql: Sql, input: LabReport, nowIso: string): string {
+type Observation = Omit<ObservationView, "id" | "flag">;
+/** A document as the routes have parsed it: DocumentInput's output. */
+export interface Document {
+  kind: DocumentKind;
+  taken_on: string;
+  title: string;
+  source: string;
+  language: string;
+  summary: string;
+  observations: Observation[];
+  facts: FactDraft[];
+  suggestions: FactDraft[];
+  message_id: string | null;
+}
+
+/** Saves a record the person checked, with the facts they ticked; the ones they left become its suggestions. */
+export function addDocument(health: Sql, input: Document, nowIso: string): string {
   const id = randomUUID();
-  sql.transaction((tx) => {
-    tx.insert(labReports).values({ id, taken_on: input.taken_on, lab_name: input.lab_name, created_at: nowIso }).run();
-    tx.insert(labResults)
-      .values(input.results.map((result, position) => ({ id: randomUUID(), report_id: id, position, ...result })))
-      .run();
+  health.transaction((tx) => {
+    tx.insert(documents).values({
+      id, kind: input.kind, taken_on: input.taken_on, title: input.title, source: input.source, language: input.language,
+      summary: input.summary, details: {}, created_at: nowIso, updated_at: nowIso,
+    }).run();
+    if (input.observations.length > 0) {
+      tx.insert(observations)
+        .values(input.observations.map((o, position) => ({ id: randomUUID(), document_id: id, position, ...o, details: {} })))
+        .run();
+    }
+    for (const fact of input.facts) addFact(tx, { ...fact, status: "active", shared: true }, nowIso, id);
+    if (input.suggestions.length > 0) {
+      tx.insert(suggestions)
+        .values(input.suggestions.map((fact, position) => ({ id: randomUUID(), fact, document_id: id, position, created_at: nowIso })))
+        .run();
+    }
+    if (input.message_id) {
+      const message = tx.select().from(chat).where(eq(chat.id, input.message_id)).get();
+      if (message) tx.update(chat).set({ details: { ...message.details, saved_document_id: id } }).where(eq(chat.id, message.id)).run();
+    }
   });
   return id;
 }
 
-export function removeLabReport(sql: Sql, id: string): boolean {
-  return sql.transaction((tx) => {
-    tx.delete(labResults).where(eq(labResults.report_id, id)).run();
-    return tx.delete(labReports).where(eq(labReports.id, id)).run().changes > 0;
+export function removeDocument(health: Sql, id: string): boolean {
+  return health.transaction((tx) => {
+    tx.delete(suggestions).where(eq(suggestions.document_id, id)).run();
+    tx.update(facts).set({ document_id: null }).where(eq(facts.document_id, id)).run();
+    tx.delete(observations).where(eq(observations.document_id, id)).run();
+    return tx.delete(documents).where(eq(documents.id, id)).run().changes > 0;
   });
 }
 
-/** Every report, newest first, each with its results in the order the report printed them. */
-export function listLabReports(sql: Sql): LabReportView[] {
-  const reports = sql.select().from(labReports).orderBy(desc(labReports.taken_on), desc(labReports.created_at)).all();
-  if (reports.length === 0) return [];
-  const results = sql
+/** Every record, newest first, each with its values in the order it printed them. */
+export function listDocuments(health: Sql): DocumentView[] {
+  const rows = health.select().from(documents).orderBy(desc(documents.taken_on), desc(documents.created_at)).all();
+  if (rows.length === 0) return [];
+  const values = health
     .select()
-    .from(labResults)
-    .where(inArray(labResults.report_id, reports.map((r) => r.id)))
-    .orderBy(asc(labResults.position))
+    .from(observations)
+    .where(inArray(observations.document_id, rows.map((r) => r.id)))
+    .orderBy(asc(observations.position))
     .all();
-  return reports.map((report) => ({
-    id: report.id,
-    taken_on: report.taken_on,
-    lab_name: report.lab_name,
-    results: results
-      .filter((r) => r.report_id === report.id)
-      .map((r): LabResultView => ({
-        id: r.id,
-        marker: r.marker as LabMarker,
-        name: r.name,
-        printed_name: r.printed_name,
-        value: r.value,
-        text_value: r.text_value,
-        unit: r.unit,
-        ref_low: r.ref_low,
-        ref_high: r.ref_high,
-        flag: labFlag(r.value, r.ref_low, r.ref_high),
+  return rows.map((row) => ({
+    id: row.id,
+    kind: row.kind as DocumentKind,
+    taken_on: row.taken_on,
+    title: row.title,
+    source: row.source,
+    language: row.language,
+    summary: row.summary,
+    created_at: row.created_at,
+    observations: values
+      .filter((o) => o.document_id === row.id)
+      .map((o): ObservationView => ({
+        id: o.id,
+        code: o.code as LabMarker,
+        name: o.name,
+        printed_name: o.printed_name,
+        value: o.value,
+        text_value: o.text_value,
+        unit: o.unit,
+        ref_low: o.ref_low,
+        ref_high: o.ref_high,
+        flag: labFlag(o.value, o.ref_low, o.ref_high),
       })),
   }));
 }
 
-/** How a result is grouped across reports: by its code, or by its printed name when the code is `other`. */
-export function markerKey(result: { marker: LabMarker; name: string }): string {
-  return result.marker === "other" ? `other:${result.name.trim().toLowerCase()}` : result.marker;
+// --- Suggestions ---
+
+type SuggestionRow = typeof suggestions.$inferSelect;
+
+function suggestionView(row: SuggestionRow): SuggestionView | null {
+  // Written by this code; read defensively all the same, since a later version may have changed what a fact holds.
+  const fact = FactDraftInput.safeParse(row.fact);
+  if (!fact.success) return null;
+  return { id: row.id, fact: fact.data, status: row.status as SuggestionStatus, fact_id: row.fact_id, document_id: row.document_id, message_id: row.message_id };
 }
 
-type NumericResult = LabResultView & { value: number };
-const numeric = (r: LabResultView): r is NumericResult => r.value !== null;
+const viewsOf = (rows: SuggestionRow[]) => rows.map(suggestionView).filter((s): s is SuggestionView => s !== null);
+const suggestionOrder = [asc(suggestions.created_at), asc(suggestions.position)];
+
+export function pendingSuggestions(health: Sql): SuggestionView[] {
+  return viewsOf(health.select().from(suggestions).where(eq(suggestions.status, "pending")).orderBy(...suggestionOrder).all());
+}
+
+export function suggestionsOfMessages(health: Sql, messageIds: readonly string[]): SuggestionView[] {
+  if (messageIds.length === 0) return [];
+  return viewsOf(health.select().from(suggestions).where(inArray(suggestions.message_id, [...messageIds])).orderBy(...suggestionOrder).all());
+}
+
+/** Facts the chat proposes, waiting on a message of the coach's. */
+export function addChatSuggestions(health: Sql, messageId: string, found: readonly FactDraft[], nowIso: string): void {
+  if (found.length === 0) return;
+  health.insert(suggestions)
+    .values(found.map((fact, position) => ({ id: randomUUID(), fact, message_id: messageId, position, created_at: nowIso })))
+    .run();
+}
+
+function getSuggestion(health: Sql, id: string): SuggestionRow | undefined {
+  return health.select().from(suggestions).where(eq(suggestions.id, id)).get();
+}
 
 /**
- * Each numeric marker's values across reports, oldest first, in the unit of its latest result so the points compare.
- * Results printed as words have no trend; they are read from the reports themselves.
+ * Adds a suggestion to the profile, as found or as the person edited it. An answer that is no longer pending returns the
+ * suggestion as it stands, so a double tap adds it once.
  */
-export function markerTrends(reports: readonly LabReportView[]): MarkerTrend[] {
+export function acceptSuggestion(health: Sql, id: string, edited: FactDraft | undefined, nowIso: string): SuggestionView | null {
+  return health.transaction((tx) => {
+    const row = getSuggestion(tx, id);
+    if (!row) return null;
+    const current = suggestionView(row);
+    if (!current || current.status !== "pending") return current;
+    const draft = edited ?? current.fact;
+    const fact = addFact(tx, { ...draft, status: "active", shared: true }, nowIso, row.document_id);
+    tx.update(suggestions).set({ status: "added", fact_id: fact.id, fact: draft }).where(eq(suggestions.id, id)).run();
+    return suggestionView({ ...row, status: "added", fact_id: fact.id, fact: draft });
+  });
+}
+
+export function dismissSuggestion(health: Sql, id: string): SuggestionView | null {
+  const row = getSuggestion(health, id);
+  if (!row) return null;
+  if (row.status !== "pending") return suggestionView(row);
+  health.update(suggestions).set({ status: "dismissed" }).where(eq(suggestions.id, id)).run();
+  return suggestionView({ ...row, status: "dismissed" });
+}
+
+/** Undo after Add or Not now: the suggestion is pending again, and the fact it became is removed. */
+export function undoSuggestion(health: Sql, id: string): SuggestionView | null {
+  return health.transaction((tx) => {
+    const row = getSuggestion(tx, id);
+    if (!row) return null;
+    if (row.fact_id) tx.delete(facts).where(eq(facts.id, row.fact_id)).run();
+    tx.update(suggestions).set({ status: "pending", fact_id: null }).where(eq(suggestions.id, id)).run();
+    return suggestionView({ ...row, status: "pending", fact_id: null });
+  });
+}
+
+// --- Trends and the view ---
+
+/** How a value is grouped across records: by its code, or by its printed name when the code is `other`. */
+export function markerKey(result: { code: LabMarker; name: string }): string {
+  return result.code === "other" ? `other:${result.name.trim().toLowerCase()}` : result.code;
+}
+
+type NumericResult = ObservationView & { value: number };
+const numeric = (r: ObservationView): r is NumericResult => r.value !== null;
+
+/**
+ * Each numeric marker's values across records, oldest first, in the unit of its latest result so the points compare.
+ * Results printed as words have no trend; they are read from the records themselves.
+ */
+export function markerTrends(docs: readonly DocumentView[]): MarkerTrend[] {
   const latest = new Map<string, NumericResult>();
   const byKey = new Map<string, MarkerTrend["points"]>();
-  // Reports come newest first: the first result seen for a key is its latest.
-  for (const report of reports) {
-    for (const result of report.results.filter(numeric)) {
+  // Records come newest first: the first result seen for a key is its latest.
+  for (const doc of docs) {
+    for (const result of doc.observations.filter(numeric)) {
       const key = markerKey(result);
       const head = latest.get(key) ?? result;
       latest.set(key, head);
       if (result.unit.trim().toLowerCase() !== head.unit.trim().toLowerCase()) continue;
       const points = byKey.get(key) ?? [];
-      points.unshift({ taken_on: report.taken_on, value: result.value, flag: result.flag });
+      points.unshift({ taken_on: doc.taken_on, value: result.value, flag: result.flag });
       byKey.set(key, points);
     }
   }
   return [...latest.entries()].map(([key, head]) => ({
     key,
-    marker: head.marker,
+    code: head.code,
     name: head.name,
     unit: head.unit,
     points: byKey.get(key) ?? [],
@@ -172,37 +283,47 @@ export function markerTrends(reports: readonly LabReportView[]): MarkerTrend[] {
   }));
 }
 
-export function healthView(sql: Sql): HealthView {
-  const reports = listLabReports(sql);
+export function healthView(health: Sql): HealthView {
+  const docs = listDocuments(health);
   return {
-    consented_at: consentedAt(sql),
-    conditions: listConditions(sql),
-    medications: listMedications(sql),
-    reports,
-    trends: markerTrends(reports),
+    consented_at: consentedAt(health),
+    facts: listFacts(health),
+    documents: docs,
+    trends: markerTrends(docs),
+    suggestions: pendingSuggestions(health),
   };
 }
 
+// --- What the coach sees ---
+
 /** What the coach sees of the Health tab in each message's context: nothing at all until the person has agreed. */
 export interface HealthContext {
-  conditions: string[];
-  current_medications: { name: string; dose?: string; since?: string }[];
-  stopped_medications: { name: string; from?: string; to: string }[];
+  conditions?: string[];
+  injuries?: string[];
+  current_medications?: string[];
+  stopped_medications?: string[];
+  diet?: string[];
+  /** Foods by how strictly to keep them out (or in): never, limit, avoid, prefer. */
+  foods?: { food: string; level: FoodLevel }[];
+  targets?: string[];
+  notes?: string[];
   latest_blood_results?: {
     taken_on: string;
-    /** Only the results outside the lab's range; the coach asks for the rest with a question. */
+    /** Only the results outside the record's range; the coach asks for the rest with a question. */
     outside_range: {
       marker: string;
       value: number;
       unit: string;
       range: string;
       flag: "low" | "high";
-      /** The same marker on earlier reports, oldest first, so the coach can say how it moved. */
+      /** The same marker on earlier records, oldest first, so the coach can say how it moved. */
       earlier: { taken_on: string; value: number }[];
     }[];
-    /** The rest of that report, by name: within range or printed without one; a result in words with its words. */
+    /** The rest of that record, by name: within range or printed without one; a result in words with its words. */
     other_results: string[];
   };
+  /** The latest records other than blood tests: scans, letters, prescriptions. */
+  other_records?: { kind: DocumentKind; taken_on: string; title: string; summary: string }[];
 }
 
 function rangeText(low: number | null, high: number | null): string {
@@ -212,26 +333,46 @@ function rangeText(low: number | null, high: number | null): string {
   return "none given";
 }
 
-export function healthContext(sql: Sql): HealthContext | null {
-  if (!consentedAt(sql)) return null;
-  const conditions = listConditions(sql).map((c) => (c.kind === "other" ? (c.label ?? "other") : c.kind));
-  const meds = listMedications(sql);
-  const context: HealthContext = {
-    conditions,
-    current_medications: meds
-      .filter((m) => !m.stopped_on)
-      .map((m) => ({ name: m.name, ...(m.dose ? { dose: m.dose } : {}), ...(m.started_on ? { since: m.started_on } : {}) })),
-    stopped_medications: meds
-      .filter((m): m is MedicationView & { stopped_on: string } => Boolean(m.stopped_on))
-      .map((m) => ({ name: m.name, ...(m.started_on ? { from: m.started_on } : {}), to: m.stopped_on })),
+/** "Atorvastatin (10 mg once a day; since 2026-06-02)": a fact in one line, in the words it was saved with. */
+function factLine(fact: FactView): string {
+  const name = fact.code && fact.label.trim() === "" ? CODE_LABELS[fact.code as Exclude<HealthCondition, "other">] : fact.label;
+  const extra = [
+    fact.detail,
+    fact.started_on ? `since ${fact.started_on}` : "",
+    fact.ended_on ? `until ${fact.ended_on}` : "",
+  ].filter(Boolean);
+  return extra.length > 0 ? `${name} (${extra.join("; ")})` : name;
+}
+
+const OTHER_RECORDS = 5;
+const SUMMARY_CHARS = 400;
+
+export function healthContext(health: Sql): HealthContext | null {
+  if (!consentedAt(health)) return null;
+  const shared = listFacts(health).filter((f) => f.shared);
+  const active = shared.filter((f) => f.status === "active");
+  const lines = (kind: FactKind, list = active) => list.filter((f) => f.kind === kind).map(factLine);
+  const context: HealthContext = {};
+  const put = <K extends keyof HealthContext>(key: K, value: HealthContext[K] & unknown[]) => {
+    if (value.length > 0) context[key] = value;
   };
-  const reports = listLabReports(sql);
-  const [latest] = reports;
+  put("conditions", lines("condition"));
+  put("injuries", lines("injury"));
+  put("current_medications", lines("medication"));
+  put("stopped_medications", lines("medication", shared.filter((f) => f.status === "resolved")));
+  put("diet", lines("diet"));
+  put("foods", active.filter((f) => f.level !== null).map((f) => ({ food: factLine(f), level: f.level as FoodLevel })));
+  put("targets", lines("target"));
+  put("notes", lines("note"));
+
+  const docs = listDocuments(health);
+  const latest = docs.find((d) => d.kind === "lab" && d.observations.length > 0);
   if (latest) {
-    const trends = new Map(markerTrends(reports).map((t) => [t.key, t.points]));
+    const labs = docs.filter((d) => d.kind === "lab");
+    const trends = new Map(markerTrends(labs).map((t) => [t.key, t.points]));
     context.latest_blood_results = {
       taken_on: latest.taken_on,
-      outside_range: latest.results
+      outside_range: latest.observations
         .filter((r): r is NumericResult & { flag: "low" | "high" } => r.value !== null && (r.flag === "low" || r.flag === "high"))
         .map((r) => ({
           marker: r.name,
@@ -241,10 +382,17 @@ export function healthContext(sql: Sql): HealthContext | null {
           flag: r.flag,
           earlier: (trends.get(markerKey(r)) ?? []).filter((p) => p.taken_on < latest.taken_on).map(({ taken_on, value }) => ({ taken_on, value })),
         })),
-      other_results: latest.results
+      other_results: latest.observations
         .filter((r) => r.flag === "normal" || r.flag === "unknown")
         .map((r) => (r.value === null ? `${r.name}: ${r.text_value}` : r.name)),
     };
   }
+  put(
+    "other_records",
+    docs
+      .filter((d) => d.kind !== "lab" && d.summary)
+      .slice(0, OTHER_RECORDS)
+      .map((d) => ({ kind: d.kind, taken_on: d.taken_on, title: d.title, summary: d.summary.slice(0, SUMMARY_CHARS) })),
+  );
   return context;
 }

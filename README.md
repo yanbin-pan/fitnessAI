@@ -33,6 +33,14 @@ Above the words, the card shows the day itself in grams: fat split into unsatura
 sugars against the 30 g daily maximum, each opening to the foods behind it. Design:
 [`docs/superpowers/specs/2026-10-17-fat-and-sugar-design.md`](docs/superpowers/specs/2026-10-17-fat-and-sugar-design.md).
 
+The **Health** tab keeps what the coach should take into account: conditions, injuries, medications, allergies,
+the way you eat and daily targets, and the records behind them. Photograph a blood test, a scan's report or a doctor's
+letter in any language and Claude reads it for you to check; or tell the coach in the Health chat, and it proposes
+what to add. Nothing reaches your profile until you tap Add. It lives in its own `health.db` per person, apart from
+the food log, with a generic schema (facts, documents, observations) so new kinds of record need no migration; a
+result's page shows it beside the related nutrient from your log. Design:
+[`docs/superpowers/specs/2026-10-19-health-tab-design.md`](docs/superpowers/specs/2026-10-19-health-tab-design.md).
+
 Design: [`docs/superpowers/specs/2026-10-03-fitnessai-design.md`](docs/superpowers/specs/2026-10-03-fitnessai-design.md),
 [`docs/superpowers/specs/2026-10-05-fitnessai-friends-and-family-design.md`](docs/superpowers/specs/2026-10-05-fitnessai-friends-and-family-design.md)
 · Plans: [milestone 1](docs/superpowers/plans/2026-10-03-fitnessai-milestone-1.md),
@@ -52,7 +60,7 @@ k8s/      what Flux deploys to the cluster
 One container serves the API and the built PWA at `zabaione.minipi.net`, behind
 Cloudflare Access; on the phone the app is called Zabaione. The first address,
 `fitness.minipi.net`, redirects there permanently and stays behind Access too. Each
-person has a SQLite database of their own on the `ssd` volume.
+person has a SQLite database of their own on the `ssd` volume, and a second one, `health.db`, for the Health tab.
 
 ## Develop
 
@@ -71,6 +79,7 @@ npm test           # every workspace
 npm run typecheck
 npm run lint
 npm run db:generate  # after changing server/src/db/schema.ts; commit the new migration
+npm run db:generate:health --workspace server  # the same for server/src/db/health-schema.ts
 npm run icons --workspace web  # after changing web/public/logo.svg
 ```
 

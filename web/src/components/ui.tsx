@@ -42,10 +42,10 @@ export function Segmented<T extends string>({
 }
 
 /** An on/off switch: a pressed-in track with a raised knob that turns green when on. The whole label, 44 px tall, takes the tap. */
-export function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+export function Toggle({ label, checked, onChange, hideLabel = false }: { label: string; checked: boolean; onChange: (checked: boolean) => void; hideLabel?: boolean }) {
   return (
     <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full px-2 text-xs text-muted has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent">
-      {label}
+      {hideLabel ? <span className="sr-only">{label}</span> : label}
       <input type="checkbox" role="switch" checked={checked} onChange={(event) => onChange(event.target.checked)} className="sr-only" />
       <span aria-hidden="true" className="pressed relative inline-block h-5 w-9 rounded-full">
         <span

@@ -206,7 +206,7 @@ describe("startRetention", () => {
     const job = startRetention({ people, log, now: () => NOW });
     for (const store of stores) expect(store.db.select().from(messages).all()).toEqual([]);
     const keys = stores.map((s) => s.key).sort();
-    expect(logged).toEqual(keys.map((key) => ({ person: shortKey(key), messages: 1, photos: 0, threads: 0, orphanFiles: 0 })));
+    expect(logged).toEqual(keys.map((key) => ({ person: shortKey(key), messages: 1, photos: 0, threads: 0, orphanFiles: 0, healthMessages: 0 })));
     // The hourly pass finds nothing left to delete, and says nothing: no line an hour for every person.
     const afterStartup = [...logged];
     await job.trigger();
@@ -230,7 +230,7 @@ describe("startRetention", () => {
     const job = startRetention({ people, log, now: () => NOW });
     expect(errors).toEqual([[{ err: expect.objectContaining({ code: "ENOENT" }), person: shortKey(stores[0].key) }, "retention purge failed"]]);
     expect(stores[1].db.select().from(messages).all()).toEqual([]);
-    expect(infos).toEqual([[{ person: shortKey(stores[1].key), messages: 1, photos: 0, threads: 0, orphanFiles: 0 }, "expired conversations deleted"]]);
+    expect(infos).toEqual([[{ person: shortKey(stores[1].key), messages: 1, photos: 0, threads: 0, orphanFiles: 0, healthMessages: 0 }, "expired conversations deleted"]]);
     expect(job.isStopped()).toBe(false);
     job.stop();
     expect(job.isStopped()).toBe(true);

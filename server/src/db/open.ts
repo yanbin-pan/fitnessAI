@@ -20,8 +20,17 @@ export interface OpenOptions {
   /** How long to wait for another process's lock to clear (default 2 minutes, spec §14.4). */
   lockWaitMs?: number;
   lockRetryMs?: number;
-  /** Tests only: a different migrations folder. */
+  /** A different migrations folder: health.db's, or a test's. */
   migrationsFolder?: string;
+  /** How startup snapshots are named (default "startup-"); health.db's are "health-startup-". */
+  snapshotPrefix?: string;
+  /** What a snapshot leaves out (default: fitness.db's conversations). */
+  strip?: (file: string) => void;
+  /**
+   * Runs once the lock is held and any startup snapshot taken, just before pending migrations: the moment to copy out
+   * rows a migration is about to drop (2026-10-19 health tab design §1).
+   */
+  beforeMigrate?: (sqlite: Database.Database) => void;
 }
 
 function isBusy(err: unknown): boolean {
@@ -88,9 +97,11 @@ export function openDatabase(opts: OpenOptions) {
     sqlite.pragma("secure_delete = ON");
     sqlite.pragma("journal_size_limit = 0");
     if (existed && opts.snapshotDir && migrationPending(sqlite, migrationsFolder)) {
-      snapshot(sqlite, opts.snapshotDir, `startup-${stamp(new Date())}.db`);
-      pruneSnapshots(opts.snapshotDir, "startup-", 3);
+      const prefix = opts.snapshotPrefix ?? "startup-";
+      snapshot(sqlite, opts.snapshotDir, `${prefix}${stamp(new Date())}.db`, opts.strip);
+      pruneSnapshots(opts.snapshotDir, prefix, 3);
     }
+    opts.beforeMigrate?.(sqlite);
     // SQLite ignores PRAGMA foreign_keys inside a transaction, and the migrator runs every pending
     // migration in one, so keep foreign keys off across it: a generated table rebuild would
     // otherwise cascade-delete child rows. Check the result before turning them back on.

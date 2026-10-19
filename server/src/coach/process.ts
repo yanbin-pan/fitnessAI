@@ -22,6 +22,8 @@ export const MAX_MODEL_CALLS = 5;
 
 export interface CoachDeps {
   db: Sql;
+  /** The person's health.db (2026-10-19 health tab design §6); without it the coach sees no health records. */
+  health?: Sql;
   ai: AiClient | null;
   now: () => Date;
   budgetMs: number;
@@ -99,7 +101,7 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
           profile.language,
           fillsInPastDay(message.date, sentAt, profile.timezone),
           recentDays(deps.db, profile, message.date, nowIso),
-          healthContext(deps.db),
+          deps.health ? healthContext(deps.health) : null,
         ),
       },
       ...message.photo_ids.map(photoRef),

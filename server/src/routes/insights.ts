@@ -12,7 +12,7 @@ export function registerInsightRoutes(app: FastifyInstance, appDeps: AppDeps): v
     const profile = getProfile(deps.db);
     if (!profile) return reply.code(409).send({ error: "no_profile" });
     const dailyCallCap = deps.person.owner ? deps.callCaps.owner : deps.callCaps.guest;
-    return insightsView({ sql: deps.db, profile, ai: deps.ai, now: deps.now(), dailyCallCap }, (insightDeps) => {
+    return insightsView({ sql: deps.db, health: deps.health, profile, ai: deps.ai, now: deps.now(), dailyCallCap }, (insightDeps) => {
       ensureWeeklyInsight(insightDeps).catch((err: unknown) => req.log.error({ err }, "weekly insight failed"));
     });
   });

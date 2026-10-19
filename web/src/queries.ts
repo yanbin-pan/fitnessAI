@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "./api.ts";
 import { isLive } from "./coach/live.ts";
-import type { DaySummaries, DayView, HealthView, InsightsView, ProfileView } from "./shared.ts";
+import type { DaySummaries, DayView, HealthChatView, HealthView, InsightsView, MarkerFoodView, ProfileView } from "./shared.ts";
 
 export const dayKey = (date: string) => ["day", date] as const;
 
@@ -56,9 +56,19 @@ export function useLoadedProfile() {
   return useQuery({ queryKey: ["profile"], queryFn: loadProfile, enabled: false });
 }
 
-/** Conditions, medications and blood results, for the Health tab (2026-10-12 health context design). */
+/** Everything on the Health tab (2026-10-19 health tab design): facts, records, trends and what waits for an OK. */
 export function useHealth() {
   return useQuery({ queryKey: ["health"], queryFn: () => api<HealthView>("/api/records") });
+}
+
+/** The Health chat (2026-10-19 health tab design §4). */
+export function useHealthChat(enabled = true) {
+  return useQuery({ queryKey: ["health", "chat"], queryFn: () => api<HealthChatView>("/api/records/chat"), enabled });
+}
+
+/** A marker beside the nutrient it relates to in the food log (2026-10-19 health tab design §5). */
+export function useMarker(key: string) {
+  return useQuery({ queryKey: ["health", "marker", key], queryFn: () => api<MarkerFoodView>(`/api/records/markers/${encodeURIComponent(key)}`) });
 }
 
 /** The weekly analysis (2026-10-06 design §3.4). While it is being written, ask again every 10 seconds. */

@@ -30,25 +30,48 @@ export function stripConversations(file: string): void {
   }
 }
 
+/**
+ * health.db's conversation: the Health chat (2026-10-19 health tab design §4). Its suggestions go with it; the facts
+ * added from them stay, as the logbook's entries outlive their messages.
+ */
+export const HEALTH_CONVERSATION_TABLES = ["chat"] as const;
+
+export function stripHealthConversations(file: string): void {
+  const copy = new Database(file);
+  try {
+    const tables = new Set(copy.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").pluck().all() as string[]);
+    copy.transaction(() => {
+      // A plain connection does not enforce foreign keys, so the cascade is spelled out.
+      if (tables.has("suggestions")) copy.prepare("DELETE FROM suggestions WHERE message_id IS NOT NULL").run();
+      for (const table of HEALTH_CONVERSATION_TABLES) {
+        if (tables.has(table)) copy.prepare(`DELETE FROM ${table}`).run();
+      }
+    })();
+    copy.exec("VACUUM");
+  } finally {
+    copy.close();
+  }
+}
+
 /** Where a snapshot is built before it is moved into place: beside the live database, in a folder backups skip. */
 export function snapshotPartFile(dbFile: string): string {
   return `${dbFile}.snapshot-part`;
 }
 
 /**
- * A consistent copy of the live database (VACUUM INTO), without conversations, safe to back up while the app runs.
+ * A consistent copy of the live database (VACUUM INTO), without conversations (`strip` removes them), safe to back up while the app runs.
  * The copy is built beside the live database, in a folder backups skip, and moved into `dir` only once its
  * conversations are gone (a rename, so `dir` must share the live database's volume): a failed strip or a crash
  * can then never leave a copy that holds a conversation in the folder that is backed up.
  */
-export function snapshot(sqlite: Database.Database, dir: string, name: string): string {
+export function snapshot(sqlite: Database.Database, dir: string, name: string, strip: (file: string) => void = stripConversations): string {
   fs.mkdirSync(dir, { recursive: true });
   const target = path.join(dir, name);
   const part = snapshotPartFile(sqlite.name);
   fs.rmSync(part, { force: true }); // a leftover from a crash; VACUUM INTO refuses to overwrite
   try {
     sqlite.prepare("VACUUM INTO ?").run(part);
-    stripConversations(part);
+    strip(part);
     fs.renameSync(part, target); // atomic on one volume, and it replaces an earlier snapshot of the same name
   } catch (err) {
     fs.rmSync(part, { force: true });
@@ -57,9 +80,12 @@ export function snapshot(sqlite: Database.Database, dir: string, name: string): 
   return target;
 }
 
-/** Deletes all but the newest `keep` snapshots starting with `prefix`. Names sort by time. */
+/**
+ * Deletes all but the newest `keep` snapshots named `prefix` and then a date or stamp. Names sort by time. The digit
+ * keeps "health-" from taking "health-startup-" snapshots with it.
+ */
 export function pruneSnapshots(dir: string, prefix: string, keep: number): string[] {
-  const names = fs.readdirSync(dir).filter((f) => f.startsWith(prefix) && f.endsWith(".db")).sort();
+  const names = fs.readdirSync(dir).filter((f) => f.startsWith(prefix) && /^\d/.test(f.slice(prefix.length)) && f.endsWith(".db")).sort();
   const remove = names.slice(0, Math.max(0, names.length - keep));
   for (const name of remove) fs.rmSync(path.join(dir, name));
   return remove;

@@ -4,11 +4,11 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { CACHEDIR_TAG, moveOwnerIn, personPaths, preparePersonDir } from "../src/db/location.ts";
 import { openDatabase } from "../src/db/open.ts";
-import { CONVERSATION_TABLES, snapshot, stripConversations } from "../src/db/snapshot.ts";
+import { CONVERSATION_TABLES, HEALTH_CONVERSATION_TABLES, snapshot, stripConversations } from "../src/db/snapshot.ts";
 import { insertEntry } from "../src/log/entries.ts";
 import { insertUserMessage } from "../src/messages/messages.ts";
 import { appendTurns, getOrCreateThread } from "../src/coach/thread.ts";
-import { NOW, openTestDb, sampleEntry, tempDir } from "./helpers.ts";
+import { NOW, openTestDb, openTestHealthDb, sampleEntry, tempDir } from "./helpers.ts";
 
 const SIGNATURE = "Signature: 8a477f597d28d172789f06886806bc55";
 
@@ -53,6 +53,7 @@ describe("preparePersonDir", () => {
     expect(paths).toEqual({
       dir: home,
       dbFile: path.join(home, "db", "fitness.db"),
+      healthFile: path.join(home, "db", "health.db"),
       photoDir: path.join(home, "photos"),
       snapshotDir: path.join(home, "snapshots"),
     });
@@ -291,17 +292,27 @@ describe("snapshots", () => {
     // A table added later fails here until someone decides which it is.
     // regular_overrides and insights hold no conversation: what someone changed about a regular, and the weekly analysis.
     // companion_interactions holds counts per day only, kept for the owner's monthly dashboard.
-    // The Health tab's records are kept like the logbook until the person deletes them (2026-10-12 health context design §5).
+    // The Health tab's records live in health.db, checked below (2026-10-19 health tab design §1).
     const KEPT = [
       "profile", "days", "entries", "food_items", "food_item_groups", "exercise_items", "exercise_muscles", "ai_usage",
       "regular_overrides", "insights", "companion_interactions",
-      "health_consent", "health_conditions", "medications", "lab_reports", "lab_results",
     ];
     const db = openTestDb();
     const tables = (db.sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").pluck().all() as string[]).filter(
       (name) => !name.startsWith("sqlite_") && name !== "__drizzle_migrations",
     );
     expect([...tables].sort()).toEqual([...KEPT, ...CONVERSATION_TABLES].sort());
+    db.close();
+  });
+
+  it("have a decision for every table of health.db too: the chat is a conversation, the records are kept", () => {
+    // Suggestions are kept, but a snapshot drops the chat's with the chat (stripHealthConversations).
+    const KEPT = ["consent", "documents", "observations", "facts", "suggestions"];
+    const db = openTestHealthDb();
+    const tables = (db.sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").pluck().all() as string[]).filter(
+      (name) => !name.startsWith("sqlite_") && name !== "__drizzle_migrations",
+    );
+    expect([...tables].sort()).toEqual([...KEPT, ...HEALTH_CONVERSATION_TABLES].sort());
     db.close();
   });
 });
