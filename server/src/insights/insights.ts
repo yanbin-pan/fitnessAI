@@ -12,7 +12,7 @@ import { insightPrompt, insightsInstructions, readReport, reportJsonSchema } fro
 import { computeStats, loggedDays } from "./stats.ts";
 
 // Weekly insights (2026-10-06 design §3): written once per local week, on its Monday or on the first day after that
-// the person has fourteen days of data, and again within the week only if they change the app's language.
+// the person has seven days of data, and again within the week only if they change the app's language.
 
 /** Time one analysis may take: well beyond a chat reply, since nobody is waiting on it. */
 export const INSIGHTS_BUDGET_MS = 240_000;
