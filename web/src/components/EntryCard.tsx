@@ -26,7 +26,7 @@ export function EntryCard({ entry, onEdit }: { entry: Entry; onEdit?: (entry: En
       {sport ? (
         <SportBadge activity={sport} />
       ) : (
-        <span className="pressed flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-fat">
+        <span className="well-tint tint-amber flex h-9 w-9 shrink-0 items-center justify-center rounded-full">
           <Icon name="restaurant" size={18} />
         </span>
       )}
@@ -38,8 +38,17 @@ export function EntryCard({ entry, onEdit }: { entry: Entry; onEdit?: (entry: En
         </span>
         <span className="block text-sm text-muted">{facts.join(" · ")}</span>
         {eaten > 0 && (
-          <span className="block text-xs text-muted">
-            {t.macros.proteinShort} {grams("protein_g")} · {t.macros.carbsShort} {grams("carbs_g")} · {t.macros.fatShort} {grams("fat_g")}
+          <span className="flex gap-2.5 text-xs text-muted">
+            <span className="sr-only">
+              {t.macros.proteinShort} {grams("protein_g")} · {t.macros.carbsShort} {grams("carbs_g")} · {t.macros.fatShort} {grams("fat_g")}
+            </span>
+            {/* The same, with each macro's dot in its colour (2026-10-20); read once, from the line above. */}
+            {([["protein_g", t.macros.proteinShort, "bg-protein"], ["carbs_g", t.macros.carbsShort, "bg-carbs"], ["fat_g", t.macros.fatShort, "bg-fat"]] as const).map(([key, short, dot]) => (
+              <span key={key} aria-hidden="true" className="flex items-center gap-1">
+                <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+                {short} {grams(key)}
+              </span>
+            ))}
           </span>
         )}
         {entry.source === "regular" && (

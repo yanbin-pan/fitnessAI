@@ -101,7 +101,7 @@ export function startRetention(opts: {
 
 /**
  * Writes each person's weekly analysis when it is due (2026-10-06 design §3.1): hourly at minute 23, so it lands early
- * on a Monday morning in any timezone, and within the hour for someone who has just reached fourteen days. One person
+ * on a Monday morning in any timezone, and within the hour for someone who has just reached seven days. One person
  * at a time, and a person whose analysis is current costs only a lookup.
  */
 export function startInsights(opts: {

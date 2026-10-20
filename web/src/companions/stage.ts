@@ -260,8 +260,9 @@ function disposeTree(object: THREE.Object3D) {
   });
 }
 
-function plinthColour(): string {
-  return getComputedStyle(document.documentElement).getPropertyValue("--nm-plinth").trim() || "#dbe1e9";
+/** Read from the host, so a window that sets its own --nm-plinth (a companion's pastel) gets a plinth to match. */
+function plinthColour(host: HTMLElement): string {
+  return getComputedStyle(host).getPropertyValue("--nm-plinth").trim() || "#dbe1e9";
 }
 
 /** Draws `options.companion` into a canvas appended to `host`, sized to it, until disposed. */
@@ -286,8 +287,9 @@ export function createStage(host: HTMLElement, options: StageOptions): Stage {
   scene.add(rim);
 
   const tex = makeTextures();
-  const plinthMat = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, color: plinthColour() });
-  const readPlinth = () => plinthMat.color.set(plinthColour());
+  const plinthMat = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, color: plinthColour(host) });
+  // A frame later, so a host's own colour has re-rendered for the new theme first.
+  const readPlinth = () => requestAnimationFrame(() => plinthMat.color.set(plinthColour(host)));
   window.addEventListener(THEME_EVENT, readPlinth);
 
   let cast = castOf(options.companion, tex, plinthMat, options.plinth, reduce);

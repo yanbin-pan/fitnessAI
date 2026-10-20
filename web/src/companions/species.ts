@@ -67,3 +67,19 @@ export const SPECIES: Record<CompanionId, Species> = {
     muzzle: "horse", tail: "long", headScale: [0.9, 1.05, 1.05], eyeX: 0.19, eyeY: 0.1,
   },
 };
+
+function mix(a: string, b: string, share: number): string {
+  const channel = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+  return `#${[0, 1, 2].map((i) => Math.round(channel(a, i) * share + channel(b, i) * (1 - share)).toString(16).padStart(2, "0")).join("")}`;
+}
+
+/**
+ * The companion's window in its own colour (2026-10-20): a pastel of its fur, light at the top and a little deeper
+ * below, with the plinth a shade off it. Bombolone gets pink, Zabaione apricot, Panna Cotta a soft grey-lilac.
+ */
+export function petColours(companion: CompanionId, theme: "light" | "dark"): { top: string; bottom: string; plinth: string } {
+  const fur = SPECIES[companion].fur;
+  return theme === "dark"
+    ? { top: mix(fur, "#262a31", 0.3), bottom: mix(fur, "#262a31", 0.14), plinth: mix(fur, "#2f343c", 0.24) }
+    : { top: mix(fur, "#ffffff", 0.16), bottom: mix(fur, "#e4e9f0", 0.34), plinth: mix(fur, "#d8dfe8", 0.42) };
+}

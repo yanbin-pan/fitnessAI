@@ -26,18 +26,18 @@ const REPORT: InsightReport = {
   recovery: { status: "balanced", detail: "Load is steady." },
   focus: ["Add a pear to lunch."],
 };
-const ready = { status: "ready", data_days: 20, required_days: 14, next_update: "2026-10-12", insight: { week_start: "2026-10-05", generated_at: "2026-10-05T07:23:00Z", stats: STATS, report: REPORT } };
+const ready = { status: "ready", data_days: 20, required_days: 7, next_update: "2026-10-12", insight: { week_start: "2026-10-05", generated_at: "2026-10-05T07:23:00Z", stats: STATS, report: REPORT } };
 
 describe("InsightsPage", () => {
-  it("shows the days logged until there are fourteen", async () => {
-    mockFetch(() => jsonResponse({ status: "collecting", data_days: 6, required_days: 14, next_update: "2026-10-12", insight: null }));
+  it("shows the days logged until there are seven", async () => {
+    mockFetch(() => jsonResponse({ status: "collecting", data_days: 6, required_days: 7, next_update: "2026-10-12", insight: null }));
     renderWithProviders(<InsightsPage />);
     expect(await screen.findByText("Your weekly analysis is on its way")).toBeInTheDocument();
-    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuetext", "6 / 14 days");
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuetext", "6 / 7 days");
   });
 
   it("says the first analysis is being written", async () => {
-    mockFetch(() => jsonResponse({ status: "pending", data_days: 14, required_days: 14, next_update: "2026-10-12", insight: null }));
+    mockFetch(() => jsonResponse({ status: "pending", data_days: 7, required_days: 7, next_update: "2026-10-12", insight: null }));
     renderWithProviders(<InsightsPage />);
     expect(await screen.findByRole("status")).toHaveTextContent("Your first analysis is being written.");
   });

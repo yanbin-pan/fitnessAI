@@ -1,9 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { CompanionStatus } from "../shared.ts";
 import { mockFetch } from "../test/render.tsx";
-import { CompanionButton } from "./CompanionButton.tsx";
+import { CompanionAvatar, CompanionButton } from "./CompanionButton.tsx";
 
 const okay: CompanionStatus = { mood: "okay", avg_kcal: 2104, avg_target_kcal: 2316, days_logged: 6, okay_streak: 3, alcohol_units: 0, over_alcohol: false };
 
@@ -76,5 +76,31 @@ describe("CompanionButton", () => {
     rerender(<CompanionButton companion="bombolone" status={{ ...okay, mood: "inactive", alcohol_units: 16.1, over_alcohol: true }} />);
     expect(screen.getByRole("dialog")).not.toHaveTextContent("Over the UK guide");
     expect(screen.getByRole("button", { name: "Bombolone, Inactive. How your week is going" })).toBeInTheDocument();
+  });
+});
+
+describe("CompanionAvatar", () => {
+  it("opens the full window on a tap, named like the day bar's button", async () => {
+    render(<CompanionAvatar companion="bombolone" status={okay} live={false} />);
+    await userEvent.click(screen.getByRole("button", { name: "Bombolone, Okay. How your week is going" }));
+    expect(screen.getByRole("dialog", { name: "Bombolone" })).toHaveTextContent("3 of 14 days on track towards Thriving");
+  });
+
+  it("peeks while held and closes on release, without opening the full window", () => {
+    vi.useFakeTimers();
+    try {
+      render(<CompanionAvatar companion="zabaione" status={okay} live={false} />);
+      const avatar = screen.getByRole("button", { name: /Zabaione/ });
+      fireEvent.pointerDown(avatar, { button: 0 });
+      expect(screen.queryByTestId("companion-peek")).toBeNull();
+      act(() => vi.advanceTimersByTime(400));
+      expect(screen.getByTestId("companion-peek")).toHaveTextContent("Okay");
+      fireEvent.pointerUp(avatar);
+      fireEvent.click(avatar);
+      expect(screen.queryByTestId("companion-peek")).toBeNull();
+      expect(screen.queryByRole("dialog")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

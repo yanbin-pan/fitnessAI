@@ -11,6 +11,8 @@
   --nm-text: #28323f;
   --nm-muted: #55637a;
   --nm-accent: #087a54;
+  /* Where the calorie ring's gradient ends: the accent leaning into teal. */
+  --nm-accent-2: #1bb3a8;
   --nm-on-accent: #ffffff;
   --nm-accent-text: #067052;
   --nm-danger: #a8321f;
@@ -38,6 +40,7 @@
   --nm-text: #e8ecf1;
   --nm-muted: #9aa5b5;
   --nm-accent: #34d399;
+  --nm-accent-2: #3cc4cc;
   --nm-on-accent: #0f2a1f;
   --nm-accent-text: #34d399;
   --nm-danger: #f2876f;
@@ -94,6 +97,20 @@
   box-shadow: inset 3px 3px 6px var(--nm-lo), inset -3px -3px 6px var(--nm-hi);
 }
 
+/* A touch of colour (2026-10-20): a well, chip or bubble takes a hue (a tint-* class sets --tint and --tint-ink) mixed
+   into the surface, so the depth still comes from the same pair of shadows and the colour stays soft. */
+@utility well-tint {
+  background-color: color-mix(in srgb, var(--tint) 22%, var(--nm-base));
+  box-shadow: inset 2px 2px 4px color-mix(in oklab, var(--tint) 20%, var(--nm-lo)), inset -2px -2px 4px var(--nm-hi);
+  color: var(--tint-ink);
+}
+
+/* Raised and washed with a hue: Zabaione's replies, your own messages. */
+@utility raised-tint {
+  background-color: color-mix(in srgb, var(--tint) 16%, var(--nm-base));
+  box-shadow: 3px 3px 6px var(--nm-lo), -3px -3px 6px var(--nm-hi);
+}
+
 /* Presses in while tapped. */
 @utility tap {
   transition: box-shadow 150ms ease;
@@ -136,6 +153,24 @@ body {
 [data-theme="dark"] .stripes-carbs { --s-fg: #f2a93b; --s-bg: #5a4320; }
 [data-theme="dark"] .stripes-fat { --s-fg: #ee8f7a; --s-bg: #5a2f27; }
 [data-theme="dark"] .stripes-fibre { --s-fg: #6fcf9c; --s-bg: #21402f; }
+/* The hues for wells and bubbles: --tint is mixed into the surface, --tint-ink is the icon on it (3:1 or more). */
+.tint-green { --tint: #2fa36f; --tint-ink: #087a54; }
+.tint-teal { --tint: #2aa7b0; --tint-ink: #0e6f78; }
+.tint-blue { --tint: #5b8def; --tint-ink: #2f5fbf; }
+.tint-violet { --tint: #8a6ff0; --tint-ink: #5b43b8; }
+.tint-rose { --tint: #ec6f8e; --tint-ink: #b03358; }
+.tint-amber { --tint: #f2a93b; --tint-ink: #9a5d00; }
+.tint-custard { --tint: #ffc94a; --tint-ink: #95600a; }
+.tint-slate { --tint: #8a97ab; --tint-ink: #4a576c; }
+[data-theme="dark"] .tint-green { --tint: #34d399; --tint-ink: #6ee0b4; }
+[data-theme="dark"] .tint-teal { --tint: #3cc4cc; --tint-ink: #7fdde2; }
+[data-theme="dark"] .tint-blue { --tint: #6f9cf2; --tint-ink: #a3c0f7; }
+[data-theme="dark"] .tint-violet { --tint: #9d86f2; --tint-ink: #c4b6f7; }
+[data-theme="dark"] .tint-rose { --tint: #ee7f9a; --tint-ink: #f4aec0; }
+[data-theme="dark"] .tint-amber { --tint: #f2a93b; --tint-ink: #f6c57a; }
+[data-theme="dark"] .tint-custard { --tint: #ffc94a; --tint-ink: #f6cd7e; }
+[data-theme="dark"] .tint-slate { --tint: #8a97ab; --tint-ink: #b8c2d1; }
+
 .stripes {
   background: repeating-linear-gradient(135deg, var(--s-fg) 0 2px, var(--s-bg) 2px 5px);
 }

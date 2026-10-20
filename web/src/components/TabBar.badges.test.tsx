@@ -5,7 +5,7 @@ import { jsonResponse, mockFetch, renderWithProviders } from "../test/render.tsx
 import { TabBar } from "./TabBar.tsx";
 
 const insights = (generated_at: string | null) => ({
-  status: generated_at ? "ready" : "collecting", data_days: 20, required_days: 14, next_update: "2026-10-26",
+  status: generated_at ? "ready" : "collecting", data_days: 20, required_days: 7, next_update: "2026-10-26",
   insight: generated_at ? { week_start: "2026-10-12", generated_at, stats: {}, report: null } : null,
 });
 const serveInsights = (generated_at: string | null) => mockFetch(() => jsonResponse(insights(generated_at)));

@@ -67,10 +67,13 @@ function goalSummary(view: ProfileView, t: Messages): string {
   return profile.goal !== "maintain" && target !== null ? `${goal} · ${t.prefs.towards(String(profile.weight_kg), String(target))}` : goal;
 }
 
-function Row({ to, icon, label, value }: { to: string; icon: IconName; label: string; value?: string }) {
+/** Each area keeps one hue on its icon (2026-10-20), so the list scans by colour as well as by word. */
+type Tint = "green" | "teal" | "blue" | "violet" | "rose" | "amber" | "custard" | "slate";
+
+function Row({ to, icon, tint, label, value }: { to: string; icon: IconName; tint: Tint; label: string; value?: string }) {
   return (
     <Link to={to} className="flex min-h-12 items-center gap-3 text-[15px]">
-      <span className="pressed flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-accent-ink"><Icon name={icon} size={16} /></span>
+      <span className={`well-tint tint-${tint} flex h-7 w-7 shrink-0 items-center justify-center rounded-lg`}><Icon name={icon} size={16} /></span>
       <span className="shrink-0">{label}</span>
       <span className="ml-auto min-w-0 truncate text-sm text-muted">{value}</span>
       <span className="shrink-0 text-muted"><Icon name="chevron_right" size={18} /></span>
@@ -114,20 +117,20 @@ function Home({ view }: { view: ProfileView }) {
         <span className="text-muted"><Icon name="chevron_right" size={18} /></span>
       </Link>
       <Group label={t.prefs.groups.plan}>
-        <Row to="goals" icon="mountain_flag" label={t.prefs.rows.goals} value={about.focus.map((f) => t.onboarding.focus.names[f]).join(", ")} />
-        <Row to="targets" icon="monitoring" label={t.prefs.rows.targets} value={t.prefs.kcal(thousands(effectiveTargets(profile, view.calculated).kcal, t))} />
+        <Row to="goals" icon="mountain_flag" tint="green" label={t.prefs.rows.goals} value={about.focus.map((f) => t.onboarding.focus.names[f]).join(", ")} />
+        <Row to="targets" icon="monitoring" tint="teal" label={t.prefs.rows.targets} value={t.prefs.kcal(thousands(effectiveTargets(profile, view.calculated).kcal, t))} />
       </Group>
       <Group label={t.prefs.groups.you}>
-        <Row to="/health" icon="ecg_heart" label={t.prefs.rows.health} value={healthCount > 0 ? t.prefs.items(healthCount) : undefined} />
-        <Row to="food" icon="restaurant" label={t.prefs.rows.food} value={health?.consented_at ? (diets.join(", ") || t.onboarding.food.everything) : undefined} />
-        <Row to="training" icon="fitness_center" label={t.prefs.rows.training} value={training} />
-        {showSkin && <Row to="skin" icon="lightbulb" label={t.prefs.rows.skin} value={about.skin_goals.map((g) => t.onboarding.skin.goalNames[g]).join(", ")} />}
+        <Row to="/health" icon="ecg_heart" tint="rose" label={t.prefs.rows.health} value={healthCount > 0 ? t.prefs.items(healthCount) : undefined} />
+        <Row to="food" icon="restaurant" tint="amber" label={t.prefs.rows.food} value={health?.consented_at ? (diets.join(", ") || t.onboarding.food.everything) : undefined} />
+        <Row to="training" icon="fitness_center" tint="blue" label={t.prefs.rows.training} value={training} />
+        {showSkin && <Row to="skin" icon="lightbulb" tint="violet" label={t.prefs.rows.skin} value={about.skin_goals.map((g) => t.onboarding.skin.goalNames[g]).join(", ")} />}
       </Group>
       <Group label={t.prefs.groups.app}>
-        <Row to="coach" icon="chat" label={t.prefs.rows.coach} value={`${COMPANION_NAMES[profile.companion]}, ${t.onboarding.coach.tones[profile.coach_tone]}`} />
-        <Row to="region" icon="translate" label={t.prefs.rows.region} value={LANGUAGE_NAMES[language]} />
+        <Row to="coach" icon="chat" tint="custard" label={t.prefs.rows.coach} value={`${COMPANION_NAMES[profile.companion]}, ${t.onboarding.coach.tones[profile.coach_tone]}`} />
+        <Row to="region" icon="translate" tint="violet" label={t.prefs.rows.region} value={LANGUAGE_NAMES[language]} />
         <div className="flex min-h-12 items-center gap-3 text-[15px]">
-          <span className="pressed flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-accent-ink"><Icon name="sunny" size={16} /></span>
+          <span className="well-tint tint-amber flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"><Icon name="sunny" size={16} /></span>
           <span id="appearance">{t.prefs.rows.appearance}</span>
           <div role="radiogroup" aria-labelledby="appearance" className="pressed ml-auto flex gap-0.5 rounded-xl p-1">
             {THEMES.map((value) => (
@@ -138,7 +141,7 @@ function Home({ view }: { view: ProfileView }) {
             ))}
           </div>
         </div>
-        <Row to="data" icon="lock" label={t.prefs.rows.data} />
+        <Row to="data" icon="lock" tint="slate" label={t.prefs.rows.data} />
       </Group>
     </main>
   );

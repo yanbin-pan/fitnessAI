@@ -155,8 +155,8 @@ export const REGULARS_MIN_DATA_DAYS = 5;
 /** A meal or activity becomes a regular once it is seen on this many different days in the window. */
 export const REGULAR_MIN_DAYS_SEEN = 3;
 
-/** Insights (2026-10-06 design §3): written weekly, once there are fourteen days of data. */
-export const INSIGHTS_MIN_DATA_DAYS = 14;
+/** Insights (2026-10-06 design §3): written weekly, once there are seven days of data. */
+export const INSIGHTS_MIN_DATA_DAYS = 7;
 export const INSIGHTS_WINDOW_DAYS = 28;
 
 /**

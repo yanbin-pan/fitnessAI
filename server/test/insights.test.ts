@@ -123,8 +123,8 @@ describe("ensureWeeklyInsight", () => {
     sql: db, profile: getProfile(db) as Profile, ai, now: MONDAY, dailyCallCap: 200, ...overrides,
   });
 
-  it("waits for fourteen days of data, without calling Claude", async () => {
-    days(db, 13);
+  it("waits for seven days of data, without calling Claude", async () => {
+    days(db, 6);
     const ai = fakeAi([], []);
     expect(await ensureWeeklyInsight(deps(ai))).toBe("collecting");
     expect(ai.structuredRequests).toHaveLength(0);
@@ -199,12 +199,12 @@ describe("GET /api/insights", () => {
   });
   const get = () => ctx!.app.inject({ method: "GET", url: "/api/insights", headers: ctx!.headers });
 
-  it("says how many days are logged until there are fourteen", async () => {
+  it("says how many days are logged until there are seven", async () => {
     ctx = await testApp({ now: MONDAY });
     expect((await get()).statusCode).toBe(409);
     saveProfile(ctx.db, makeProfile(), MONDAY.toISOString());
     days(ctx.db, 6);
-    expect((await get()).json()).toEqual({ status: "collecting", data_days: 6, required_days: 14, next_update: "2026-10-12", insight: null });
+    expect((await get()).json()).toEqual({ status: "collecting", data_days: 6, required_days: 7, next_update: "2026-10-12", insight: null });
   });
 
   it("starts the week's analysis when it is due, and shows it once written", async () => {
