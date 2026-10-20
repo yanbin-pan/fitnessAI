@@ -6,7 +6,7 @@ export const fr: Messages = {
   locale: "fr-FR",
   dateMonth: "short",
   units: { kcal: "kcal", g: "g" },
-  nav: { main: "Principal", today: "Aujourd’hui", insights: "Analyses", health: "Santé", settings: "Réglages" },
+  nav: { main: "Principal", today: "Aujourd’hui", insights: "Analyses", health: "Santé", settings: "Réglages", new: "nouveau" },
   session: { signedOut: "Déconnecté.", signIn: "Touchez pour vous connecter" },
   setup: {
     title: "Bienvenue",

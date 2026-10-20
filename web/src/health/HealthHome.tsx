@@ -4,11 +4,11 @@ import { Link, useNavigate } from "react-router";
 import { useT } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
-import type { DocumentReadView, DocumentView, FactView, HealthView, MarkerTrend } from "../shared.ts";
+import type { DocumentView, FactView, HealthView, MarkerTrend } from "../shared.ts";
 import {
   DOCUMENT_ICONS, FACT_ICONS, Heading, SECTIONS, Screen, WithHealth, amount, documentTitle, factName, failure, monthName, recordDate,
-  useReadRecord,
 } from "./common.tsx";
+import { clearRead, startRead, useRead } from "./background.ts";
 import type { Section } from "./common.tsx";
 import { ReviewSheet } from "./ReviewSheet.tsx";
 
@@ -21,11 +21,13 @@ const SECTION_ICON: Record<Section, Parameters<typeof Icon>[0]["name"]> = {
 
 const OUTSIDE = (flag: string) => flag === "low" || flag === "high";
 
-function Tell({ onRead }: { onRead: (read: DocumentReadView) => void }) {
+function Tell() {
   const t = useT();
   const navigate = useNavigate();
   const [text, setText] = useState("");
-  const read = useReadRecord(onRead);
+  // The read carries on if the person leaves the tab; its sheet opens when they are back.
+  const read = useRead();
+  const reading = read.status === "reading";
   const submit = (event: FormEvent) => {
     event.preventDefault();
     // The chat sends it: the conversation is where the coach answers and proposes.
@@ -33,7 +35,7 @@ function Tell({ onRead }: { onRead: (read: DocumentReadView) => void }) {
   };
   const picker = (label: string, capture: boolean) => (
     <label
-      className={`tap raised-sm flex min-h-13 cursor-pointer items-center justify-center gap-2 rounded-2xl px-3 text-sm font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${capture ? "text-accent-ink" : ""} ${read.isPending ? "opacity-40" : ""}`}
+      className={`tap raised-sm flex min-h-13 cursor-pointer items-center justify-center gap-2 rounded-2xl px-3 text-sm font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${capture ? "text-accent-ink" : ""} ${reading ? "opacity-40" : ""}`}
     >
       <Icon name={capture ? "photo_camera" : "upload"} size={20} />
       {label}
@@ -42,11 +44,11 @@ function Tell({ onRead }: { onRead: (read: DocumentReadView) => void }) {
         accept="image/*"
         multiple
         {...(capture ? { capture: "environment" as const } : {})}
-        disabled={read.isPending}
+        disabled={reading}
         onChange={(event) => {
           const files = Array.from(event.target.files ?? []);
           event.target.value = "";
-          if (files.length > 0) read.mutate(files);
+          if (files.length > 0) void startRead(files);
         }}
         className="sr-only"
       />
@@ -77,8 +79,8 @@ function Tell({ onRead }: { onRead: (read: DocumentReadView) => void }) {
         {picker(t.health.scan, true)}
         {picker(t.health.upload, false)}
       </div>
-      {read.isPending && <p role="status" className="mt-2 text-sm text-muted">{t.health.reading}</p>}
-      {read.isError && <p role="alert" className="mt-2 text-sm text-danger">{failure(read.error, t, t.health.readFailed.failed)}</p>}
+      {reading && <p role="status" className="mt-2 text-sm text-muted">{t.health.reading}</p>}
+      {read.status === "failed" && <p role="alert" className="mt-2 text-sm text-danger">{failure(read.error, t, t.health.readFailed.failed)}</p>}
     </section>
   );
 }
@@ -227,7 +229,8 @@ function Records({ view }: { view: HealthView }) {
 export function HealthHome() {
   const t = useT();
   const navigate = useNavigate();
-  const [review, setReview] = useState<DocumentReadView | null>(null);
+  const read = useRead();
+  const review = read.status === "ready" ? read.read : null;
   return (
     <Screen
       title={t.health.title}
@@ -241,7 +244,7 @@ export function HealthHome() {
       <WithHealth>
         {(view) => (
           <>
-            <Tell onRead={setReview} />
+            <Tell />
             <Waiting view={view} />
             <Profile view={view} />
             <Watching view={view} />
@@ -249,7 +252,7 @@ export function HealthHome() {
             {review && (
               <ReviewSheet
                 read={review}
-                onClose={() => setReview(null)}
+                onClose={clearRead}
                 onSaved={(saved) => saved.documents[0] && navigate(`/health/records/${saved.documents.find((d) => !view.documents.some((old) => old.id === d.id))?.id ?? saved.documents[0].id}`)}
               />
             )}

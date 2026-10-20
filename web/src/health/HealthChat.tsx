@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useMutationState, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
@@ -9,6 +9,7 @@ import { useHealthChat } from "../queries.ts";
 import { labFlag } from "../shared.ts";
 import type { ChatMessageView, DocumentReadView, HealthChatView, SuggestionView } from "../shared.ts";
 import { Screen, WithHealth, documentTitle, factName, failure, sectionOf, uploadPhotos, useRecordsWrite } from "./common.tsx";
+import { noteHealthNews } from "./background.ts";
 import { ReviewSheet } from "./ReviewSheet.tsx";
 
 // The Health chat (2026-10-19 health tab design §4, from direction C): the person says what they have in their own
@@ -164,6 +165,12 @@ function Message({ message, onCheck, onOption, last }: { message: ChatMessageVie
   );
 }
 
+interface Sending {
+  words: string;
+  files: File[];
+}
+const SENDING = ["health", "chat", "send"];
+
 function Conversation() {
   const t = useT();
   const client = useQueryClient();
@@ -173,8 +180,11 @@ function Conversation() {
   // "Ask about this record" arrives with the start of a question, for the person to finish.
   const [text, setText] = useState(() => (location.state as { draft?: string } | null)?.draft ?? "");
   const [checking, setChecking] = useState<{ read: DocumentReadView; messageId: string } | null>(null);
+  // A message keeps going when the person leaves the chat (a photo takes tens of seconds to read): the answer lands in
+  // the chat's cache either way, and one still on its way shows again on coming back.
   const send = useMutation({
-    mutationFn: async ({ words, files }: { words: string; files: File[] }) => {
+    mutationKey: SENDING,
+    mutationFn: async ({ words, files }: Sending) => {
       const photo_ids = files.length > 0 ? await uploadPhotos(files) : [];
       return api<HealthChatView>("/api/records/chat", { json: { id: crypto.randomUUID(), text: words, photo_ids } });
     },
@@ -182,10 +192,14 @@ function Conversation() {
       setText("");
       client.setQueryData(["health", "chat"], view);
       void client.invalidateQueries({ queryKey: ["health"], exact: true });
+      noteHealthNews();
     },
   });
+  const away = useMutationState({ filters: { mutationKey: SENDING, status: "pending" }, select: (m) => m.state.variables as Sending });
+  const sending = send.isPending ? send.variables : away[0];
+  const busy = sending !== undefined;
   const sendText = (words: string) => {
-    if (words.trim() && !send.isPending) send.mutate({ words: words.trim(), files: [] });
+    if (words.trim() && !busy) send.mutate({ words: words.trim(), files: [] });
   };
 
   // A sentence typed on the home arrives here and is sent at once, then cleared from the history so Back won't resend it.
@@ -200,18 +214,18 @@ function Conversation() {
 
   const end = useRef<HTMLLIElement>(null);
   const count = chat.data?.messages.length ?? 0;
-  useEffect(() => end.current?.scrollIntoView?.({ block: "end" }), [count, send.isPending]);
+  useEffect(() => end.current?.scrollIntoView?.({ block: "end" }), [count, busy]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     sendText(text);
   };
   const messages = chat.data?.messages ?? [];
-  const pendingText = send.isPending ? send.variables?.words : undefined;
+  const pendingText = sending?.words;
   return (
     <>
       <ul className="mt-4 flex flex-col gap-4 pb-[calc(var(--composer-h,5rem)_+_1rem)]">
-        {messages.length === 0 && !send.isPending && <li className="raised-sm self-start rounded-[18px] rounded-bl-md px-3.5 py-3 text-[15px] leading-snug">{t.health.chatEmpty}</li>}
+        {messages.length === 0 && !busy && <li className="raised-sm self-start rounded-[18px] rounded-bl-md px-3.5 py-3 text-[15px] leading-snug">{t.health.chatEmpty}</li>}
         {messages.map((message, i) => (
           <Message
             key={message.id}
@@ -222,21 +236,21 @@ function Conversation() {
           />
         ))}
         {pendingText && <li className="max-w-[85%] self-end rounded-[18px] rounded-br-md bg-accent px-3.5 py-2.5 text-[15px] text-on-accent opacity-70">{pendingText}</li>}
-        {send.isPending && <li role="status" className="self-start text-sm text-muted">{t.health.thinking}</li>}
+        {busy && <li role="status" className="self-start text-sm text-muted">{t.health.thinking}</li>}
         <li ref={end} aria-hidden="true" />
       </ul>
       <form onSubmit={submit} className="fixed inset-x-0 bottom-[calc(var(--tabbar-h)_+_env(safe-area-inset-bottom))] z-10 bg-base px-3 pt-2 pb-2">
         <div className="mx-auto flex max-w-xl flex-col gap-1.5">
           {send.isError && <p role="alert" className="px-2 text-sm text-danger">{failure(send.error, t, t.health.chatFailed)}</p>}
           <div className="flex items-end gap-2">
-            <label className={`tap raised-sm flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-accent-ink has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${send.isPending ? "opacity-40" : "cursor-pointer"}`}>
+            <label className={`tap raised-sm flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-accent-ink has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${busy ? "opacity-40" : "cursor-pointer"}`}>
               <Icon name="add_a_photo" size={22} />
               <input
                 type="file"
                 accept="image/*"
                 multiple
                 aria-label={t.health.attach}
-                disabled={send.isPending}
+                disabled={busy}
                 onChange={(event) => {
                   const files = Array.from(event.target.files ?? []);
                   event.target.value = "";
@@ -261,7 +275,7 @@ function Conversation() {
               <button
                 type="submit"
                 aria-label={t.health.send}
-                disabled={!text.trim() || send.isPending}
+                disabled={!text.trim() || busy}
                 className="tap flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-on-accent disabled:opacity-40"
               >
                 <Icon name="arrow_upward" size={20} />

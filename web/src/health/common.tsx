@@ -10,7 +10,7 @@ import type { IconName } from "../icons/paths.ts";
 import { preparePhoto } from "../photos/prepare.ts";
 import { useHealth } from "../queries.ts";
 import { MAX_LAB_PHOTOS } from "../shared.ts";
-import type { DocumentKind, DocumentReadView, DocumentView, FactDraft, FactKind, HealthView, PhotoUpload } from "../shared.ts";
+import type { DocumentKind, DocumentView, FactDraft, FactKind, HealthView, PhotoUpload } from "../shared.ts";
 
 // What the Health tab's screens share (2026-10-19 health tab design): the page frame, the consent gate, names and dates,
 // and the one way every screen writes.
@@ -92,14 +92,6 @@ export async function uploadPhotos(files: readonly File[]): Promise<string[]> {
     ids.push((await api<PhotoUpload>("/api/photos", { blob })).id);
   }
   return ids;
-}
-
-/** Reads photos of a record into something to check (design §2): nothing is saved. */
-export function useReadRecord(onRead: (read: DocumentReadView) => void) {
-  return useMutation({
-    mutationFn: async (files: File[]) => api<DocumentReadView>("/api/records/read", { json: { photo_ids: await uploadPhotos(files) } }),
-    onSuccess: onRead,
-  });
 }
 
 /** A screen of the tab: a title, the way back, and room under it for the tab bar. */

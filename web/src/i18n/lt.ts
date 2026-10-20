@@ -4,7 +4,7 @@ export const lt: Messages = {
   locale: "lt-LT",
   dateMonth: "long",
   units: { kcal: "kcal", g: "g" },
-  nav: { main: "Pagrindinis", today: "Šiandien", insights: "Įžvalgos", health: "Sveikata", settings: "Nustatymai" },
+  nav: { main: "Pagrindinis", today: "Šiandien", insights: "Įžvalgos", health: "Sveikata", settings: "Nustatymai", new: "nauja" },
   session: { signedOut: "Atsijungta.", signIn: "Palieskite, kad prisijungtumėte" },
   setup: {
     title: "Sveiki",
