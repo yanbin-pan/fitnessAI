@@ -190,7 +190,7 @@ phone use client-generated UUIDs so that repeated submissions are idempotent.
 | `sex` | `male` / `female` — selects the Mifflin-St Jeor constant |
 | `birth_date`, `height_cm` | |
 | `weight_kg` | fallback when there are no recent weigh-ins (§7.4) |
-| `activity_level` | `sedentary` 1.2 · `light` 1.375 · `moderate` 1.55 · `very` 1.725 — day-to-day activity **excluding workouts** |
+| `activity_level` | `sedentary` 1.45 · `light` 1.65 · `moderate` 1.85 · `very` 2.2 — day-to-day activity **excluding workouts** (PAL midpoints of the DGE/FAO bands that leave out sport; changed 2026-10-20 from the Mifflin 1.2–1.725 ladder, which already counts exercise) |
 | `goal`, `goal_rate_kg_week` | the body-composition goal: `lose` / `maintain` / `gain`; rate 0–1 kg per week |
 | `body_goal_priority` | `high` / `normal`, default `high` — how the coach weighs it against holistic goals |
 | `protein_g_per_kg` | default 1.8 |

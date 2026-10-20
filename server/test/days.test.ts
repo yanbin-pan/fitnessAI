@@ -37,11 +37,11 @@ describe("profile", () => {
 describe("day snapshots", () => {
   it("freeze a day's targets the first time the day is touched", () => {
     db = openTestDb();
-    expect(ensureDay(db.db, makeProfile(), "2026-10-03", NOW_ISO).base_kcal).toBeCloseTo(1863.125, 6);
+    expect(ensureDay(db.db, makeProfile(), "2026-10-03", NOW_ISO).base_kcal).toBeCloseTo(2345.75, 6);
     // A later profile change does not rewrite the stored day.
-    expect(ensureDay(db.db, makeProfile({ weight_kg: 90 }), "2026-10-03", NOW_ISO).base_kcal).toBeCloseTo(1863.125, 6);
+    expect(ensureDay(db.db, makeProfile({ weight_kg: 90 }), "2026-10-03", NOW_ISO).base_kcal).toBeCloseTo(2345.75, 6);
     const stored = getDay(db.db, "2026-10-03");
-    expect(stored?.base_kcal).toBeCloseTo(1863.125, 6);
+    expect(stored?.base_kcal).toBeCloseTo(2345.75, 6);
     expect(stored?.weight_kg_used).toBe(80);
   });
 
@@ -52,7 +52,7 @@ describe("day snapshots", () => {
     expect(getDay(db.db, "2026-10-03")).toMatchObject({ base_kcal: 2100, add_back_pct: 25, weight_kg_used: 78 });
     // A day with no snapshot yet gets one.
     refreshDay(db.db, makeProfile(), "2026-10-04", NOW_ISO);
-    expect(getDay(db.db, "2026-10-04")?.base_kcal).toBeCloseTo(1863.125, 6);
+    expect(getDay(db.db, "2026-10-04")?.base_kcal).toBeCloseTo(2345.75, 6);
   });
 });
 
@@ -69,7 +69,7 @@ describe("buildDayView", () => {
     expect(view.totals).toMatchObject({ kcal: 500, protein_g: 30, saturated_fat_g: 5, fluid_ml: 250 });
     expect(view.targets.workout_kcal).toBe(400);
     expect(view.targets.add_back_kcal).toBe(200);
-    expect(view.targets.adjusted.kcal).toBeCloseTo(2063.125, 6);
+    expect(view.targets.adjusted.kcal).toBeCloseTo(2545.75, 6);
     expect(view.entries).toHaveLength(2);
     expect(view.messages).toEqual([]);
     expect(view.today).toBe("2026-10-03");
@@ -126,7 +126,7 @@ describe("buildDayView", () => {
   it("gives an untouched past day targets from the current profile without storing it", () => {
     db = openTestDb();
     const view = buildDayView(db.db, makeProfile(), "2026-09-01", "2026-10-03", NOW_ISO, []);
-    expect(view.targets.base.kcal).toBeCloseTo(1863.125, 6);
+    expect(view.targets.base.kcal).toBeCloseTo(2345.75, 6);
     expect(getDay(db.db, "2026-09-01")).toBeNull();
   });
 
@@ -236,7 +236,7 @@ describe("day summaries", () => {
     ensureDay(db.db, makeProfile(), "2026-10-01", NOW_ISO); // frozen at the calculated 1,863.125 kcal
     for (const date of ["2026-10-01", "2026-10-02"]) insertEntry(db.db, sampleEntry({ date, foods: [sampleFood({ kcal: 100 })] }), NOW_ISO);
     const [frozen, unfrozen] = daySummaries(db.db, makeProfile({ override_kcal: 3000 }), "2026-10-01", "2026-10-02", NOW_ISO);
-    expect(frozen.target_kcal).toBeCloseTo(1863.125, 6); // the profile changed since: the day keeps its own
+    expect(frozen.target_kcal).toBeCloseTo(2345.75, 6); // the profile changed since: the day keeps its own
     expect(unfrozen.target_kcal).toBe(3000); // nothing stored for it, so what it would freeze today
     expect(getDay(db.db, "2026-10-02")).toBeNull(); // and reading does not store it
   });

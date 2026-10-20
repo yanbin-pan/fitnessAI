@@ -29,13 +29,21 @@ describe("goalDelta", () => {
 
 describe("baselineTargets", () => {
   it("matches a hand-worked example", () => {
-    // BMR 1755 × 1.375 = 2413.125, minus 550 for losing 0.5 kg a week.
+    // BMR 1755 × 1.65 = 2895.75, minus 550 for losing 0.5 kg a week.
     const t = baselineTargets(makeProfile(), 80, DATE);
-    expect(t.kcal).toBeCloseTo(1863.125, 6);
+    expect(t.kcal).toBeCloseTo(2345.75, 6);
     expect(t.protein_g).toBeCloseTo(144, 6); // 1.8 g × 80 kg
-    expect(t.fat_g).toBeCloseTo(62.1041667, 6); // 30 % of kcal ÷ 9
-    expect(t.carbs_g).toBeCloseTo(182.046875, 6); // the remainder ÷ 4
+    expect(t.fat_g).toBeCloseTo(78.1916667, 6); // 30 % of kcal ÷ 9
+    expect(t.carbs_g).toBeCloseTo(266.50625, 6); // the remainder ÷ 4
     expect(t.fibre_g).toBe(30);
+  });
+
+  it("puts a 31-year-old desk worker, 173 cm and 72 kg, at about 2394 kcal before workouts", () => {
+    // BMR 10×72 + 6.25×173 − 5×31 + 5 = 1651.25, × 1.45 for a desk day, no goal change.
+    const profile = makeProfile({
+      birth_date: "1995-01-01", height_cm: 173, weight_kg: 72, activity_level: "sedentary", goal: "maintain",
+    });
+    expect(baselineTargets(profile, 72, DATE).kcal).toBeCloseTo(2394.3125, 6);
   });
 
   it("never goes below BMR", () => {
@@ -48,7 +56,7 @@ describe("baselineTargets", () => {
 
   it("adds the surplus when gaining", () => {
     const profile = makeProfile({ goal: "gain", goal_rate_kg_week: 0.25 });
-    expect(baselineTargets(profile, 80, DATE).kcal).toBeCloseTo(2688.125, 6);
+    expect(baselineTargets(profile, 80, DATE).kcal).toBeCloseTo(3170.75, 6);
   });
 
   it("lets fat follow an overridden kcal and keeps carbs as the remainder", () => {
@@ -64,7 +72,7 @@ describe("baselineTargets", () => {
 
   it("can ignore overrides, for showing the calculated values", () => {
     const t = baselineTargets(makeProfile({ override_kcal: 2000 }), 80, DATE, false);
-    expect(t.kcal).toBeCloseTo(1863.125, 6);
+    expect(t.kcal).toBeCloseTo(2345.75, 6);
   });
 });
 

@@ -35,14 +35,19 @@ export const ACTIVITIES = [
 ] as const;
 export type Activity = (typeof ACTIVITIES)[number];
 
-/** Day-to-day activity EXCLUDING workouts (spec §5, profile.activity_level); workouts are added back separately (spec §7.2). */
+/**
+ * Day-to-day activity EXCLUDING workouts (spec §5, profile.activity_level); workouts are added back separately (spec §7.2).
+ * Factors are physical activity levels (PAL, TEE ÷ BMR) for the job and daily life alone, midpoints of the DGE/FAO bands
+ * that leave out sport: desk 1.4–1.5, some walking 1.6–1.7, mostly standing 1.8–1.9, physical work 2.0–2.4.
+ * The Mifflin-St Jeor 1.2–1.725 ladder would be wrong here: it counts the week's exercise, which we add from the log instead.
+ */
 export const ACTIVITY_LEVEL_KEYS = ["sedentary", "light", "moderate", "very"] as const;
 export type ActivityLevel = (typeof ACTIVITY_LEVEL_KEYS)[number];
 export const ACTIVITY_FACTORS: Record<ActivityLevel, number> = {
-  sedentary: 1.2,
-  light: 1.375,
-  moderate: 1.55,
-  very: 1.725,
+  sedentary: 1.45,
+  light: 1.65,
+  moderate: 1.85,
+  very: 2.2,
 };
 
 export const BODY_GOALS = ["lose", "maintain", "gain"] as const;
