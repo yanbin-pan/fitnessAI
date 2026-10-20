@@ -16,7 +16,7 @@ export const en = {
   dateMonth: "short" as "short" | "long",
   /** Units the app writes after a number it formats itself. */
   units: { kcal: "kcal", g: "g" },
-  nav: { main: "Main", today: "Today", insights: "Insights", health: "Health", settings: "Settings" },
+  nav: { main: "Main", today: "Today", insights: "Insights", health: "Health", settings: "Settings", new: "new" },
   session: { signedOut: "Signed out.", signIn: "Tap to sign in" },
   setup: {
     title: "Welcome",

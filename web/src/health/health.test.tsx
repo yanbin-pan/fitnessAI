@@ -98,6 +98,27 @@ describe("the Health home", () => {
     expect(within(records).getByRole("link", { name: /Knee MRI, left/ })).toBeInTheDocument();
   });
 
+  it("keeps reading a record after you leave the tab, and has it ready to check when you come back", async () => {
+    const read: DocumentReadView = {
+      kind: "imaging", taken_on: "2026-06-18", title: "Knee MRI, left", source: "Radiologie am Rhein", language: "German",
+      summary: "", observations: [], facts: [],
+    };
+    let answer: (res: Response) => void = () => {};
+    serve({
+      "GET /api/records": empty,
+      "POST /api/photos": { id: "a".repeat(32) },
+      "POST /api/records/read": () => new Promise<Response>((resolve) => (answer = resolve)),
+    });
+    const away = renderAt("/health");
+    await userEvent.upload(await screen.findByLabelText("Upload file"), new File(["x"], "page.jpg", { type: "image/jpeg" }));
+    expect(await screen.findByText("Reading your record…")).toBeInTheDocument();
+    away.unmount();
+    answer(jsonResponse(read));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    renderAt("/health");
+    expect(await screen.findByRole("dialog", { name: "Check what I read" })).toBeInTheDocument();
+  });
+
   it("reads photos of a record and saves it once checked, with the facts ticked and the rest left as suggestions", async () => {
     const read: DocumentReadView = {
       kind: "imaging", taken_on: "2026-06-18", title: "Knee MRI, left", source: "Radiologie am Rhein", language: "German",

@@ -4,7 +4,7 @@ export const it: Messages = {
   locale: "it-IT",
   dateMonth: "short",
   units: { kcal: "kcal", g: "g" },
-  nav: { main: "Principale", today: "Oggi", insights: "Approfondimenti", health: "Salute", settings: "Impostazioni" },
+  nav: { main: "Principale", today: "Oggi", insights: "Approfondimenti", health: "Salute", settings: "Impostazioni", new: "novità" },
   session: { signedOut: "Sessione scaduta.", signIn: "Tocca per accedere" },
   setup: {
     title: "Benvenuto",

@@ -212,19 +212,19 @@ describe("Composer photos", () => {
       expect(screen.queryByRole("img", { name: "Photo 1" })).toBeNull();
     });
 
-    it("doesn't upload one when the composer has gone, and lets go of its thumbnails", async () => {
-      const create = vi.spyOn(URL, "createObjectURL");
-      const revoke = vi.spyOn(URL, "revokeObjectURL");
+    it("finishes one while the composer is away, and has it ready to send on coming back", async () => {
       const { release } = holdNextPhoto();
-      const fetchMock = mockFetch(() => uploaded("d".repeat(32)));
+      const fetchMock = mockFetch((url) => (url === "/api/photos" ? uploaded("d".repeat(32)) : stored()));
       const { unmount } = renderWithProviders(<Composer date="2026-10-03" />);
       await userEvent.upload(screen.getByLabelText("Add photos"), photoFile());
       unmount();
       release();
       await settle();
-      expect(fetchMock).not.toHaveBeenCalled();
-      const revoked = revoke.mock.calls.map(([url]) => url);
-      expect(create.mock.results.map((result) => result.value).filter((url) => !revoked.includes(url))).toEqual([]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      renderWithProviders(<Composer date="2026-10-03" />);
+      expect(screen.getByRole("img", { name: "Photo 1" })).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      expect(sentMessages(fetchMock.mock.calls)).toEqual([expect.objectContaining({ photo_ids: ["d".repeat(32)] })]);
     });
 
     it("says nothing about one you removed before it turned out to be unreadable", async () => {
@@ -497,15 +497,14 @@ describe("Composer photos", () => {
       expect(live()).toEqual([]);
     });
 
-    it("lets go of the thumbnails when the composer goes away", async () => {
+    it("keeps the thumbnails of an unsent draft when the composer goes away", async () => {
       const live = watchObjectUrls();
       mockFetch((url) => (url === "/api/photos" ? uploaded("b".repeat(32)) : stored()));
       const { unmount } = renderWithProviders(<Composer date="2026-10-03" />);
       await userEvent.upload(screen.getByLabelText("Add photos"), photoFile());
       await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
-      expect(live()).toHaveLength(1);
       unmount();
-      expect(live()).toEqual([]);
+      expect(live()).toHaveLength(1);
     });
   });
 });

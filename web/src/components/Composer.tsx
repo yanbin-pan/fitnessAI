@@ -12,6 +12,7 @@ import { preparePhoto } from "../photos/prepare.ts";
 import { storeDay } from "../queries.ts";
 import { MAX_PHOTOS_PER_MESSAGE } from "../shared.ts";
 import type { EntryResult, MessageInput, PhotoUpload, Regular } from "../shared.ts";
+import { preparing, removed, useDraft } from "./drafts.ts";
 import { sportOf } from "./SportBadge.tsx";
 
 interface Attachment {
@@ -119,34 +120,13 @@ function RegularChips({ suggestions }: { suggestions: Regular[] }) {
 export function Composer({ date, suggestions = [] }: { date: string; suggestions?: Regular[] }) {
   const client = useQueryClient();
   const t = useT();
-  const [text, setText] = useState("");
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  // Kept outside the composer, so a draft is still here after a look at another day or tab.
+  const { text, attachments, setText, setAttachments } = useDraft<Attachment>(date);
   const [notice, setNotice] = useState<string | null>(null);
   // The id and timestamp belong to the unsent message, not to each tap on Send. If a response is
   // lost after the server has already run the coach, sending the same message again must carry
   // the same id, so the server hands back what it stored instead of logging the meal twice (spec 6.3).
   const attempt = useRef<{ key: string; input: MessageInput } | null>(null);
-  // Attachments that are gone (removed, or left behind when the composer went away) while their photo
-  // was still being prepared: don't upload those.
-  const removed = useRef(new Set<string>());
-  // Photos are prepared one at a time, each after the one before has finished: decoding several
-  // full-size photos at once can use up an iPhone's memory and get the page killed. Uploads may overlap.
-  const preparing = useRef<Promise<unknown>>(Promise.resolve());
-  // The list as last rendered, for the cleanup on unmount.
-  const latest = useRef(attachments);
-  useEffect(() => {
-    latest.current = attachments;
-  }, [attachments]);
-  useEffect(
-    () => () => {
-      // Leaving removes every photo, so one still being prepared isn't uploaded for a message nobody will send.
-      for (const a of latest.current) {
-        removed.current.add(a.key);
-        URL.revokeObjectURL(a.preview);
-      }
-    },
-    [],
-  );
   // Photos, a notice, an alert or a longer message change how tall the composer is. The page behind it needs
   // that height (as --composer-h) to leave room, so the end of the feed can always scroll clear of the composer.
   const form = useRef<HTMLFormElement>(null);
@@ -174,7 +154,7 @@ export function Composer({ date, suggestions = [] }: { date: string; suggestions
   // Object URLs are revoked inside the updaters on purpose: an updater always sees the current list,
   // and revoking a URL twice is harmless.
   function remove(key: string) {
-    removed.current.add(key);
+    removed.add(key);
     setAttachments((list) => {
       const gone = list.find((a) => a.key === key);
       if (gone) URL.revokeObjectURL(gone.preview);
@@ -190,7 +170,7 @@ export function Composer({ date, suggestions = [] }: { date: string; suggestions
     } catch (error) {
       // The server won't take this photo however often it is sent, so a retry would only fail again.
       if (error instanceof ApiError && (error.code === "image_too_large" || error.code === "not_an_image")) {
-        if (!removed.current.has(key)) {
+        if (!removed.has(key)) {
           remove(key);
           setNotice(t.composer.cantSend);
         }
@@ -217,13 +197,13 @@ export function Composer({ date, suggestions = [] }: { date: string; suggestions
       ({ blob } = await prepareInTurn(file));
     } catch {
       // If it was removed in the meantime, there is nothing to report.
-      if (!removed.current.has(key)) {
+      if (!removed.has(key)) {
         remove(key);
         setNotice(t.composer.cantRead);
       }
       return;
     }
-    if (removed.current.has(key)) return;
+    if (removed.has(key)) return;
     const preview = URL.createObjectURL(blob);
     setAttachments((list) => {
       if (!list.some((a) => a.key === key)) {

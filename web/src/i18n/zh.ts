@@ -4,7 +4,7 @@ export const zh: Messages = {
   locale: "zh-CN",
   dateMonth: "short",
   units: { kcal: "千卡", g: "克" },
-  nav: { main: "主导航", today: "今天", insights: "洞察", health: "健康", settings: "设置" },
+  nav: { main: "主导航", today: "今天", insights: "洞察", health: "健康", settings: "设置", new: "有新内容" },
   session: { signedOut: "已退出登录。", signIn: "点此重新登录" },
   setup: {
     title: "欢迎",
