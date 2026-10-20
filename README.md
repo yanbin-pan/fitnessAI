@@ -22,7 +22,7 @@ one file per language, typed against `en.ts` so a missing string fails the typec
 (once 5 days are logged) is offered as a chip in the chat around its usual time, and one
 tap logs it. The Regulars tab reviews, edits and removes them; there is no adding one.
 **Insights** is a weekly coach's analysis of nutrition and training, written every Monday
-once 14 days are logged: exact numbers worked out in code, interpreted by Claude in the
+once 7 days are logged: exact numbers worked out in code, interpreted by Claude in the
 person's language. Design: [`docs/superpowers/specs/2026-10-06-regulars-and-insights-design.md`](docs/superpowers/specs/2026-10-06-regulars-and-insights-design.md).
 
 Under the macros, a folded **Vitamins, fats & sugar** card gives a word for each (fats,
