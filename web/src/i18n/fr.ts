@@ -541,6 +541,7 @@ export const fr: Messages = {
     rule: "Suit vos 7 derniers jours bien renseignés, pas une seule journée. Les jours manqués ou à peine renseignés ne comptent pas.",
     alcohol: (units: string) => `Au-dessus du repère britannique de 14 unités par semaine : ${units} unités sur les 7 derniers jours. Zabaione est un peu pompette.`,
     alcoholShort: "au-dessus du repère d’alcool",
+    holdHint: (name: string) => `Maintiens ${name} pour un aperçu, touche pour ouvrir`,
   },
   companionPrompt: {
     title: "Choisissez un compagnon",

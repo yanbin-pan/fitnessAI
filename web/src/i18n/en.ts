@@ -577,6 +577,8 @@ export const en = {
     /** Over the weekly alcohol guide: the woozy layer, in the bubble and in the button's name. */
     alcohol: (units: string) => `Over the UK guide of 14 units a week: ${units} units in the last 7 days. Zabaione is feeling a bit woozy.`,
     alcoholShort: "over the alcohol guide",
+    /** Under the newest reply until the first peek or open (2026-10-20): the small companion is a button. */
+    holdHint: (name: string) => `Hold ${name} to peek, tap to open`,
   },
   companionPrompt: {
     title: "Pick a companion",

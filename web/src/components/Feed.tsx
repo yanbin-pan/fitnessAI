@@ -5,7 +5,8 @@ import { useT } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
 import { chatOpen } from "../shared.ts";
 import type { ChatMessage, CompanionId, CompanionStatus, DayView, Entry } from "../shared.ts";
-import { CompanionAvatar } from "./CompanionButton.tsx";
+import { CompanionAvatar, useHoldHint } from "./CompanionButton.tsx";
+import { COMPANION_NAMES } from "../shared.ts";
 import { EntryCard } from "./EntryCard.tsx";
 import { quietButton } from "./ui.tsx";
 
@@ -43,6 +44,14 @@ export function newestCoachRow(view: DayView, logOnly: boolean, greeting: string
   return newest;
 }
 
+/** Under the newest reply until the companion has been peeked at or opened once. */
+function HoldHint({ speaker }: { speaker: Speaker }) {
+  const t = useT();
+  const show = useHoldHint();
+  if (!show) return null;
+  return <p className="ml-10 text-xs text-muted">{t.companion.holdHint(COMPANION_NAMES[speaker.id])}</p>;
+}
+
 /** The coach's mark beside a row: the companion, or the coach's whistle where there is no companion to show. */
 function CoachMark({ speaker, live }: { speaker?: Speaker; live: boolean }) {
   if (speaker) return <CompanionAvatar companion={speaker.id} status={speaker.status} live={live} />;
@@ -71,9 +80,12 @@ interface FeedProps {
 /** Zabaione's hello, drawn like one of its replies. */
 function Greeting({ text, speaker, live }: { text: string; speaker?: Speaker; live: boolean }) {
   return (
-    <div className="mr-6 flex items-end gap-2">
-      <CoachMark speaker={speaker} live={live} />
-      <p className="raised-tint tint-custard rounded-2xl rounded-tl-md px-3 py-2">{text}</p>
+    <div className="flex flex-col gap-1">
+      <div className="mr-6 flex items-end gap-2">
+        <CoachMark speaker={speaker} live={live} />
+        <p className="raised-tint tint-custard rounded-2xl rounded-bl-md px-3 py-2">{text}</p>
+      </div>
+      {speaker && live && <HoldHint speaker={speaker} />}
     </div>
   );
 }
@@ -157,9 +169,10 @@ function Bubble({
       {message.text && (
         <div className="flex items-end gap-2">
           <CoachMark speaker={speaker} live={newest === message.id} />
-          <p className="raised-tint tint-custard whitespace-pre-wrap rounded-2xl rounded-tl-md px-3 py-2">{message.text}</p>
+          <p className="raised-tint tint-custard whitespace-pre-wrap rounded-2xl rounded-bl-md px-3 py-2">{message.text}</p>
         </div>
       )}
+      {message.text && speaker && newest === message.id && <HoldHint speaker={speaker} />}
       {message.cards.map((card) => {
         const entry = entries.get(card.id);
         if (!entry) {
