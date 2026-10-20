@@ -36,6 +36,7 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 function CalorieRing({ eaten, drinks, target }: { eaten: number; drinks: number; target: number }) {
   const t = useT();
   const pattern = useId();
+  const sheen = useId();
   const shown = kcal10(target);
   const share = shown > 0 ? Math.min(1, eaten / shown) : 0;
   const drinkShare = shown > 0 && eaten > 0 ? Math.min(share, drinks / shown) : 0;
@@ -48,6 +49,11 @@ function CalorieRing({ eaten, drinks, target }: { eaten: number; drinks: number;
     <div className="pressed relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full">
       <svg viewBox="0 0 88 88" aria-hidden="true" className={`absolute inset-0 h-full w-full -rotate-90 ${left < 0 ? "stripes-over" : "stripes-kcal"}`}>
         <defs>
+          {/* The ring runs from the accent into teal, a little light along the way (2026-10-20, a touch of colour). */}
+          <linearGradient id={sheen} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" style={{ stopColor: "var(--nm-accent)" }} />
+            <stop offset="1" style={{ stopColor: "var(--nm-accent-2)" }} />
+          </linearGradient>
           <pattern id={pattern} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <rect width="5" height="5" style={{ fill: "var(--s-bg)" }} />
             <rect width="2.2" height="5" style={{ fill: "var(--s-fg)" }} />
@@ -56,7 +62,8 @@ function CalorieRing({ eaten, drinks, target }: { eaten: number; drinks: number;
         {foodShare > 0 && (
           <circle
             cx="44" cy="44" r={RADIUS} fill="none" strokeWidth="7" strokeLinecap="round"
-            className={left < 0 ? "stroke-danger" : "stroke-accent"}
+            className={left < 0 ? "stroke-danger" : undefined}
+            stroke={left < 0 ? undefined : `url(#${sheen})`}
             strokeDasharray={`${CIRCUMFERENCE * foodShare} ${CIRCUMFERENCE}`}
           />
         )}
@@ -85,7 +92,10 @@ function Bar({ label, fill, stripes, value, drinks, target }: { label: string; f
   return (
     <div>
       <div className="flex justify-between text-xs">
-        <span>{label}</span>
+        <span className="flex items-center gap-1.5">
+          <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${fill}`} />
+          {label}
+        </span>
         <span className="text-muted">
           {Math.round(value)} / {Math.round(target)} {t.units.g}
         </span>

@@ -49,7 +49,7 @@ function Tab({ to, icon, label, active, news = false }: { to: string; icon: Icon
       aria-current={active ? "page" : undefined}
       className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl text-xs ${active ? "font-medium text-accent-ink" : "text-muted"}`}
     >
-      <span className={`relative flex h-8 w-12 items-center justify-center rounded-xl ${active ? "pressed" : ""}`}>
+      <span className={`relative flex h-8 w-12 items-center justify-center rounded-xl ${active ? "well-tint tint-green" : ""}`}>
         <Icon name={icon} size={22} />
         {/* Something new waits there (2026-10-20, option A): a small dot in the accent, ringed in the bar's colour. */}
         {news && <span aria-hidden="true" className="absolute top-[3px] right-2.5 h-2 w-2 rounded-full bg-accent shadow-[0_0_0_2px_var(--nm-base)]" />}

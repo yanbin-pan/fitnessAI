@@ -54,13 +54,13 @@ describe("Summary", () => {
     expect(screen.getByText(words)).toBeInTheDocument();
   });
 
-  it("draws no arc until something is eaten, an accent arc up to the target and a danger arc once over", () => {
+  it("draws no arc until something is eaten, an accent gradient arc up to the target and a danger arc once over", () => {
     const { container, rerender } = render(<Summary view={kcalDay(2000, 0)} />);
     expect(container.querySelector("circle")).toBeNull();
     rerender(<Summary view={kcalDay(2000, 1500)} />);
-    expect(container.querySelector("circle")).toHaveClass("stroke-accent");
+    expect(container.querySelector("circle")?.getAttribute("stroke")).toMatch(/^url\(#/);
     rerender(<Summary view={kcalDay(2000, 2000)} />);
-    expect(container.querySelector("circle")).toHaveClass("stroke-accent");
+    expect(container.querySelector("circle")?.getAttribute("stroke")).toMatch(/^url\(#/);
     rerender(<Summary view={kcalDay(2000, 2150)} />);
     expect(container.querySelector("circle")).toHaveClass("stroke-danger");
   });

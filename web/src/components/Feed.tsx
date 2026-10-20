@@ -40,10 +40,10 @@ interface FeedProps {
 function Greeting({ text }: { text: string }) {
   return (
     <div className="mr-6 flex items-start gap-2">
-      <span className="raised-sm flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-accent-ink">
+      <span className="well-tint tint-custard flex h-7 w-7 shrink-0 items-center justify-center rounded-full">
         <Icon name="sports" size={16} />
       </span>
-      <p className="pt-0.5">{text}</p>
+      <p className="raised-tint tint-custard rounded-2xl rounded-tl-md px-3 py-2">{text}</p>
     </div>
   );
 }
@@ -64,7 +64,7 @@ function CoachWorking({ id }: { id: string }) {
   const step = useStep(id) ?? t.coach.thinking;
   return (
     <div role="status" className="mr-6 mt-3 flex items-center gap-2">
-      <span className="raised-sm flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-accent-ink">
+      <span className="well-tint tint-custard flex h-7 w-7 shrink-0 items-center justify-center rounded-full">
         <Icon name="sports" size={16} />
       </span>
       <span aria-hidden="true" className="flex gap-1">
@@ -87,7 +87,7 @@ function Bubble({
     return (
       <>
         <div className="ml-10 flex flex-col items-end">
-          <div className="raised-sm max-w-full rounded-2xl rounded-br-md p-1.5">
+          <div className="raised-tint tint-green max-w-full rounded-2xl rounded-br-md p-1.5">
             {photoIds.length > 0 && (
               <div className="flex flex-wrap justify-end gap-1.5">
                 {photoIds.map((id, index) => (
@@ -126,10 +126,10 @@ function Bubble({
     <div className="mr-6 flex flex-col gap-2">
       {message.text && (
         <div className="flex items-start gap-2">
-          <span className="raised-sm flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-accent-ink">
+          <span className="well-tint tint-custard flex h-7 w-7 shrink-0 items-center justify-center rounded-full">
             <Icon name="sports" size={16} />
           </span>
-          <p className="whitespace-pre-wrap pt-0.5">{message.text}</p>
+          <p className="raised-tint tint-custard whitespace-pre-wrap rounded-2xl rounded-tl-md px-3 py-2">{message.text}</p>
         </div>
       )}
       {message.cards.map((card) => {
