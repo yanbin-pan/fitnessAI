@@ -4,7 +4,8 @@ import { dayLabel, failureText } from "../format.ts";
 import { useT } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
 import { chatOpen } from "../shared.ts";
-import type { ChatMessage, DayView, Entry } from "../shared.ts";
+import type { ChatMessage, CompanionId, CompanionStatus, DayView, Entry } from "../shared.ts";
+import { CompanionAvatar } from "./CompanionButton.tsx";
 import { EntryCard } from "./EntryCard.tsx";
 import { quietButton } from "./ui.tsx";
 
@@ -23,6 +24,35 @@ export function buildFeed(view: DayView, logOnly: boolean): FeedItem[] {
   ]);
 }
 
+/** Who speaks for the coach: the companion and its week. An older server sends no mood, and then there is none. */
+export type Speaker = { id: CompanionId; status: CompanionStatus };
+
+/**
+ * The coach's newest row in the chat (2026-10-20): the companion moves there. `working-<id>` while a reply is on its
+ * way, the greeting's "greeting", a reply's id; null when the chat shows nothing from the coach.
+ */
+export function newestCoachRow(view: DayView, logOnly: boolean, greeting: string | null | undefined): string | null {
+  if (logOnly) return null;
+  let newest: string | null = greeting ? "greeting" : null;
+  for (const item of buildFeed(view, false)) {
+    if (item.kind !== "message") continue;
+    const { message } = item;
+    if (message.role === "user" && message.status === "pending") newest = `working-${message.id}`;
+    else if (message.role !== "user" && message.text) newest = message.id;
+  }
+  return newest;
+}
+
+/** The coach's mark beside a row: the companion, or the coach's whistle where there is no companion to show. */
+function CoachMark({ speaker, live }: { speaker?: Speaker; live: boolean }) {
+  if (speaker) return <CompanionAvatar companion={speaker.id} status={speaker.status} live={live} />;
+  return (
+    <span className="well-tint tint-custard flex h-7 w-7 shrink-0 items-center justify-center rounded-full">
+      <Icon name="sports" size={16} />
+    </span>
+  );
+}
+
 interface FeedProps {
   view: DayView;
   logOnly: boolean;
@@ -34,15 +64,15 @@ interface FeedProps {
   retrying?: string | null;
   /** Zabaione's hello at the top of today's chat (the name and greeting design, 3B); never stored, made on the phone. */
   greeting?: string | null;
+  /** The companion, which stands beside the coach's replies and moves on the newest. */
+  speaker?: Speaker;
 }
 
 /** Zabaione's hello, drawn like one of its replies. */
-function Greeting({ text }: { text: string }) {
+function Greeting({ text, speaker, live }: { text: string; speaker?: Speaker; live: boolean }) {
   return (
-    <div className="mr-6 flex items-start gap-2">
-      <span className="well-tint tint-custard flex h-7 w-7 shrink-0 items-center justify-center rounded-full">
-        <Icon name="sports" size={16} />
-      </span>
+    <div className="mr-6 flex items-end gap-2">
+      <CoachMark speaker={speaker} live={live} />
       <p className="raised-tint tint-custard rounded-2xl rounded-tl-md px-3 py-2">{text}</p>
     </div>
   );
@@ -59,27 +89,27 @@ function PhotoThumb({ id, index, single }: { id: string; index: number; single: 
 }
 
 /** The coach's row while it works on a message (spec §11.1): dots, and what it is doing. Screen readers hear each step. */
-function CoachWorking({ id }: { id: string }) {
+function CoachWorking({ id, speaker, live }: { id: string; speaker?: Speaker; live: boolean }) {
   const t = useT();
   const step = useStep(id) ?? t.coach.thinking;
   return (
-    <div role="status" className="mr-6 mt-3 flex items-center gap-2">
-      <span className="well-tint tint-custard flex h-7 w-7 shrink-0 items-center justify-center rounded-full">
-        <Icon name="sports" size={16} />
+    <div className="mr-6 mt-3 flex items-center gap-2">
+      <CoachMark speaker={speaker} live={live} />
+      <span role="status" className="flex items-center gap-2">
+        <span aria-hidden="true" className="flex gap-1">
+          {[0, 1, 2].map((dot) => (
+            <span key={dot} className="h-1.5 w-1.5 animate-pulse rounded-full bg-muted motion-reduce:animate-none" style={{ animationDelay: `${dot * 200}ms` }} />
+          ))}
+        </span>
+        <span className="text-sm text-muted">{step}</span>
       </span>
-      <span aria-hidden="true" className="flex gap-1">
-        {[0, 1, 2].map((dot) => (
-          <span key={dot} className="h-1.5 w-1.5 animate-pulse rounded-full bg-muted motion-reduce:animate-none" style={{ animationDelay: `${dot * 200}ms` }} />
-        ))}
-      </span>
-      <span className="text-sm text-muted">{step}</span>
     </div>
   );
 }
 
 function Bubble({
-  message, entries, date, today, onRetry, onEdit, onUndo, retrying,
-}: { message: ChatMessage; entries: Map<string, Entry>; date: string; today: string } & Pick<FeedProps, "onRetry" | "onEdit" | "onUndo" | "retrying">) {
+  message, entries, date, today, onRetry, onEdit, onUndo, retrying, speaker, newest,
+}: { message: ChatMessage; entries: Map<string, Entry>; date: string; today: string; newest: string | null } & Pick<FeedProps, "onRetry" | "onEdit" | "onUndo" | "retrying" | "speaker">) {
   const t = useT();
   if (message.role === "user") {
     // An older server may not send photo_ids yet.
@@ -112,7 +142,7 @@ function Bubble({
             </span>
           )}
         </div>
-        {message.status === "pending" && <CoachWorking id={message.id} />}
+        {message.status === "pending" && <CoachWorking id={message.id} speaker={speaker} live={newest === `working-${message.id}`} />}
       </>
     );
   }
@@ -125,10 +155,8 @@ function Bubble({
   return (
     <div className="mr-6 flex flex-col gap-2">
       {message.text && (
-        <div className="flex items-start gap-2">
-          <span className="well-tint tint-custard flex h-7 w-7 shrink-0 items-center justify-center rounded-full">
-            <Icon name="sports" size={16} />
-          </span>
+        <div className="flex items-end gap-2">
+          <CoachMark speaker={speaker} live={newest === message.id} />
           <p className="raised-tint tint-custard whitespace-pre-wrap rounded-2xl rounded-tl-md px-3 py-2">{message.text}</p>
         </div>
       )}
@@ -159,7 +187,7 @@ function Bubble({
   );
 }
 
-export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying, greeting }: FeedProps) {
+export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying, greeting, speaker }: FeedProps) {
   const t = useT();
   const items = buildFeed(view, logOnly);
   // A card can point at an entry dated another day (back-dated), which travels in linked_entries.
@@ -173,11 +201,12 @@ export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying, greetin
     ) : null;
   // The hello belongs to the chat, so Log only leaves it out.
   const hello = greeting && !logOnly ? greeting : null;
+  const newest = newestCoachRow(view, logOnly, hello);
   // A greeting already invites the first message, so it stands in for the empty-day text.
   if (items.length === 0 && hello) {
     return (
       <div className="px-4 py-4">
-        <Greeting text={hello} />
+        <Greeting text={hello} speaker={speaker} live />
       </div>
     );
   }
@@ -196,7 +225,7 @@ export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying, greetin
       <ol className="flex flex-col gap-3 px-4 py-4">
         {hello && (
           <li>
-            <Greeting text={hello} />
+            <Greeting text={hello} speaker={speaker} live={newest === "greeting"} />
           </li>
         )}
         {items.map((item) =>
@@ -206,7 +235,7 @@ export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying, greetin
             </li>
           ) : (
             <li key={`m-${item.message.id}`}>
-              <Bubble message={item.message} entries={entries} date={view.date} today={view.today} onRetry={onRetry} onEdit={onEdit} onUndo={onUndo} retrying={retrying} />
+              <Bubble message={item.message} entries={entries} date={view.date} today={view.today} onRetry={onRetry} onEdit={onEdit} onUndo={onUndo} retrying={retrying} speaker={speaker} newest={newest} />
             </li>
           ),
         )}

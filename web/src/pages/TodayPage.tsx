@@ -11,7 +11,7 @@ import { PasteChip } from "../components/CopyPaste.tsx";
 import { DayNav } from "../components/DayNav.tsx";
 import { EntryEditor } from "../components/EntryEditor.tsx";
 import { NutrientCard } from "../components/NutrientCard.tsx";
-import { Feed } from "../components/Feed.tsx";
+import { Feed, newestCoachRow } from "../components/Feed.tsx";
 import { AboutPrompt } from "../onboarding/AboutPrompt.tsx";
 import { CompanionPrompt } from "../components/CompanionPrompt.tsx";
 import { NamePrompt } from "../components/NamePrompt.tsx";
@@ -168,6 +168,8 @@ export function TodayPage() {
   const greeting = isToday ? greetingFor(view, stored?.name ?? null, new Date(), t) : null;
   // An older server sends no companion fields: Zabaione, and no mood to show.
   const companion = stored && COMPANIONS.includes(stored.companion) ? stored.companion : DEFAULT_COMPANION;
+  const speaker = view.companion ? { id: companion, status: view.companion } : undefined;
+  const coachInChat = newestCoachRow(view, logOnly, greeting) !== null;
   return (
     // The bottom padding leaves the end of the feed clear of the tab bar and of the composer, whose height changes
     // (photos, notices, a longer message) and is published as --composer-h. A day without a composer uses the fallback.
@@ -179,7 +181,8 @@ export function TodayPage() {
             <SummaryStrip view={view} onClick={() => summaryCard?.scrollIntoView?.({ block: "start", behavior: "smooth" })} />
           </div>
         )}
-        <DayNav date={view.date} today={view.today} companion={view.companion ? { id: companion, status: view.companion } : undefined} />
+        {/* The companion stands beside the coach's replies (2026-10-20); the day bar keeps it only when the chat shows none. */}
+        <DayNav date={view.date} today={view.today} companion={speaker && !coachInChat ? speaker : undefined} />
       </div>
       {/* The top padding gives the card's raised highlight room below the solid bar, which would otherwise paint over it. */}
       <div className="px-4 pt-3">
@@ -217,6 +220,7 @@ export function TodayPage() {
           undo.mutate(ids);
         }}
         greeting={greeting}
+        speaker={speaker}
       />
       {addable && (
         <div className="flex flex-wrap items-center gap-2 px-4">

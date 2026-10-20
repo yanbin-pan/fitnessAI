@@ -5,7 +5,7 @@ import { dayLabel } from "../format.ts";
 import { en } from "../i18n/index.tsx";
 import type { ChatMessage } from "../shared.ts";
 import { dayView, entry, exerciseItem, foodItem, message } from "../test/fixtures.ts";
-import { Feed, buildFeed } from "./Feed.tsx";
+import { Feed, buildFeed, newestCoachRow } from "./Feed.tsx";
 
 describe("buildFeed", () => {
   const coachEntry = entry({ id: "e1", logged_at: "2026-10-03T08:00:00.000Z", source: "coach" });
@@ -20,6 +20,22 @@ describe("buildFeed", () => {
 
   it("shows only entries, in time order, in log-only mode", () => {
     expect(buildFeed(view, true).map((i) => (i.kind === "entry" ? i.entry.id : i.message.id))).toEqual(["e1", "e2"]);
+  });
+});
+
+describe("newestCoachRow", () => {
+  const question = message({ id: "m1", created_at: "2026-10-03T07:59:00.000Z" });
+  const reply = message({ id: "m2", role: "assistant", status: null, text: "Logged.", created_at: "2026-10-03T08:00:05.000Z" });
+
+  it("is the latest reply with words, the greeting before any, or the row waiting on a reply", () => {
+    expect(newestCoachRow(dayView({ messages: [question, reply] }), false, "Morning!")).toBe("m2");
+    expect(newestCoachRow(dayView({ messages: [] }), false, "Morning!")).toBe("greeting");
+    expect(newestCoachRow(dayView({ messages: [reply, { ...question, id: "m3", status: "pending", created_at: "2026-10-03T09:00:00.000Z" }] }), false, null)).toBe("working-m3");
+  });
+
+  it("is none in Log only, or when the coach has said nothing", () => {
+    expect(newestCoachRow(dayView({ messages: [question, reply] }), true, "Morning!")).toBeNull();
+    expect(newestCoachRow(dayView({ messages: [] }), false, null)).toBeNull();
   });
 });
 
