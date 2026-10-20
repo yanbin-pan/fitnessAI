@@ -539,6 +539,7 @@ export const de: Messages = {
     rule: "Folgt deinen letzten 7 vollständig erfassten Tagen, nicht einem einzelnen Tag. Fehlende oder kaum erfasste Tage zählen nicht.",
     alcohol: (units: string) => `Über der britischen Empfehlung von 14 Einheiten pro Woche: ${units} Einheiten in den letzten 7 Tagen. Zabaione ist etwas beschwipst.`,
     alcoholShort: "über der Alkohol-Empfehlung",
+    holdHint: (name: string) => `${name} gedrückt halten für einen Blick, tippen zum Öffnen`,
   },
   companionPrompt: {
     title: "Such dir einen Begleiter aus",

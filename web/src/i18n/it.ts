@@ -539,6 +539,7 @@ export const it: Messages = {
     rule: "Segue i tuoi ultimi 7 giorni registrati per intero, non un singolo giorno. I giorni saltati o quasi vuoti non contano.",
     alcohol: (units: string) => `Oltre la guida britannica di 14 unità a settimana: ${units} unità negli ultimi 7 giorni. Zabaione è un po’ brillo.`,
     alcoholShort: "oltre la guida sull’alcol",
+    holdHint: (name: string) => `Tieni premuto ${name} per un’occhiata, tocca per aprire`,
   },
   companionPrompt: {
     title: "Scegli un compagno",

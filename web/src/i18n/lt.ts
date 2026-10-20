@@ -539,6 +539,7 @@ export const lt: Messages = {
     rule: "Seka paskutines 7 pilnai užpildytas dienas, o ne vieną dieną. Praleistos ar vos užpildytos dienos neskaičiuojamos.",
     alcohol: (units: string) => `Daugiau nei JK rekomendacija – 14 vienetų per savaitę: ${units} vnt. per paskutines 7 dienas. Zabaione kiek apsvaigęs.`,
     alcoholShort: "virš alkoholio rekomendacijos",
+    holdHint: (name: string) => `Palaikykite ${name}, kad žvilgtelėtumėte, bakstelėkite, kad atidarytumėte`,
   },
   companionPrompt: {
     title: "Išsirinkite kompanioną",

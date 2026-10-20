@@ -43,6 +43,8 @@ interface CompanionViewProps {
   badgeClassName?: string;
   /** Told each time a tap pets the companion. */
   onPet?: () => void;
+  /** A hop and a turn every few seconds, for the small one beside a message. */
+  fidget?: boolean;
 }
 
 /**
@@ -50,7 +52,7 @@ interface CompanionViewProps {
  * without WebGL, the badge stands in. Decorative: whatever it shows, the text beside it says.
  */
 export function CompanionView({
-  companion, mood, overAlcohol = false, framing, interactive = false, plinth = false, fps, paused = false, className = "", badgeClassName = "", onPet,
+  companion, mood, overAlcohol = false, framing, interactive = false, plinth = false, fps, paused = false, className = "", badgeClassName = "", onPet, fidget = false,
 }: CompanionViewProps) {
   const host = useRef<HTMLDivElement>(null);
   const stage = useRef<Stage | null>(null);
@@ -69,7 +71,7 @@ export function CompanionView({
         if (disposed) return;
         const now = latest.current;
         stage.current = createStage(element, {
-          companion: now.companion, mood: moodInput(now.mood, now.overAlcohol), framing, interactive, plinth, fps,
+          companion: now.companion, mood: moodInput(now.mood, now.overAlcohol), framing, interactive, plinth, fps, fidget,
           // The latest callback, whenever the tap comes.
           onPet: () => latest.current.onPet?.(),
         });
@@ -85,7 +87,7 @@ export function CompanionView({
       stage.current = null;
       setReady(false);
     };
-  }, [failed, framing, interactive, plinth, fps]);
+  }, [failed, framing, interactive, plinth, fps, fidget]);
 
   useEffect(() => stage.current?.setMood(moodInput(mood, overAlcohol)), [mood, overAlcohol, ready]);
   useEffect(() => stage.current?.setCompanion(companion), [companion, ready]);

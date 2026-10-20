@@ -539,6 +539,7 @@ export const es: Messages = {
     rule: "Sigue tus últimos 7 días bien registrados, no un solo día. Los días sin registro o casi vacíos no cuentan.",
     alcohol: (units: string) => `Por encima de la guía británica de 14 unidades a la semana: ${units} unidades en los últimos 7 días. Zabaione está un poco achispado.`,
     alcoholShort: "por encima de la guía de alcohol",
+    holdHint: (name: string) => `Mantén pulsado a ${name} para echar un vistazo, toca para abrir`,
   },
   companionPrompt: {
     title: "Elige un compañero",

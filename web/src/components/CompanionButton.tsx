@@ -11,6 +11,7 @@ import type { Messages } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
 import { COMPANION_NAMES, COMPANION_THRIVE_DAYS } from "../shared.ts";
 import type { CompanionId, CompanionInteractionInput, CompanionStatus } from "../shared.ts";
+import { tapHaptic } from "../haptics.ts";
 import { THEME_EVENT } from "../theme.ts";
 
 /**
@@ -163,6 +164,43 @@ export function CompanionButton({ companion, status }: { companion: CompanionId;
   );
 }
 
+const HINT_SEEN_KEY = "fitnessai.companion-hint-seen";
+const hintListeners = new Set<() => void>();
+
+function readHintSeen(): boolean {
+  try {
+    return localStorage.getItem(HINT_SEEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+let hintSeen: boolean | null = null;
+
+/** Once the companion has been peeked at or opened, the hint under the newest reply has done its job. */
+function markHintSeen(): void {
+  if (hintSeen === true) return;
+  hintSeen = true;
+  try {
+    localStorage.setItem(HINT_SEEN_KEY, "1");
+  } catch {
+    // Without storage the hint just shows again on the next visit.
+  }
+  for (const listener of hintListeners) listener();
+}
+
+/** Whether to show "Hold … to peek, tap to open" under the newest reply: until the first peek or open. */
+export function useHoldHint(): boolean {
+  const seen = useSyncExternalStore(
+    (onChange) => {
+      hintListeners.add(onChange);
+      return () => hintListeners.delete(onChange);
+    },
+    () => (hintSeen ??= readHintSeen()),
+  );
+  return !seen;
+}
+
 /** How long a press is held before the peek shows: about iOS's Haptic Touch. */
 const PEEK_AFTER_MS = 350;
 
@@ -228,7 +266,8 @@ export function CompanionAvatar({ companion, status, live }: { companion: Compan
     timer.current = window.setTimeout(() => {
       peeked.current = true;
       setPeeking(true);
-      navigator.vibrate?.(8);
+      tapHaptic();
+      markHintSeen();
     }, PEEK_AFTER_MS);
   };
   const endPress = () => {
@@ -248,7 +287,7 @@ export function CompanionAvatar({ companion, status, live }: { companion: Compan
         aria-label={t.companion.open(COMPANION_NAMES[companion], mood)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className={`relative flex h-8 w-8 shrink-0 touch-manipulation select-none items-center justify-center overflow-hidden rounded-full [-webkit-touch-callout:none] ${open || peeking ? "pressed" : "raised-sm"}`}
+        className={`relative flex h-8 w-8 shrink-0 touch-manipulation select-none items-center justify-center rounded-full [-webkit-touch-callout:none] ${open || peeking ? "pressed" : "raised-sm"} ${live && !open && !peeking ? "pet-pulse" : ""}`}
         style={wash}
         onPointerDown={onPointerDown}
         onPointerUp={endPress}
@@ -261,16 +300,23 @@ export function CompanionAvatar({ companion, status, live }: { companion: Compan
             return;
           }
           reportInteraction("open");
+          markHintSeen();
           setOpen(true);
         }}
       >
-        {live ? (
-          <CompanionView companion={companion} mood={status.mood} overAlcohol={status.over_alcohol === true} framing="mini" fps={30} paused={open || peeking} className="h-8 w-8" badgeClassName="h-7 w-7 text-xs" />
-        ) : stills?.[companion] ? (
-          <img src={stills[companion]} alt="" className="h-8 w-8 object-contain" />
-        ) : (
-          <CompanionBadge companion={companion} className="h-7 w-7 text-xs" />
-        )}
+        {/* Clipped inside, so the pulse ring around the button can show outside it. */}
+        <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full">
+          {live ? (
+            <CompanionView
+              companion={companion} mood={status.mood} overAlcohol={status.over_alcohol === true} framing="face" fps={30} fidget paused={open || peeking}
+              className="h-8 w-8" badgeClassName="h-7 w-7 text-xs"
+            />
+          ) : stills?.[companion] ? (
+            <img src={stills[companion]} alt="" className="h-8 w-8 object-contain" />
+          ) : (
+            <CompanionBadge companion={companion} className="h-7 w-7 text-xs" />
+          )}
+        </span>
       </button>
       {peeking && button.current && <CompanionPeek companion={companion} status={status} anchor={button.current} />}
       {open && <CompanionBubble companion={companion} status={status} onClose={close} origin={button.current} />}

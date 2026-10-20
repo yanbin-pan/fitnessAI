@@ -539,6 +539,7 @@ export const zh: Messages = {
     rule: "看的是最近 7 个完整记录的日子，而不是某一天。漏记或记得太少的日子不算。",
     alcohol: (units: string) => `超出英国每周 14 单位的建议：近 7 天 ${units} 单位。Zabaione 有点微醺了。`,
     alcoholShort: "超出饮酒建议",
+    holdHint: (name: string) => `长按${name}快速查看，轻点打开`,
   },
   companionPrompt: {
     title: "选一个伙伴",

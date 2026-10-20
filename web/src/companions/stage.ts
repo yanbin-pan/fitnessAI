@@ -15,12 +15,16 @@ import { THEME_EVENT } from "../theme.ts";
 THREE.ColorManagement.enabled = false;
 const LEGACY_LIGHT = Math.PI;
 
-/** How the camera frames the companion: `mini` fills the day bar's round button, `full` leaves room for the FX. */
-export type Framing = "mini" | "full";
+/**
+ * How the camera frames the companion: `mini` fills the day bar's round button, `full` leaves room for the FX, and
+ * `face` is head and shoulders for the small avatar beside a message, where a whole body is too small to see move.
+ */
+export type Framing = "mini" | "full" | "face";
 
 const FRAMES: Record<Framing, { hw: number; hh: number; lookY: number; rise: number }> = {
   mini: { hw: 0.95, hh: 1.1, lookY: 1.05, rise: 0.22 },
   full: { hw: 1.6, hh: 1.7, lookY: 0.95, rise: 0.34 },
+  face: { hw: 0.8, hh: 0.8, lookY: 1.35, rise: 0.06 },
 };
 
 export interface StageOptions {
@@ -35,6 +39,11 @@ export interface StageOptions {
   fps?: number;
   /** Told each time a tap pets the companion. */
   onPet?: () => void;
+  /**
+   * Small beside a message (2026-10-20): every few seconds it does its happy hop and turns a little further, so it reads
+   * as alive at 32 px, where the idle sway alone is too small to see. Never while asleep or with reduced motion.
+   */
+  fidget?: boolean;
 }
 
 export interface Stage {
@@ -319,7 +328,7 @@ export function createStage(host: HTMLElement, options: StageOptions): Stage {
   // Drag to turn, tap to pet.
   const start = performance.now();
   const now = () => (performance.now() - start) / 1000;
-  let yaw = options.framing === "mini" ? -0.3 : -0.35;
+  let yaw = options.framing === "full" ? -0.35 : -0.3;
   let dragging = false, lastX = 0, downX = 0, downY = 0;
   const canvas = renderer.domElement;
   const ray = new THREE.Raycaster();
@@ -364,6 +373,7 @@ export function createStage(host: HTMLElement, options: StageOptions): Stage {
   let last = now(), lastDrawn = -1;
   let raf = 0;
   let paused = false;
+  let nextFidget = 2.5;
 
   function draw() {
     const clockNow = now();
@@ -389,7 +399,11 @@ export function createStage(host: HTMLElement, options: StageOptions): Stage {
     const c = cast;
     c.animal.applyColour(vFinal, x, Math.max(u, o * 0.3)); // a touch of queasy pallor when stuffed
 
-    const sway = dragging || reduce ? 0 : Math.sin(clockNow * 0.4) * 0.1;
+    if (options.fidget && !reduce && clockNow > nextFidget) {
+      if (!mood.inactive) cast.happyAt = clockNow;
+      nextFidget = clockNow + 6 + Math.random() * 4;
+    }
+    const sway = dragging || reduce ? 0 : Math.sin(clockNow * 0.4) * (options.fidget ? 0.35 : 0.1);
     c.animal.root.rotation.y = yaw + sway;
     if (!reduce && clockNow > c.nextBlink) {
       c.blinkAt = clockNow;
