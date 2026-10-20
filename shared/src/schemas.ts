@@ -5,6 +5,9 @@ import {
 } from "./health.ts";
 import type { FactKind, FoodLevel, HealthCondition } from "./health.ts";
 import {
+  ALCOHOL_HABITS, COACH_TONES, COFFEE_HABITS, COOKING, EXPERIENCES, FOCUSES, MAX_SESSIONS_WEEK, MEAL_PATTERNS, SKIN_GOALS, SKIN_TRIGGERS, SKIN_TYPES, SPORTS,
+} from "./about.ts";
+import {
   ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, COMPANION_INTERACTIONS, DEFAULT_COMPANION, DRINKS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_COPIES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, PROFILE_RANGES, SEXES,
 } from "./vocab.ts";
 
@@ -104,6 +107,29 @@ const override = z.number().nonnegative().nullable().default(null);
 
 const inRange = (field: keyof typeof PROFILE_RANGES) => z.number().min(PROFILE_RANGES[field][0]).max(PROFILE_RANGES[field][1]);
 
+/** A set of choices from one vocabulary, each at most once. */
+const picks = <T extends readonly [string, ...string[]]>(values: T) =>
+  z.array(z.enum(values)).max(values.length).transform((list) => [...new Set(list)]).default([]);
+const pick = <T extends readonly [string, ...string[]]>(values: T) => z.enum(values).nullable().default(null);
+
+/** What onboarding asks beyond the body numbers (2026-10-20 onboarding and settings design). Every answer is optional. */
+export const AboutInput = z.object({
+  focus: picks(FOCUSES),
+  target_weight_kg: inRange("weight_kg").nullable().default(null),
+  sports: picks(SPORTS),
+  sessions_week: z.number().int().min(0).max(MAX_SESSIONS_WEEK).nullable().default(null),
+  experience: pick(EXPERIENCES),
+  meals: pick(MEAL_PATTERNS),
+  cooking: pick(COOKING),
+  alcohol: pick(ALCOHOL_HABITS),
+  coffee: pick(COFFEE_HABITS),
+  skin_goals: picks(SKIN_GOALS),
+  skin_triggers: picks(SKIN_TRIGGERS),
+  skin_type: pick(SKIN_TYPES),
+});
+export type AboutInput = z.input<typeof AboutInput>;
+export type About = z.output<typeof AboutInput>;
+
 export const ProfileInput = z.object({
   sex: z.enum(SEXES),
   birth_date: IsoDate,
@@ -137,6 +163,11 @@ export const ProfileInput = z.object({
   companion: z.enum(COMPANIONS).default(DEFAULT_COMPANION),
   /** Whether Today still asks to pick one: `show` until one is picked or declined, then `done`. */
   companion_prompt: z.enum(["show", "done"]).default("show"),
+  /** The answers onboarding collects beyond the body numbers. */
+  about: AboutInput.prefault({}),
+  coach_tone: z.enum(COACH_TONES).default("balanced"),
+  /** Whether Today still offers onboarding's questions: `show` until they are finished or declined, then `done`. */
+  onboarding: z.enum(["show", "done"]).default("show"),
 });
 /** What a client sends: fields with defaults may be omitted. */
 export type ProfileInput = z.input<typeof ProfileInput>;

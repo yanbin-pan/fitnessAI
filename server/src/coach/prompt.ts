@@ -1,6 +1,6 @@
 import type { RecentDay } from "../days/days.ts";
 import type { HealthContext } from "../health/records.ts";
-import type { CompanionId, DayView, Language, Profile } from "../shared.ts";
+import type { CoachTone, CompanionId, DayView, Language, Profile } from "../shared.ts";
 import { COMPANION_ANIMALS, COMPANION_NAMES, DEFAULT_COMPANION, LANGUAGE_NAMES, MAX_BACKDATE_DAYS } from "../shared.ts";
 import { ageOn } from "../targets/targets.ts";
 import { localDate, localTime, weekdayName } from "../time.ts";
@@ -84,6 +84,45 @@ function goalText(profile: Profile): string {
   return profile.goal === "maintain" ? "maintain weight" : `${profile.goal} ${profile.goal_rate_kg_week} kg a week`;
 }
 
+const TONES: Record<CoachTone, string> = {
+  gentle: "Be gentle: lead with what went well, and put any change as a soft suggestion.",
+  balanced: "Be warm but plain: say what went well and what to change, in a sentence each.",
+  direct: "Be direct: they asked for straight talk, so name the problem and the fix without cushioning, never unkind.",
+};
+
+const words = (values: readonly string[]) => values.map((v) => v.replaceAll("_", " ")).join(", ");
+
+/** What onboarding learnt beyond the body numbers (2026-10-20 onboarding and settings design), one line per answer given. */
+function aboutLines(profile: Profile): string[] {
+  const a = profile.about;
+  const lines: string[] = [];
+  if (a.focus.length) lines.push(`- Wants to work on: ${words(a.focus)}`);
+  if (a.target_weight_kg !== null && profile.goal !== "maintain") lines.push(`- Goal weight: ${a.target_weight_kg} kg`);
+  const training = [
+    a.sports.length ? words(a.sports) : null,
+    a.sessions_week !== null ? `${a.sessions_week} sessions a week` : null,
+    a.experience ? { new: "just starting", under_2: "training under 2 years", over_2: "training 2 years or more" }[a.experience] : null,
+  ].filter(Boolean);
+  if (training.length) lines.push(`- Training: ${training.join("; ")}`);
+  const eating = [
+    a.meals ? { three: "3 meals a day", snacks: "snacks a lot", skip_breakfast: "skips breakfast", time_restricted: "eats in a time window" }[a.meals] : null,
+    a.cooking ? { home: "cooks most meals", mix: "cooks some meals, eats out some", out: "mostly eats out or orders in" }[a.cooking] : null,
+    a.alcohol ? `alcohol ${words([a.alcohol])}` : null,
+    a.coffee ? `coffee ${{ none: "none", one_two: "1-2 a day", three_plus: "3 or more a day" }[a.coffee]}` : null,
+  ].filter(Boolean);
+  if (eating.length) lines.push(`- Eating habits: ${eating.join("; ")}`);
+  if (a.skin_goals.length || a.skin_type || a.skin_triggers.length) {
+    const skin = [
+      a.skin_goals.length ? `wants ${words(a.skin_goals)}` : null,
+      a.skin_type ? `${a.skin_type} skin` : null,
+      a.skin_triggers.length ? `thinks it is set off by ${words(a.skin_triggers)}` : null,
+    ].filter(Boolean);
+    // Food and habits only: the coach is not a dermatologist.
+    lines.push(`- Skin: ${skin.join("; ")}. Link it to what they eat, drink and how they sleep; never diagnose a skin condition`);
+  }
+  return lines;
+}
+
 export function buildSystemPrompt(profile: Profile, date: string): string {
   const about = [
     `About the person (as of ${date}):`,
@@ -93,6 +132,8 @@ export function buildSystemPrompt(profile: Profile, date: string): string {
     `- Body goal: ${goalText(profile)}`,
     `- Everyday activity, excluding workouts: ${profile.activity_level}`,
     `- Timezone: ${profile.timezone}`,
+    ...aboutLines(profile),
+    `- Tone: ${TONES[profile.coach_tone]}`,
   ].join("\n");
   return `${coachInstructions(profile.companion)}\n\n${about}`;
 }

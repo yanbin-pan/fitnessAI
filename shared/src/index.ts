@@ -8,3 +8,4 @@ export * from "./companions.ts";
 export * from "./alcohol.ts";
 export * from "./health.ts";
 export * from "./fatsugar.ts";
+export * from "./about.ts";

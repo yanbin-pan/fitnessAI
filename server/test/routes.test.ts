@@ -36,6 +36,20 @@ describe("profile routes", () => {
     expect(get.json().profile.override_kcal).toBe(2000);
   });
 
+  it("keep onboarding's answers, the coach's tone and whether onboarding is done, refusing an unknown answer", async () => {
+    ctx = await withProfile();
+    const about = { focus: ["skin", "lose_fat", "skin"], sports: ["gym"], sessions_week: 4, skin_goals: ["glow"], coffee: "one_two" };
+    const put = await ctx.app.inject({
+      method: "PUT", url: "/api/profile", headers: ctx.headers, payload: { ...PROFILE, about, coach_tone: "direct", onboarding: "done" },
+    });
+    expect(put.statusCode).toBe(200);
+    const get = (await ctx.app.inject({ method: "GET", url: "/api/profile", headers: ctx.headers })).json().profile;
+    expect(get.about).toMatchObject({ focus: ["skin", "lose_fat"], sports: ["gym"], sessions_week: 4, skin_goals: ["glow"], coffee: "one_two", meals: null });
+    expect(get).toMatchObject({ coach_tone: "direct", onboarding: "done" });
+    const bad = await ctx.app.inject({ method: "PUT", url: "/api/profile", headers: ctx.headers, payload: { ...PROFILE, about: { focus: ["fly"] } } });
+    expect(bad.statusCode).toBe(400);
+  });
+
   it("keep the chosen language, English until one is chosen, and refuse one the app doesn't speak", async () => {
     ctx = await withProfile();
     const get = async () => (await ctx!.app.inject({ method: "GET", url: "/api/profile", headers: ctx!.headers })).json().profile.language;
