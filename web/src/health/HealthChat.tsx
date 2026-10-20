@@ -11,6 +11,7 @@ import type { ChatMessageView, DocumentReadView, HealthChatView, SuggestionView 
 import { Screen, WithHealth, documentTitle, factName, failure, sectionOf, uploadPhotos, useRecordsWrite } from "./common.tsx";
 import { noteHealthNews } from "./background.ts";
 import { ReviewSheet } from "./ReviewSheet.tsx";
+import { Markdown } from "../components/Markdown.tsx";
 
 // The Health chat (2026-10-19 health tab design §4, from direction C): the person says what they have in their own
 // words, the coach answers and proposes facts, and nothing reaches the profile until they tap Add.
@@ -149,7 +150,7 @@ function Message({ message, onCheck, onOption, last }: { message: ChatMessageVie
       {message.read ? (
         <ReadMessage message={message} onCheck={() => onCheck(message)} />
       ) : (
-        <p className="raised-sm rounded-[18px] rounded-bl-md px-3.5 py-3 text-[15px] leading-snug">{message.text}</p>
+        <Markdown text={message.text} className="raised-sm rounded-[18px] rounded-bl-md px-3.5 py-3 text-[15px] leading-snug" />
       )}
       <Proposals suggestions={message.suggestions} />
       {last && message.options.length > 0 && (
