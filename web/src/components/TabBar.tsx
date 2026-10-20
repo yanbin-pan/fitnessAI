@@ -72,6 +72,8 @@ export function TabBar() {
     if (onHealth && healthNews) seeHealthNews();
   }, [onHealth, healthNews]);
   const insightsNews = useNewInsights(onInsights);
+  // Onboarding is a screen of its own.
+  if (pathname === "/welcome") return null;
   return (
     <nav
       aria-label={t.nav.main}
@@ -81,7 +83,7 @@ export function TabBar() {
         <Tab to="/day/today" icon="sunny" label={t.nav.today} active={pathname.startsWith("/day")} />
         <Tab to="/insights" icon="monitoring" label={t.nav.insights} active={onInsights} news={insightsNews} />
         <Tab to="/health" icon="ecg_heart" label={t.nav.health} active={onHealth} news={healthNews && !onHealth} />
-        <Tab to="/settings" icon="settings" label={t.nav.settings} active={pathname === "/settings"} />
+        <Tab to="/settings" icon="settings" label={t.nav.settings} active={pathname.startsWith("/settings")} />
       </div>
     </nav>
   );

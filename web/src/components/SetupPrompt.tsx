@@ -9,7 +9,7 @@ export function SetupPrompt() {
       <div className="raised rounded-3xl p-6">
         <h1 className="text-xl font-semibold">{t.setup.title}</h1>
         <p className="mt-2 text-muted">{t.setup.body}</p>
-        <Link to="/settings" className={`${primaryButton} mt-4 inline-block`}>
+        <Link to="/welcome" className={`${primaryButton} mt-4 inline-block`}>
           {t.setup.action}
         </Link>
       </div>

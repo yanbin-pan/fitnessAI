@@ -34,6 +34,10 @@ export const profile = sqliteTable("profile", {
   name_prompt: text().notNull().default("show"),
   companion: text().notNull().default("zabaione"),
   companion_prompt: text().notNull().default("show"),
+  /** Onboarding's answers beyond the body numbers, as JSON (2026-10-20 onboarding and settings design). */
+  about: text({ mode: "json" }).notNull().default({}),
+  coach_tone: text().notNull().default("balanced"),
+  onboarding: text().notNull().default("show"),
   /** The person's local date of the last change of companion: it can change again 3 months on. */
   companion_changed_at: text(),
   updated_at: text().notNull(),

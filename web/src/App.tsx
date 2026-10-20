@@ -5,6 +5,7 @@ import { SignedOutBanner } from "./components/SignedOutBanner.tsx";
 import { TabBar } from "./components/TabBar.tsx";
 import { LanguageProvider } from "./i18n/index.tsx";
 import { HealthRoutes } from "./health/HealthRoutes.tsx";
+import { OnboardingPage } from "./onboarding/OnboardingPage.tsx";
 import { InsightsPage } from "./pages/InsightsPage.tsx";
 import { SettingsPage } from "./pages/SettingsPage.tsx";
 import { TodayPage } from "./pages/TodayPage.tsx";
@@ -34,7 +35,8 @@ export default function App() {
                 <Route path="/insights" element={<InsightsPage />} />
                 <Route path="/health/*" element={<HealthRoutes />} />
                 <Route path="/regulars" element={<Navigate to="/health" replace />} />
-                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/settings/*" element={<SettingsPage />} />
+                <Route path="/welcome" element={<OnboardingPage />} />
                 <Route path="*" element={<Navigate to="/day/today" replace />} />
               </Routes>
               <TabBar />

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useParams } from "react-router";
+import { Navigate, useParams } from "react-router";
 import { ApiError, api } from "../api.ts";
 import { dropLive, finishLive, firstStep, pushStep, startLive } from "../coach/live.ts";
 import { markPending } from "../coach/pending.ts";
@@ -12,9 +12,9 @@ import { DayNav } from "../components/DayNav.tsx";
 import { EntryEditor } from "../components/EntryEditor.tsx";
 import { NutrientCard } from "../components/NutrientCard.tsx";
 import { Feed } from "../components/Feed.tsx";
+import { AboutPrompt } from "../onboarding/AboutPrompt.tsx";
 import { CompanionPrompt } from "../components/CompanionPrompt.tsx";
 import { NamePrompt } from "../components/NamePrompt.tsx";
-import { SetupPrompt } from "../components/SetupPrompt.tsx";
 import { FeedDivider } from "../components/FeedDivider.tsx";
 import { Summary } from "../components/Summary.tsx";
 import { SummaryStrip } from "../components/SummaryStrip.tsx";
@@ -154,7 +154,8 @@ export function TodayPage() {
     onError: refresh,
   });
 
-  if (day.error instanceof ApiError && day.error.code === "no_profile") return <SetupPrompt />;
+  // No profile yet: onboarding sets one up.
+  if (day.error instanceof ApiError && day.error.code === "no_profile") return <Navigate to="/welcome" replace />;
   if (!day.data) {
     return <main className="mx-auto max-w-xl p-6 text-muted">{day.isError ? t.day.loadFailed : t.common.loading}</main>;
   }
@@ -182,9 +183,10 @@ export function TodayPage() {
       </div>
       {/* The top padding gives the card's raised highlight room below the solid bar, which would otherwise paint over it. */}
       <div className="px-4 pt-3">
-        {isToday && stored?.name_prompt === "show" && <NamePrompt profile={stored} />}
-        {/* One question at a time: the name first, then the companion. */}
-        {isToday && stored && stored.name_prompt !== "show" && stored.companion_prompt === "show" && <CompanionPrompt profile={stored} />}
+        {/* One question at a time: onboarding's (which ask for the name and companion too), then the name, then the companion. An older server sends no onboarding. */}
+        {isToday && stored?.onboarding === "show" && <AboutPrompt />}
+        {isToday && stored && stored.onboarding !== "show" && stored.name_prompt === "show" && <NamePrompt profile={stored} />}
+        {isToday && stored && stored.onboarding !== "show" && stored.name_prompt !== "show" && stored.companion_prompt === "show" && <CompanionPrompt profile={stored} />}
         {/* Scrolled to, under the day bar, when the summary strip is tapped. */}
         <div ref={setSummaryCard} className="scroll-mt-[calc(env(safe-area-inset-top)_+_4.75rem)]">
           <Summary view={view} />

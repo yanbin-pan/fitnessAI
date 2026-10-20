@@ -99,6 +99,13 @@
       "when": 1792442927364,
       "tag": "0013_health_moves_out",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1792494069443,
+      "tag": "0014_profile_about",
+      "breakpoints": true
     }
   ]
 }

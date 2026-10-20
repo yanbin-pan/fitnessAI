@@ -29,6 +29,23 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("Weight, body measurements and check-ins cannot be logged yet");
   });
 
+  it("tells the coach what onboarding learnt and the tone asked for, leaving out what was not answered", () => {
+    const prompt = buildSystemPrompt(
+      makeProfile({ coach_tone: "direct", about: { focus: ["skin", "lose_fat"], target_weight_kg: 74, sports: ["gym", "padel"], sessions_week: 4, skin_goals: ["glow"], skin_type: "oily", coffee: "three_plus" } }),
+      "2026-10-03",
+    );
+    expect(prompt).toContain("- Wants to work on: skin, lose fat");
+    expect(prompt).toContain("- Goal weight: 74 kg");
+    expect(prompt).toContain("- Training: gym, padel; 4 sessions a week");
+    expect(prompt).toContain("- Eating habits: coffee 3 or more a day");
+    expect(prompt).toContain("- Skin: wants glow; oily skin.");
+    expect(prompt).toContain("Be direct");
+    const plain = buildSystemPrompt(makeProfile(), "2026-10-03");
+    expect(plain).not.toContain("Wants to work on");
+    expect(plain).not.toContain("Skin:");
+    expect(plain).toContain("Be warm but plain");
+  });
+
   it("tells the coach the person's name, quoted, only when there is one", () => {
     expect(buildSystemPrompt(makeProfile({ name: "Bin" }), "2026-10-03")).toContain('They like to be called "Bin"; use it now and then');
     expect(buildSystemPrompt(makeProfile(), "2026-10-03")).not.toContain("like to be called");

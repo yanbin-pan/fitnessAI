@@ -1,192 +1,146 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import type { HealthView, Profile, ProfileView } from "../shared.ts";
+import { storedProfile } from "../test/fixtures.ts";
 import { jsonResponse, mockFetch, renderWithProviders } from "../test/render.tsx";
 import { SettingsPage } from "./SettingsPage.tsx";
 
-const HIDDEN_SETTINGS = { body_goal_priority: "high", units_mass: "kg", units_length: "cm", context_days: 5, goal_notes: "on" };
+const CALCULATED = { kcal: 2150, protein_g: 148, carbs_g: 215, fat_g: 72, fibre_g: 30 };
+const NO_HEALTH: HealthView = { consented_at: null, facts: [], documents: [], trends: [], suggestions: [] };
 
-describe("SettingsPage", () => {
-  it("creates the profile with a PUT, then shows the calculated calories", async () => {
-    const puts: unknown[] = [];
-    mockFetch((_url, init) => {
-      if (init?.method !== "PUT") return jsonResponse({ error: "no_profile" }, 404);
-      const body = JSON.parse(String(init.body));
+/** Serves the profile and health, answering a PUT with the profile it was sent; the PUT bodies are collected. */
+function serve(profile: Profile | null, { locked = null as string | null, health = NO_HEALTH, failPut = false } = {}) {
+  const puts: Partial<Profile>[] = [];
+  let current = profile;
+  mockFetch((url, init) => {
+    if (url === "/api/records") return jsonResponse(health);
+    if (url === "/api/profile" && init?.method === "PUT") {
+      if (failPut) return jsonResponse({ error: "internal" }, 500);
+      const body = JSON.parse(String(init.body)) as Profile;
       puts.push(body);
-      return jsonResponse({ profile: { ...HIDDEN_SETTINGS, ...body }, calculated: { kcal: 1863.125, protein_g: 144, carbs_g: 182, fat_g: 62, fibre_g: 30 } });
-    });
-    renderWithProviders(<SettingsPage />);
+      current = body;
+      return jsonResponse({ profile: body, calculated: CALCULATED, companion_locked_until: locked } satisfies ProfileView);
+    }
+    if (url === "/api/profile") {
+      return current ? jsonResponse({ profile: current, calculated: CALCULATED, companion_locked_until: locked } satisfies ProfileView) : jsonResponse({ error: "no_profile" }, 404);
+    }
+    return jsonResponse({});
+  });
+  return puts;
+}
 
-    fireEvent.change(await screen.findByLabelText("Birth date"), { target: { value: "1991-03-15" } });
-    await userEvent.type(screen.getByLabelText("Height (cm)"), "180");
-    await userEvent.type(screen.getByLabelText("Weight (kg)"), "80");
-    await userEvent.click(screen.getByRole("radio", { name: "Lose" }));
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+const open = (route: string) => renderWithProviders(<SettingsPage />, { route, path: "/settings/*" });
 
-    await screen.findByText("Saved.");
-    expect(puts[0]).toMatchObject({
-      sex: "male", birth_date: "1991-03-15", height_cm: 180, weight_kg: 80, activity_level: "light",
-      goal: "lose", goal_rate_kg_week: 0.5, override_kcal: null,
-      // A new profile starts in the phone's own timezone.
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    });
-    expect(screen.getByPlaceholderText("1860 kcal calculated")).toBeInTheDocument();
+describe("Settings home", () => {
+  it("shows the profile card and a row per page, each with what it holds", async () => {
+    serve(storedProfile());
+    open("/settings");
+    expect(await screen.findByText("Bin")).toBeInTheDocument();
+    expect(screen.getByText("Losing 0.5 kg a week · 82 → 76 kg")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Daily targets/ })).toHaveTextContent("2,150 kcal");
+    expect(screen.getByRole("link", { name: /Goals and body/ })).toHaveTextContent("Lose fat, Skin glow");
+    expect(screen.getByRole("link", { name: /Training/ })).toHaveTextContent("4× a week");
+    expect(screen.getByRole("link", { name: /Coach/ })).toHaveTextContent("Zabaione, Balanced");
+    expect(screen.getByRole("link", { name: /^Health/ })).toHaveAttribute("href", "/health");
+    // Skin shows because it is among the goals.
+    expect(screen.getByRole("link", { name: /^Skin/ })).toHaveAttribute("href", "/settings/skin");
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
   });
 
-  it("names the everyday activity levels in words, and still saves their keys", async () => {
-    const puts: unknown[] = [];
-    mockFetch((_url, init) => {
-      if (init?.method !== "PUT") return jsonResponse({ error: "no_profile" }, 404);
-      const body = JSON.parse(String(init.body));
-      puts.push(body);
-      return jsonResponse({ profile: { ...HIDDEN_SETTINGS, ...body }, calculated: { kcal: 2000, protein_g: 144, carbs_g: 200, fat_g: 67, fibre_g: 30 } });
+  it("leaves out Skin when it is not a goal", async () => {
+    serve(storedProfile({ about: { ...storedProfile().about, focus: ["lose_fat"], skin_goals: [] } }));
+    open("/settings");
+    await screen.findByText("Bin");
+    expect(screen.queryByRole("link", { name: /^Skin/ })).not.toBeInTheDocument();
+  });
+
+  it("sends someone without a profile to onboarding", async () => {
+    serve(null);
+    open("/settings");
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/welcome"));
+  });
+
+  it("shows an error, not a form, when the profile can't be loaded, and Try again loads it", async () => {
+    let fail = true;
+    mockFetch((url) => {
+      if (url === "/api/profile") return fail ? jsonResponse({ error: "internal" }, 500) : jsonResponse({ profile: storedProfile(), calculated: CALCULATED, companion_locked_until: null });
+      return jsonResponse(NO_HEALTH);
     });
-    renderWithProviders(<SettingsPage />);
-    const select = (await screen.findByLabelText("Everyday activity, excluding workouts")) as HTMLSelectElement;
-    expect([...select.options].map((option) => [option.value, option.textContent])).toEqual([
-      ["sedentary", "Sedentary"], ["light", "Light"], ["moderate", "Moderate"], ["very", "Very active"],
-    ]);
-    expect(select).toHaveDisplayValue("Light");
-    fireEvent.change(screen.getByLabelText("Birth date"), { target: { value: "1991-03-15" } });
-    await userEvent.type(screen.getByLabelText("Height (cm)"), "180");
-    await userEvent.type(screen.getByLabelText("Weight (kg)"), "80");
-    await userEvent.selectOptions(select, "Very active");
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
-    await screen.findByText("Saved.");
-    expect(puts[0]).toMatchObject({ activity_level: "very" });
+    open("/settings");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't load your settings");
+    fail = false;
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("Bin")).toBeInTheDocument();
+  });
+});
+
+describe("Settings pages", () => {
+  it("saves a target of your own when its field is left, and Reset goes back to Auto", async () => {
+    const puts = serve(storedProfile());
+    open("/settings/targets");
+    const carbs = await screen.findByLabelText("Carbs");
+    expect(carbs).toHaveAttribute("placeholder", "215");
+    await userEvent.type(carbs, "200");
+    fireEvent.blur(carbs);
+    await screen.findByText("Saved");
+    expect(puts.at(-1)).toMatchObject({ override_carbs_g: 200, override_kcal: null, weight_kg: 82, name: "Bin" });
+    await userEvent.click(await screen.findByRole("button", { name: "Reset" }));
+    await waitFor(() => expect(puts.at(-1)).toMatchObject({ override_carbs_g: null }));
   });
 
-  it("loads an existing profile into the form", async () => {
-    mockFetch(() =>
-      jsonResponse({
-        profile: {
-          ...HIDDEN_SETTINGS, sex: "female", birth_date: "1990-05-01", height_cm: 165, weight_kg: 60,
-          activity_level: "moderate", goal: "maintain", goal_rate_kg_week: 0, protein_g_per_kg: 1.6, fat_pct: 30,
-          fibre_g: 30, add_back_pct: 50, override_kcal: 2000, override_protein_g: null, override_carbs_g: null,
-          override_fat_g: null, override_fibre_g: null, timezone: "Europe/London",
-        },
-        calculated: { kcal: 2100, protein_g: 96, carbs_g: 250, fat_g: 70, fibre_g: 30 },
-      }),
-    );
-    renderWithProviders(<SettingsPage />);
-    expect(await screen.findByDisplayValue("1990-05-01")).toBeInTheDocument();
-    expect(screen.getByLabelText("Calories override")).toHaveValue("2000");
-    expect(screen.queryByLabelText("Rate (kg per week)")).toBeNull();
+  it("steps protein per kg and picks how much exercise is eaten back", async () => {
+    const puts = serve(storedProfile());
+    open("/settings/targets");
+    await userEvent.click(await screen.findByRole("button", { name: "Protein per kg: more" }));
+    await waitFor(() => expect(puts.at(-1)).toMatchObject({ protein_g_per_kg: 1.9 }));
+    await userEvent.click(screen.getByRole("radio", { name: "All" }));
+    await waitFor(() => expect(puts.at(-1)).toMatchObject({ add_back_pct: 100 }));
   });
 
-  it("picks the timezone from a list grouped by region, with each zone's offset", async () => {
-    const puts: Record<string, unknown>[] = [];
-    mockFetch((_url, init) => {
-      if (init?.method !== "PUT") return jsonResponse({ error: "no_profile" }, 404);
-      const body = JSON.parse(String(init.body));
-      puts.push(body);
-      return jsonResponse({ profile: { ...HIDDEN_SETTINGS, ...body }, calculated: { kcal: 2000, protein_g: 144, carbs_g: 200, fat_g: 67, fibre_g: 30 } });
-    });
-    renderWithProviders(<SettingsPage />);
-    const select = (await screen.findByLabelText("Timezone")) as HTMLSelectElement;
-    expect(select.tagName).toBe("SELECT");
-    expect([...select.querySelectorAll("optgroup")].map((g) => g.label)).toEqual(expect.arrayContaining(["Asia", "Europe", "America"]));
-    expect(screen.getByRole("option", { name: /^Shanghai \(UTC\+8\)$/ })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Birth date"), { target: { value: "1991-03-15" } });
-    await userEvent.type(screen.getByLabelText("Height (cm)"), "165");
-    await userEvent.type(screen.getByLabelText("Weight (kg)"), "55");
-    await userEvent.selectOptions(select, "Asia/Shanghai");
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
-    await screen.findByText("Saved.");
-    expect(puts[0]).toMatchObject({ timezone: "Asia/Shanghai" });
-  });
-
-  it("keeps a stored timezone the list does not name", async () => {
-    mockFetch(() =>
-      jsonResponse({
-        profile: {
-          ...HIDDEN_SETTINGS, sex: "female", birth_date: "1990-05-01", height_cm: 165, weight_kg: 60,
-          activity_level: "moderate", goal: "maintain", goal_rate_kg_week: 0, protein_g_per_kg: 1.6, fat_pct: 30,
-          fibre_g: 30, add_back_pct: 50, override_kcal: null, override_protein_g: null, override_carbs_g: null,
-          override_fat_g: null, override_fibre_g: null, timezone: "Etc/GMT-3",
-        },
-        calculated: { kcal: 2100, protein_g: 96, carbs_g: 250, fat_g: 70, fibre_g: 30 },
-      }),
-    );
-    renderWithProviders(<SettingsPage />);
-    await screen.findByDisplayValue("1990-05-01");
-    expect(screen.getByLabelText("Timezone")).toHaveValue("Etc/GMT-3");
-  });
-
-  it("says why a new profile can't be saved yet, at the field, rather than doing nothing", async () => {
-    const puts: unknown[] = [];
-    mockFetch((_url, init) => {
-      if (init?.method === "PUT") puts.push(init.body);
-      return jsonResponse({ error: "no_profile" }, 404);
-    });
-    renderWithProviders(<SettingsPage />);
-    await screen.findByLabelText("Birth date");
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  it("marks a body number that can't be saved, and saves nothing until it is fixed", async () => {
+    const puts = serve(storedProfile());
+    open("/settings/goals");
+    const height = await screen.findByLabelText("Height (cm)");
+    await userEvent.clear(height);
+    await userEvent.type(height, "95");
+    fireEvent.blur(height);
+    expect(await screen.findByText("Between 100 and 250.")).toBeInTheDocument();
     expect(puts).toHaveLength(0);
-    expect(screen.getByRole("alert")).toHaveTextContent("Some details need a look. They're marked above.");
-    expect(screen.getByLabelText("Birth date")).toHaveAccessibleDescription("Fill this in.");
-    expect(screen.getByLabelText("Height (cm)")).toHaveAccessibleDescription("Fill this in.");
-    expect(screen.getByLabelText("Birth date")).toHaveFocus();
+    await userEvent.clear(height);
+    await userEvent.type(height, "181,5");
+    fireEvent.blur(height);
+    await waitFor(() => expect(puts.at(-1)).toMatchObject({ height_cm: 181.5, about: { target_weight_kg: 76, focus: ["lose_fat", "skin"] } }));
   });
 
-  it("asks for the name first, saves it trimmed, and settles Today's prompt", async () => {
-    const puts: Record<string, unknown>[] = [];
-    mockFetch((_url, init) => {
-      if (init?.method !== "PUT") return jsonResponse({ error: "no_profile" }, 404);
-      const body = JSON.parse(String(init.body));
-      puts.push(body);
-      return jsonResponse({ profile: { ...HIDDEN_SETTINGS, ...body }, calculated: { kcal: 2000, protein_g: 144, carbs_g: 200, fat_g: 67, fibre_g: 30 } });
-    });
-    renderWithProviders(<SettingsPage />);
-    const name = await screen.findByLabelText("What should Zabaione call you?");
-    expect(screen.getAllByRole("textbox")[0]).toBe(name);
-    await userEvent.type(name, "  Bin ");
-    fireEvent.change(screen.getByLabelText("Birth date"), { target: { value: "1991-03-15" } });
-    await userEvent.type(screen.getByLabelText("Height (cm)"), "180");
-    await userEvent.type(screen.getByLabelText("Weight (kg)"), "80");
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
-    await screen.findByText("Saved.");
-    expect(puts[0]).toMatchObject({ name: "Bin", name_prompt: "done" });
+  it("saves a goal picked from the chips straight away", async () => {
+    const puts = serve(storedProfile());
+    open("/settings/goals");
+    await userEvent.click(await screen.findByRole("button", { name: "More energy" }));
+    await waitFor(() => expect(puts.at(-1)?.about?.focus).toEqual(["lose_fat", "skin", "energy"]));
   });
 
-  it("leaves Today's prompt alone when an existing profile is saved without a name", async () => {
-    const puts: Record<string, unknown>[] = [];
-    const existing = {
-      ...HIDDEN_SETTINGS, sex: "female", birth_date: "1990-05-01", height_cm: 165, weight_kg: 60, activity_level: "moderate",
-      goal: "maintain", goal_rate_kg_week: 0, protein_g_per_kg: 1.6, fat_pct: 30, fibre_g: 30, add_back_pct: 50,
-      override_kcal: null, override_protein_g: null, override_carbs_g: null, override_fat_g: null, override_fibre_g: null,
-      timezone: "Europe/London", name: null, name_prompt: "show",
-    };
-    mockFetch((_url, init) => {
-      if (init?.method !== "PUT") return jsonResponse({ profile: existing, calculated: { kcal: 2100, protein_g: 96, carbs_g: 250, fat_g: 70, fibre_g: 30 } });
-      const body = JSON.parse(String(init.body));
-      puts.push(body);
-      return jsonResponse({ profile: body, calculated: { kcal: 2100, protein_g: 96, carbs_g: 250, fat_g: 70, fibre_g: 30 } });
-    });
-    renderWithProviders(<SettingsPage />);
-    await screen.findByDisplayValue("1990-05-01");
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
-    await screen.findByText("Saved.");
-    expect(puts[0]).toMatchObject({ name: null, name_prompt: "show" });
+  it("saves the coach's tone, and keeps the companion while it is locked", async () => {
+    const puts = serve(storedProfile(), { locked: "2026-11-02" });
+    open("/settings/coach");
+    expect(await screen.findByText(/You can pick another companion from 2 November/)).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Tiramisù/ })).toBeDisabled();
+    await userEvent.click(screen.getByRole("radio", { name: /Straight talk/ }));
+    await waitFor(() => expect(puts.at(-1)).toMatchObject({ coach_tone: "direct", companion: "zabaione" }));
   });
 
-  it("switches the theme at once, on this device only, without saving the profile", async () => {
-    const calls: string[] = [];
-    mockFetch((url, init) => {
-      calls.push(`${init?.method ?? "GET"} ${url}`);
-      return jsonResponse({ error: "no_profile" }, 404);
-    });
-    renderWithProviders(<SettingsPage />);
-    const theme = await screen.findByRole("group", { name: "Theme" });
-    expect(screen.getByRole("radio", { name: "Auto" })).toBeChecked();
-    await userEvent.click(within(theme).getByRole("radio", { name: "Dark" }));
-    expect(screen.getByRole("radio", { name: "Dark" })).toBeChecked();
-    expect(document.documentElement.dataset.theme).toBe("dark");
-    expect(localStorage.getItem("theme")).toBe("dark");
-    await userEvent.click(within(theme).getByRole("radio", { name: "Light" }));
-    expect(document.documentElement.dataset.theme).toBe("light");
-    expect(calls.filter((call) => !call.startsWith("GET"))).toEqual([]);
-    await userEvent.click(within(theme).getByRole("radio", { name: "Auto" }));
-    localStorage.clear();
+  it("says when a change didn't save", async () => {
+    serve(storedProfile(), { failPut: true });
+    open("/settings/training");
+    await userEvent.click(await screen.findByRole("button", { name: "Padel" }));
+    expect(await screen.findByText("Couldn't save. Try again.")).toBeInTheDocument();
+  });
+
+  it("asks for consent before diets and foods, and still saves the eating habits", async () => {
+    const puts = serve(storedProfile());
+    open("/settings/food");
+    expect(await screen.findByRole("button", { name: "Agree and continue" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Weekends" }));
+    await waitFor(() => expect(puts.at(-1)?.about).toMatchObject({ alcohol: "weekends", focus: ["lose_fat", "skin"] }));
   });
 });
