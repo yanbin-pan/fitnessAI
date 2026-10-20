@@ -8,6 +8,7 @@ import type { ChatMessage, CompanionId, CompanionStatus, DayView, Entry } from "
 import { CompanionAvatar, useHoldHint } from "./CompanionButton.tsx";
 import { COMPANION_NAMES } from "../shared.ts";
 import { EntryCard } from "./EntryCard.tsx";
+import { Markdown } from "./Markdown.tsx";
 import { quietButton } from "./ui.tsx";
 
 export type FeedItem = { kind: "message"; at: string; message: ChatMessage } | { kind: "entry"; at: string; entry: Entry };
@@ -169,7 +170,7 @@ function Bubble({
       {message.text && (
         <div className="flex items-end gap-2">
           <CoachMark speaker={speaker} live={newest === message.id} />
-          <p className="raised-tint tint-custard whitespace-pre-wrap rounded-2xl rounded-bl-md px-3 py-2">{message.text}</p>
+          <Markdown text={message.text} className="raised-tint tint-custard min-w-0 rounded-2xl rounded-bl-md px-3 py-2" />
         </div>
       )}
       {message.text && speaker && newest === message.id && <HoldHint speaker={speaker} />}
