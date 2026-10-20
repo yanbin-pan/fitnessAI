@@ -1,4 +1,4 @@
-import type { ChatMessage, DayView, Entry, ExerciseItem, FoodItem, Regular } from "../shared.ts";
+import type { ChatMessage, DayView, Entry, ExerciseItem, FoodItem, Profile, Regular } from "../shared.ts";
 
 export function foodItem(overrides: Partial<FoodItem> = {}): FoodItem {
   return {
@@ -52,5 +52,22 @@ export function regular(overrides: Partial<Regular> = {}): Regular {
   return {
     key: "0123456789abcdef", kind: "meal", name: "Porridge", foods: [porridge], exercises: [], kcal: 300,
     typical_time: "08:00", days_seen: 5, last_seen: "2026-10-02", edited: false, logged_today: false, ...overrides,
+  };
+}
+
+/** A stored profile with every field, as GET /api/profile sends it. */
+export function storedProfile(overrides: Partial<Profile> = {}): Profile {
+  return {
+    sex: "male", birth_date: "1991-03-15", height_cm: 180, weight_kg: 82, activity_level: "light", goal: "lose", goal_rate_kg_week: 0.5,
+    body_goal_priority: "high", protein_g_per_kg: 1.8, fat_pct: 30, fibre_g: 30, add_back_pct: 50,
+    override_kcal: null, override_protein_g: null, override_carbs_g: null, override_fat_g: null, override_fibre_g: null,
+    timezone: "Europe/London", units_mass: "kg", units_length: "cm", context_days: 5, goal_notes: "on", language: "en",
+    name: "Bin", name_prompt: "done", companion: "zabaione", companion_prompt: "done",
+    about: {
+      focus: ["lose_fat", "skin"], target_weight_kg: 76, sports: ["gym"], sessions_week: 4, experience: null,
+      meals: null, cooking: null, alcohol: null, coffee: null, skin_goals: ["glow"], skin_triggers: [], skin_type: null,
+    },
+    coach_tone: "balanced", onboarding: "done",
+    ...overrides,
   };
 }

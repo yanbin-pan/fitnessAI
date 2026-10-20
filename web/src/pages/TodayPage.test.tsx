@@ -48,10 +48,10 @@ function fakeServer() {
 afterEach(() => onlineManager.setOnline(true));
 
 describe("TodayPage", () => {
-  it("offers profile setup until a profile exists", async () => {
+  it("sends someone without a profile to onboarding", async () => {
     mockFetch(() => jsonResponse({ error: "no_profile" }, 409));
     renderDay();
-    expect(await screen.findByRole("link", { name: "Set up profile" })).toHaveAttribute("href", "/settings");
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/welcome"));
   });
 
   it("opens /day/today from the server and gives only today a composer", async () => {

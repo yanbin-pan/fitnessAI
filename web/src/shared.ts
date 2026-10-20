@@ -18,5 +18,9 @@ export { MODERATE, SIGNAL_KEYS } from "../../shared/src/nutrients.ts";
 export type { NutrientLevel, NutrientSignals, SignalKey } from "../../shared/src/nutrients.ts";
 export { DOCUMENT_KINDS, FACT_KINDS, FOOD_LEVELS, HEALTH_CONDITIONS, LAB_MARKERS, LEVELLED_KINDS, MAX_LAB_PHOTOS, hasLevel, kindOfCode, labFlag } from "../../shared/src/health.ts";
 export type * from "../../shared/src/health.ts";
+export {
+  ALCOHOL_HABITS, COACH_TONES, COFFEE_HABITS, COOKING, EXPERIENCES, FOCUSES, MAX_SESSIONS_WEEK, MEAL_PATTERNS, SKIN_GOALS, SKIN_TRIGGERS, SKIN_TYPES, SPORTS,
+} from "../../shared/src/about.ts";
+export type * from "../../shared/src/about.ts";
 export type * from "../../shared/src/api.ts";
-export type { CompanionInteractionInput, DocumentInput, ExerciseItemInput, FactDraftInput, FactInput, FoodItemInput, HealthChatInput, MessageInput, ObservationInput, Profile, ProfileInput } from "../../shared/src/schemas.ts";
+export type { CompanionInteractionInput, DocumentInput, ExerciseItemInput, About, FactDraftInput, FactInput, FoodItemInput, HealthChatInput, MessageInput, ObservationInput, Profile, ProfileInput } from "../../shared/src/schemas.ts";
