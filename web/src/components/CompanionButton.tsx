@@ -287,7 +287,7 @@ export function CompanionAvatar({ companion, status, live }: { companion: Compan
         aria-label={t.companion.open(COMPANION_NAMES[companion], mood)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className={`relative flex h-8 w-8 shrink-0 touch-manipulation select-none items-center justify-center rounded-full [-webkit-touch-callout:none] ${open || peeking ? "pressed" : "raised-sm"} ${live && !open && !peeking ? "pet-pulse" : ""}`}
+        className={`relative flex h-8 w-8 shrink-0 touch-manipulation select-none items-center justify-center rounded-full [-webkit-touch-callout:none] overflow-hidden ${open || peeking ? "pressed" : "raised-sm"}`}
         style={wash}
         onPointerDown={onPointerDown}
         onPointerUp={endPress}
@@ -304,8 +304,7 @@ export function CompanionAvatar({ companion, status, live }: { companion: Compan
           setOpen(true);
         }}
       >
-        {/* Clipped inside, so the pulse ring around the button can show outside it. */}
-        <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full">
+        <span className="flex h-8 w-8 items-center justify-center">
           {live ? (
             <CompanionView
               companion={companion} mood={status.mood} overAlcohol={status.over_alcohol === true} framing="face" fps={30} fidget paused={open || peeking}
