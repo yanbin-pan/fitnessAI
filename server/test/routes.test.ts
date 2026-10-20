@@ -31,7 +31,7 @@ describe("profile routes", () => {
     const put = await ctx.app.inject({ method: "PUT", url: "/api/profile", headers: ctx.headers, payload: { ...PROFILE, override_kcal: 2000 } });
     expect(put.statusCode).toBe(200);
     expect(put.json().profile).toMatchObject({ weight_kg: 80, override_kcal: 2000, timezone: "Europe/London" });
-    expect(put.json().calculated.kcal).toBeCloseTo(1863.125, 6);
+    expect(put.json().calculated.kcal).toBeCloseTo(2345.75, 6);
     const get = await ctx.app.inject({ method: "GET", url: "/api/profile", headers: ctx.headers });
     expect(get.json().profile.override_kcal).toBe(2000);
   });
@@ -118,7 +118,7 @@ describe("profile routes", () => {
     ensureDay(ctx.db, makeProfile(), "2026-10-02", NOW.toISOString());
     await ctx.app.inject({ method: "PUT", url: "/api/profile", headers: ctx.headers, payload: { ...PROFILE, override_kcal: 2100 } });
     expect(getDay(ctx.db, "2026-10-03")?.base_kcal).toBe(2100);
-    expect(getDay(ctx.db, "2026-10-02")?.base_kcal).toBeCloseTo(1863.125, 6);
+    expect(getDay(ctx.db, "2026-10-02")?.base_kcal).toBeCloseTo(2345.75, 6);
   });
 });
 

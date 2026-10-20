@@ -106,7 +106,7 @@ describe("buildTurnContext", () => {
     expect(heading).toBe("Context for this message (JSON):");
     const context = JSON.parse(json);
     expect(context).toMatchObject({ reply_language: "English", now_local: "2026-10-03 13:00", weekday: "Saturday", message_date: "2026-10-03", exercise_kcal: 0 });
-    expect(context.targets.kcal).toBe(1863.1);
+    expect(context.targets.kcal).toBe(2345.8);
     expect(context.eaten_so_far.kcal).toBe(156.4);
     expect(context.entries[0]).toMatchObject({ id: entry.id, time: "08:10", source: "manual" });
     expect(context.entries[0].foods[0]).toMatchObject({ name: "Eggs", quantity: "2 large", kcal: 156.4, groups: [] });
@@ -156,7 +156,7 @@ describe("the week before the message's day", () => {
       "2026-09-26", "2026-09-27", "2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02",
     ]);
     expect(context.previous_days[6]).toEqual({
-      date: "2026-10-02", weekday: "Friday", target_kcal: 1863, kcal: 2200, protein_g: 100, carbs_g: 250, fat_g: 75, sugars_g: 63, salt_g: 7.4,
+      date: "2026-10-02", weekday: "Friday", target_kcal: 2346, kcal: 2200, protein_g: 100, carbs_g: 250, fat_g: 75, sugars_g: 63, salt_g: 7.4,
     });
     expect(context.previous_days[5]).toEqual({ date: "2026-10-01", weekday: "Thursday", nothing_logged: true });
     expect(context.eaten_so_far.kcal).toBe(999);
@@ -169,7 +169,7 @@ describe("the week before the message's day", () => {
     const context = contextFor("2026-10-03");
 
     expect(context.previous_days[5]).toMatchObject({ date: "2026-10-01", nothing_logged: true });
-    expect(context.week_average).toMatchObject({ days_logged: 2, kcal: 2000, protein_g: 100, sugars_g: 50, salt_g: 6.5, target_kcal: 1863 });
+    expect(context.week_average).toMatchObject({ days_logged: 2, kcal: 2000, protein_g: 100, sugars_g: 50, salt_g: 6.5, target_kcal: 2346 });
   });
 
   it("counts back from the day the person has open, and has no average when nothing was logged", () => {

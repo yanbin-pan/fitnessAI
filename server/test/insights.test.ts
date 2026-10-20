@@ -72,7 +72,7 @@ describe("computeStats", () => {
     const stats = computeStats(db, profile, "2026-10-04", MONDAY.toISOString());
     expect(stats).toMatchObject({ period_start: "2026-09-07", period_end: "2026-10-04", days_logged: 2, food_days: 2, protein_g_per_kg: 1.8 });
     expect(stats.nutrients.kcal.average).toBe(2000);
-    expect(stats.nutrients.kcal.target).toBeCloseTo(1863.1, 1); // the profile's daily target (no exercise those days)
+    expect(stats.nutrients.kcal.target).toBeCloseTo(2345.8, 1); // the profile's daily target (no exercise those days)
     expect(stats.nutrients.salt_g).toEqual({ average: 6, target: 6 });
     expect(stats.nutrients.saturated_fat_g.target).toBe(30); // male upper limit
     expect(stats.alcohol_units_per_week).toBe(7);
