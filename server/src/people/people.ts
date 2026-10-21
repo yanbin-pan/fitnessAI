@@ -7,6 +7,7 @@ import { PERSON_KEY, preparePersonDir } from "../db/location.ts";
 import { openDatabase } from "../db/open.ts";
 import type { OpenDatabase } from "../db/open.ts";
 import type { Sql } from "../db/types.ts";
+import { mergeSameDayRecords } from "../health/records.ts";
 import { moveLegacyHealth, openHealthDatabase } from "../health/store.ts";
 import { failInterrupted } from "../messages/messages.ts";
 
@@ -95,6 +96,8 @@ export function createPeople(opts: { dataDir: string }): People {
     try {
       // Nothing in this process has touched this database yet, so a message still pending was cut off by the last restart.
       failInterrupted(database.db);
+      // Blood tests saved apart on one day before they merged by themselves (2026-10-21) become one record.
+      mergeSameDayRecords(health.db, new Date().toISOString());
     } catch (err) {
       // Not open after all: its exclusive lock would be held for the life of the process, and every retry refused.
       close();

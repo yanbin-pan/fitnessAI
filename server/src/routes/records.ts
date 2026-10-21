@@ -11,12 +11,12 @@ import { markerFood } from "../health/food.ts";
 import { READ_BUDGET_MS, readDocument } from "../health/read.ts";
 import {
   acceptSuggestion, addDocument, addFact, consentedAt, deleteHealthData, dismissSuggestion, grantConsent, healthContext, healthView,
-  listFacts, removeDocument, removeFact, undoSuggestion, updateFact,
+  listFacts, mergeDocuments, removeDocument, removeFact, undoSuggestion, updateFact,
 } from "../health/records.ts";
 import { deletePhotoFiles, photoData } from "../photos/photos.ts";
 import type { PhotoData } from "../photos/photos.ts";
 import { getProfile } from "../profile/profile.ts";
-import { DocumentInput, DocumentReadInput, FactInput, HealthChatInput, LANGUAGE_NAMES, SuggestionAcceptInput } from "../shared.ts";
+import { DocumentInput, DocumentMergeInput, DocumentReadInput, FactInput, HealthChatInput, LANGUAGE_NAMES, SuggestionAcceptInput } from "../shared.ts";
 import type { DocumentReadView, FactView, HealthChatView, HealthView, MarkerFoodView, Profile, SuggestionView } from "../shared.ts";
 import { todayIn } from "../time.ts";
 import { parseBody } from "./http.ts";
@@ -129,6 +129,15 @@ export function registerRecordRoutes(app: FastifyInstance, appDeps: AppDeps): vo
       if (!input) return reply;
       addDocument(deps.health, input, deps.now().toISOString());
       return reply.code(201).send(healthView(deps.health) satisfies HealthView);
+    });
+
+    // The person's merge: the records in `ids` join this one.
+    records.post<{ Params: { id: string } }>("/api/records/documents/:id/merge", async (req, reply) => {
+      const deps = forRequest(appDeps, req);
+      const input = parseBody(DocumentMergeInput, req.body, reply);
+      if (!input) return reply;
+      const found = mergeDocuments(deps.health, req.params.id, input.ids, deps.now().toISOString());
+      return found ? (healthView(deps.health) satisfies HealthView) : reply.code(404).send({ error: "not_found" });
     });
 
     records.delete<{ Params: { id: string } }>("/api/records/documents/:id", async (req, reply) => {

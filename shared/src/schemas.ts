@@ -275,6 +275,12 @@ const photoIds = z
   .refine((ids) => new Set(ids).size === ids.length, { message: "Each photo can be attached once" });
 
 /** Photos of a record for Claude to read (POST /api/records/read). */
+/** Other records to fold into one: their values join it, and they are gone. */
+export const DocumentMergeInput = z.object({
+  ids: z.array(z.string().min(1).max(64)).min(1).max(20).refine((ids) => new Set(ids).size === ids.length, { message: "Each record can be merged once" }),
+});
+export type DocumentMergeInput = z.infer<typeof DocumentMergeInput>;
+
 export const DocumentReadInput = z.object({ photo_ids: photoIds.min(1) });
 export type DocumentReadInput = z.infer<typeof DocumentReadInput>;
 
