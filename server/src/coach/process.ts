@@ -3,7 +3,7 @@ import type { AiClient, AiMessage, AiUsage } from "../ai/client.ts";
 import { buildDayView, getDay, recentDays, snapshotValues } from "../days/days.ts";
 import type { Sql } from "../db/types.ts";
 import { healthContext } from "../health/records.ts";
-import { getMessage, insertReply, setMessageReaction, setMessageStatus } from "../messages/messages.ts";
+import { getMessage, insertReply, listMessages, setMessageReaction, setMessageStatus } from "../messages/messages.ts";
 import { photoData } from "../photos/photos.ts";
 import { getProfile } from "../profile/profile.ts";
 import { todayIn } from "../time.ts";
@@ -172,7 +172,9 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
     });
     recordRun(tx, { ...run, nowIso: doneIso });
     setMessageStatus(tx, messageId, "done", null);
-    setMessageReaction(tx, messageId, result.reaction);
+    // Reactions are meant to be rare: never on two of the person's messages in a row, whatever the coach asked for.
+    const earlier = listMessages(tx, message.date).filter((m) => m.role === "user" && m.id !== messageId && m.created_at <= message.created_at);
+    if (!earlier.at(-1)?.reaction) setMessageReaction(tx, messageId, result.reaction);
   });
   return { outcome: "done", calls: result.calls, usage: result.usage };
 }

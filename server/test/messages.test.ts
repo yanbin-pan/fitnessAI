@@ -94,6 +94,13 @@ describe("POST /api/messages", () => {
     expect(body.day.messages.find((m: { id: string }) => m.id === body.user.id)).toMatchObject({ reaction: "🙌" });
   });
 
+  it("never reacts to two messages in a row", async () => {
+    const { app } = await appWith([textReply("[react:🙌] Great session!"), textReply("[react:🔥] Again!"), textReply("[react:👍] Nice.")]);
+    const reactions = [];
+    for (const text of ["5k run", "10k run", "15k run"]) reactions.push((await send(app, text)).json().user.reaction);
+    expect(reactions).toEqual(["🙌", null, "👍"]);
+  });
+
   it("returns the stored result for a repeated id without asking the coach again", async () => {
     const { app, ai } = await appWith([textReply("Hi!")]);
     const id = randomUUID();
