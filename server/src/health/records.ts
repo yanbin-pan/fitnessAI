@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { chat, consent, documents, facts, observations, suggestions } from "../db/health-schema.ts";
 import type { Sql } from "../db/types.ts";
 import { CODE_LABELS, FactDraftInput, labFlag } from "../shared.ts";
@@ -100,10 +100,13 @@ export interface Document {
   message_id: string | null;
 }
 
-/** Saves a record the person checked, with the facts they ticked; the ones they left become its suggestions. */
+/**
+ * Saves a record the person checked, with the facts they ticked; the ones they left become its suggestions. A blood test
+ * taken on a day that already has one joins it (see sameDayRecord), and the id returned is the record it is now part of.
+ */
 export function addDocument(health: Sql, input: Document, nowIso: string): string {
   const id = randomUUID();
-  health.transaction((tx) => {
+  return health.transaction((tx) => {
     tx.insert(documents).values({
       id, kind: input.kind, taken_on: input.taken_on, title: input.title, source: input.source, language: input.language,
       summary: input.summary, details: {}, created_at: nowIso, updated_at: nowIso,
@@ -123,8 +126,114 @@ export function addDocument(health: Sql, input: Document, nowIso: string): strin
       const message = tx.select().from(chat).where(eq(chat.id, input.message_id)).get();
       if (message) tx.update(chat).set({ details: { ...message.details, saved_document_id: id } }).where(eq(chat.id, message.id)).run();
     }
+    const into = sameDayRecord(tx, input.kind, input.taken_on, id);
+    if (!into) return id;
+    mergeInto(tx, into, [id], nowIso);
+    return into;
   });
-  return id;
+}
+
+// --- Merging records ---
+
+/**
+ * Kinds whose records of one day are one record: a blood test's pages, or the panels of one draw read separately, belong
+ * together. Scans and letters of a day can be about different things, so they merge only when the person says.
+ */
+const MERGES_BY_DAY: readonly DocumentKind[] = ["lab"];
+
+/** The record a new one of this kind and day joins: the first saved, so it keeps its id and its link from the chat. */
+function sameDayRecord(health: Sql, kind: DocumentKind, takenOn: string, except: string): string | null {
+  if (!MERGES_BY_DAY.includes(kind)) return null;
+  const rows = health
+    .select({ id: documents.id })
+    .from(documents)
+    .where(and(eq(documents.kind, kind), eq(documents.taken_on, takenOn), ne(documents.id, except)))
+    .orderBy(asc(documents.created_at), asc(documents.id))
+    .all();
+  return rows[0]?.id ?? null;
+}
+
+/** Two texts as one, each once: "City Lab" and "City Lab" stay "City Lab". */
+function joined(a: string, b: string, separator: string): string {
+  const parts = [a.trim(), b.trim()].filter(Boolean);
+  return [...new Set(parts)].join(separator);
+}
+
+/**
+ * Folds the sources into the target: their values join its list (a marker it already has is not repeated, the target's
+ * result stays), their facts and suggestions point at it, and the chat's "saved" link follows. The sources are gone after.
+ * Runs in the caller's transaction.
+ */
+function mergeInto(tx: Sql, targetId: string, sourceIds: readonly string[], nowIso: string): void {
+  const target = tx.select().from(documents).where(eq(documents.id, targetId)).get();
+  if (!target) return;
+  const kept = tx.select().from(observations).where(eq(observations.document_id, targetId)).all();
+  const keys = new Set(kept.map((o) => markerKey({ code: o.code as LabMarker, name: o.name })));
+  let position = kept.reduce((max, o) => Math.max(max, o.position + 1), 0);
+  let merged = { title: target.title, source: target.source, language: target.language, summary: target.summary };
+  for (const sourceId of sourceIds) {
+    if (sourceId === targetId) continue;
+    const source = tx.select().from(documents).where(eq(documents.id, sourceId)).get();
+    if (!source) continue;
+    const values = tx.select().from(observations).where(eq(observations.document_id, sourceId)).orderBy(asc(observations.position)).all();
+    for (const o of values) {
+      const key = markerKey({ code: o.code as LabMarker, name: o.name });
+      if (keys.has(key)) {
+        tx.delete(observations).where(eq(observations.id, o.id)).run();
+        continue;
+      }
+      keys.add(key);
+      tx.update(observations).set({ document_id: targetId, position: position++ }).where(eq(observations.id, o.id)).run();
+    }
+    tx.update(facts).set({ document_id: targetId }).where(eq(facts.document_id, sourceId)).run();
+    tx.update(suggestions).set({ document_id: targetId }).where(eq(suggestions.document_id, sourceId)).run();
+    const messages = tx.select().from(chat).where(sql`json_extract(${chat.details}, '$.saved_document_id') = ${sourceId}`).all();
+    for (const m of messages) tx.update(chat).set({ details: { ...m.details, saved_document_id: targetId } }).where(eq(chat.id, m.id)).run();
+    merged = {
+      title: merged.title || source.title,
+      source: joined(merged.source, source.source, ", ").slice(0, 100),
+      language: merged.language || source.language,
+      summary: joined(merged.summary, source.summary, "\n\n"),
+    };
+    tx.delete(documents).where(eq(documents.id, sourceId)).run();
+  }
+  tx.update(documents).set({ ...merged, updated_at: nowIso }).where(eq(documents.id, targetId)).run();
+}
+
+/** The person's merge: the other records join this one, whatever their kind or day; this one keeps its date. */
+export function mergeDocuments(health: Sql, targetId: string, sourceIds: readonly string[], nowIso: string): boolean {
+  return health.transaction((tx) => {
+    if (!tx.select({ id: documents.id }).from(documents).where(eq(documents.id, targetId)).get()) return false;
+    mergeInto(tx, targetId, sourceIds, nowIso);
+    return true;
+  });
+}
+
+/**
+ * Merges the blood tests already saved on one day (before records merged by themselves): once each start, a no-op once
+ * done. Returns how many records were folded into another.
+ */
+export function mergeSameDayRecords(health: Sql, nowIso: string): number {
+  return health.transaction((tx) => {
+    const rows = tx
+      .select({ id: documents.id, kind: documents.kind, taken_on: documents.taken_on })
+      .from(documents)
+      .where(inArray(documents.kind, [...MERGES_BY_DAY]))
+      .orderBy(asc(documents.created_at), asc(documents.id))
+      .all();
+    const groups = new Map<string, string[]>();
+    for (const row of rows) {
+      const key = `${row.kind}:${row.taken_on}`;
+      groups.set(key, [...(groups.get(key) ?? []), row.id]);
+    }
+    let folded = 0;
+    for (const [first, ...rest] of groups.values()) {
+      if (rest.length === 0) continue;
+      mergeInto(tx, first!, rest, nowIso);
+      folded += rest.length;
+    }
+    return folded;
+  });
 }
 
 export function removeDocument(health: Sql, id: string): boolean {

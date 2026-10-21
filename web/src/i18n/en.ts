@@ -376,6 +376,11 @@ export const en = {
     disclaimer: "Your coach explains results; it doesn't diagnose. Talk to your doctor about treatment.",
     deleteRecord: "Delete record",
     confirmDeleteRecord: "Delete this record and its results?",
+    mergeRecord: "Merge",
+    mergeTitle: "Merge into this record",
+    mergeHint: "Their results join this one; a result it already has stays as it is.",
+    nothingToMerge: "No other records to merge.",
+    mergeCount: (n: number) => `Merge ${n}`,
     notFound: "This record isn't here any more.",
     // A marker and the food log
     fromRecords: (name: string) => `${name}, from your records`,

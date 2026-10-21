@@ -5,12 +5,14 @@ import { buildTurnContext } from "../src/coach/prompt.ts";
 import { processMessage } from "../src/coach/process.ts";
 import { callsOn } from "../src/coach/usage.ts";
 import { buildDayView } from "../src/days/days.ts";
-import { chat } from "../src/db/health-schema.ts";
+import { chat, documents, observations } from "../src/db/health-schema.ts";
 import { photos } from "../src/db/schema.ts";
 import { purgeHealthChat } from "../src/health/chat.ts";
 import { markerFood } from "../src/health/food.ts";
 import { READ_INSTRUCTIONS } from "../src/health/read.ts";
-import { addDocument, addFact, grantConsent, healthContext, listDocuments, markerTrends } from "../src/health/records.ts";
+import {
+  addChatSuggestions, addDocument, addFact, grantConsent, healthContext, listDocuments, listFacts, markerTrends, mergeDocuments, mergeSameDayRecords, pendingSuggestions,
+} from "../src/health/records.ts";
 import type { Document, Fact } from "../src/health/records.ts";
 import { insertEntry } from "../src/log/entries.ts";
 import { insertUserMessage } from "../src/messages/messages.ts";
@@ -170,6 +172,76 @@ describe("the Health tab's records", () => {
     // Nothing of it in the logbook's database.
     const tables = ctx.storeOf("owner@example.com").sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").pluck().all();
     expect(tables).not.toContain("facts");
+  });
+});
+
+describe("merging records", () => {
+  it("joins a blood test to the one already saved that day, each marker once, the first result kept", () => {
+    const db = openTestHealthDb();
+    const first = addDocument(db.db, doc({ source: "City Lab", observations: [result({ value: 12 }), result({ code: "ldl", name: "LDL", value: 4.1, unit: "mmol/L", ref_low: null, ref_high: 3 })] }), NOW_ISO);
+    const second = addDocument(db.db, doc({
+      source: "City Lab",
+      summary: "Thyroid panel.",
+      observations: [result({ value: 13 }), result({ code: "other", name: "TSH", value: 2.1, unit: "mIU/L", ref_low: 0.4, ref_high: 4 })],
+      facts: [draft({ label: "Hypothyroid watch" })],
+      suggestions: [draft({ kind: "note", label: "Retest in 3 months" })],
+    }), NOW_ISO);
+    expect(second).toBe(first);
+    const docs = listDocuments(db.db);
+    expect(docs).toHaveLength(1);
+    expect(docs[0]).toMatchObject({ id: first, source: "City Lab", summary: "Thyroid panel." });
+    expect(docs[0]!.observations.map((o) => [o.name, o.value])).toEqual([["Ferritin", 12], ["LDL", 4.1], ["TSH", 2.1]]);
+    expect(listFacts(db.db)).toEqual([expect.objectContaining({ label: "Hypothyroid watch", document_id: first })]);
+    expect(pendingSuggestions(db.db)).toEqual([expect.objectContaining({ document_id: first })]);
+    db.close();
+  });
+
+  it("keeps other days, and other kinds of the same day, apart", () => {
+    const db = openTestHealthDb();
+    addDocument(db.db, doc(), NOW_ISO);
+    addDocument(db.db, doc({ taken_on: "2026-09-21" }), NOW_ISO);
+    addDocument(db.db, doc({ kind: "imaging", observations: [], title: "Knee MRI" }), NOW_ISO);
+    addDocument(db.db, doc({ kind: "imaging", observations: [], title: "Chest X-ray" }), NOW_ISO);
+    expect(listDocuments(db.db)).toHaveLength(4);
+    db.close();
+  });
+
+  it("folds the records the person picks into one, whatever their day, and follows the chat's link", () => {
+    const db = openTestHealthDb();
+    const scan = addDocument(db.db, doc({ kind: "imaging", taken_on: "2026-06-18", title: "Knee MRI", observations: [], summary: "Small tear." }), NOW_ISO);
+    const letter = addDocument(db.db, doc({ kind: "letter", taken_on: "2026-06-20", observations: [], summary: "Physio advised." }), NOW_ISO);
+    db.db.insert(chat).values({ id: "11111111-1111-4111-8111-111111111111", role: "coach", text: "Saved", details: { saved_document_id: letter }, created_at: NOW_ISO }).run();
+    addChatSuggestions(db.db, "11111111-1111-4111-8111-111111111111", [], NOW_ISO);
+    expect(mergeDocuments(db.db, scan, [letter], NOW_ISO)).toBe(true);
+    const docs = listDocuments(db.db);
+    expect(docs).toEqual([expect.objectContaining({ id: scan, taken_on: "2026-06-18", title: "Knee MRI", summary: "Small tear.\n\nPhysio advised." })]);
+    expect(db.db.select().from(chat).get()?.details).toEqual({ saved_document_id: scan });
+    expect(mergeDocuments(db.db, "missing", [scan], NOW_ISO)).toBe(false);
+    db.close();
+  });
+
+  it("merges the blood tests saved apart on one day before, once", () => {
+    const db = openTestHealthDb();
+    for (const value of [12, 13]) {
+      db.db.insert(documents).values({ id: `d${value}`, kind: "lab", taken_on: "2026-09-20", title: "", created_at: `2026-10-0${value - 10}T09:00:00.000Z`, updated_at: NOW_ISO }).run();
+      db.db.insert(observations).values({ id: `o${value}`, document_id: `d${value}`, position: 0, code: value === 12 ? "ferritin" : "ldl", name: String(value), value }).run();
+    }
+    expect(mergeSameDayRecords(db.db, NOW_ISO)).toBe(1);
+    expect(mergeSameDayRecords(db.db, NOW_ISO)).toBe(0);
+    expect(listDocuments(db.db)).toEqual([expect.objectContaining({ id: "d12", observations: [expect.objectContaining({ value: 12 }), expect.objectContaining({ value: 13 })] })]);
+    db.close();
+  });
+
+  it("merge from the record's page", async () => {
+    ctx = await consented();
+    await post(ctx, "/api/records/documents", { kind: "imaging", taken_on: "2026-06-18", title: "Knee MRI" });
+    const both = (await post(ctx, "/api/records/documents", { kind: "letter", taken_on: "2026-06-20", summary: "Physio advised." })).json();
+    const [letter, scan] = both.documents;
+    const merged = await post(ctx, `/api/records/documents/${scan.id}/merge`, { ids: [letter.id] });
+    expect(merged.statusCode).toBe(200);
+    expect(merged.json().documents).toEqual([expect.objectContaining({ id: scan.id, summary: "Physio advised." })]);
+    expect((await post(ctx, `/api/records/documents/${scan.id}/merge`, { ids: [] })).statusCode).toBe(400);
+    expect((await post(ctx, "/api/records/documents/nope/merge", { ids: [scan.id] })).statusCode).toBe(404);
   });
 });
 

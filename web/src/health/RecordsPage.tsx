@@ -134,11 +134,69 @@ function Suggests({ suggestions, added }: { suggestions: SuggestionView[]; added
   );
 }
 
+/** The other records, same kind first, nearest day first, to tick and fold into this one. */
+function MergePicker({ view, doc, onDone }: { view: HealthView; doc: DocumentView; onDone: () => void }) {
+  const t = useT();
+  const [picked, setPicked] = useState<string[]>([]);
+  const merge = useRecordsWrite((ids: string[]) => api<HealthView>(`/api/records/documents/${doc.id}/merge`, { json: { ids } }));
+  const distance = (other: DocumentView) => Math.abs(Date.parse(other.taken_on) - Date.parse(doc.taken_on));
+  const others = view.documents
+    .filter((d) => d.id !== doc.id)
+    .sort((a, b) => Number(b.kind === doc.kind) - Number(a.kind === doc.kind) || distance(a) - distance(b));
+  const toggle = (id: string) => setPicked((list) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]));
+  return (
+    <section aria-label={t.health.mergeTitle} className="pressed mt-4 rounded-3xl p-3">
+      <h2 className="flex items-center gap-2 px-1 text-xs font-semibold text-accent-ink">
+        <Icon name="call_merge" size={16} />
+        {t.health.mergeTitle}
+      </h2>
+      <p className="mt-1 px-1 text-xs text-muted">{t.health.mergeHint}</p>
+      {others.length === 0 ? (
+        <p className="mt-3 px-1 text-sm text-muted">{t.health.nothingToMerge}</p>
+      ) : (
+        <ul className="mt-2 max-h-64 divide-y divide-muted/15 overflow-y-auto">
+          {others.map((other) => {
+            const on = picked.includes(other.id);
+            return (
+              <li key={other.id}>
+                <button type="button" aria-pressed={on} onClick={() => toggle(other.id)} className="tap flex min-h-11 w-full items-center gap-3 px-1 py-2 text-left">
+                  <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${on ? "raised-sm text-accent-ink" : "pressed text-transparent"}`}>
+                    <Icon name="check" size={14} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{documentTitle(other, t)}</span>
+                    <span className="block truncate text-xs text-muted">
+                      {[recordDate(other.taken_on, t), other.source, other.observations.length > 0 && t.health.resultsCount(other.observations.length)].filter(Boolean).join(" · ")}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {merge.isError && <p role="alert" className="mt-2 px-1 text-sm text-danger">{t.health.saveFailed}</p>}
+      <div className="mt-3 flex justify-end gap-2">
+        <button type="button" onClick={onDone} className="tap h-9 rounded-xl px-3.5 text-sm text-muted">{t.common.cancel}</button>
+        <button
+          type="button"
+          disabled={picked.length === 0 || merge.isPending}
+          onClick={() => merge.mutate(picked, { onSuccess: onDone })}
+          className="tap raised-sm h-9 rounded-xl px-3.5 text-sm font-semibold text-accent-ink disabled:opacity-50"
+        >
+          {t.health.mergeCount(picked.length)}
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function Record({ view, doc }: { view: HealthView; doc: DocumentView }) {
   const t = useT();
   const navigate = useNavigate();
   const outside = doc.observations.filter((o) => OUTSIDE(o.flag));
   const [all, setAll] = useState(outside.length === 0);
+  const [merging, setMerging] = useState(false);
   const remove = useRecordsWrite(() => api<void>(`/api/records/documents/${doc.id}`, { method: "DELETE" }));
   const trends = new Map(view.trends.map((trend) => [trend.key, trend.points]));
   const previous = (result: ObservationView) => {
@@ -194,16 +252,25 @@ function Record({ view, doc }: { view: HealthView; doc: DocumentView }) {
         {t.health.askAbout}
       </Link>
       <p className="mt-3 px-2 text-center text-xs text-muted">{t.health.disclaimer}</p>
+      {merging && <MergePicker view={view} doc={doc} onDone={() => setMerging(false)} />}
       {remove.isError && <p role="alert" className="mt-2 text-sm text-danger">{t.health.saveFailed}</p>}
-      <button
-        type="button"
-        disabled={remove.isPending}
-        onClick={() => window.confirm(t.health.confirmDeleteRecord) && remove.mutate(undefined, { onSuccess: () => navigate("/health/records", { replace: true }) })}
-        className="mx-auto mt-4 flex min-h-11 items-center gap-1.5 text-sm font-medium text-danger"
-      >
-        <Icon name="delete" size={16} />
-        {t.health.deleteRecord}
-      </button>
+      <div className="mt-4 flex justify-center gap-6">
+        {!merging && view.documents.length > 1 && (
+          <button type="button" onClick={() => setMerging(true)} className="flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent-ink">
+            <Icon name="call_merge" size={16} />
+            {t.health.mergeRecord}
+          </button>
+        )}
+        <button
+          type="button"
+          disabled={remove.isPending}
+          onClick={() => window.confirm(t.health.confirmDeleteRecord) && remove.mutate(undefined, { onSuccess: () => navigate("/health/records", { replace: true }) })}
+          className="flex min-h-11 items-center gap-1.5 text-sm font-medium text-danger"
+        >
+          <Icon name="delete" size={16} />
+          {t.health.deleteRecord}
+        </button>
+      </div>
     </>
   );
 }

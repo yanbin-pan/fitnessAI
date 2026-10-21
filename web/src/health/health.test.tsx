@@ -230,6 +230,20 @@ describe("a record", () => {
     expect(await screen.findByText("Small tear of the medial meniscus. No fracture.")).toBeInTheDocument();
     expect(screen.getByText("Left knee, meniscus tear")).toBeInTheDocument();
   });
+
+  it("merges the records ticked into this one", async () => {
+    const calls: { method: string; url: string; body: unknown }[] = [];
+    serve({ "GET /api/records": full, "POST /api/records/documents/d1/merge": { ...full, documents: [blood] } }, calls);
+    const user = userEvent.setup();
+    renderAt("/health/records/d1");
+    await user.click(await screen.findByRole("button", { name: "Merge" }));
+    const picker = screen.getByRole("region", { name: "Merge into this record" });
+    expect(within(picker).getByRole("button", { name: "Merge 0" })).toBeDisabled();
+    await user.click(within(picker).getByRole("button", { name: /Knee MRI, left/ }));
+    await user.click(within(picker).getByRole("button", { name: "Merge 1" }));
+    await waitFor(() => expect(calls.find((c) => c.url === "/api/records/documents/d1/merge")?.body).toEqual({ ids: ["d2"] }));
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Merge into this record" })).not.toBeInTheDocument());
+  });
 });
 
 describe("a marker beside the food log", () => {
