@@ -6,7 +6,7 @@ import type { ChatMessage, DayView, MessageInput } from "../shared.ts";
 export function pendingMessage(input: MessageInput, date: string): ChatMessage {
   return {
     id: input.id, date, role: "user", text: input.text, photo_ids: input.photo_ids, status: "pending", error_code: null,
-    cards: [], reply_to: null, sent_at: input.sent_at, created_at: input.sent_at,
+    cards: [], reply_to: null, reaction: null, sent_at: input.sent_at, created_at: input.sent_at,
   };
 }
 

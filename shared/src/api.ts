@@ -3,6 +3,7 @@ import type { Activity, BodyGoal, Drink, ExerciseCategory, EntrySource, FoodGrou
 import type { CompanionStatus } from "./companions.ts";
 import type { NutrientSignals } from "./nutrients.ts";
 import type { ExerciseItemInput, FoodItemInput, MicroAmount, Profile } from "./schemas.ts";
+import type { Reaction } from "./reactions.ts";
 
 // Shapes the API returns. The server builds them; the web app renders them.
 
@@ -97,6 +98,8 @@ export interface ChatMessage {
   cards: Card[];
   /** On a reply: the user message it answers. */
   reply_to: string | null;
+  /** User messages only: the companion's emoji reaction, like a tapback; null for none. */
+  reaction: Reaction | null;
   sent_at: string | null;
   created_at: string;
 }

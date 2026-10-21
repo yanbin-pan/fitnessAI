@@ -23,6 +23,15 @@ describe("runCoachLoop", () => {
     expect(result.ok && result.turns.map((t) => t.role)).toEqual(["user", "assistant"]);
   });
 
+  it("takes the reaction tag off the reply, keeping it in the stored turns", async () => {
+    const ai = fakeAi([toolCall([{ name: "log_items", input: {} }]), textReply("[react:💪] Logged your run.")]);
+    const result = await runCoachLoop(input(ai));
+    expect(result).toMatchObject({ ok: true, replyText: "Logged your run.", reaction: "💪" });
+    expect(result.ok && JSON.stringify(result.turns.at(-1))).toContain("[react:💪]");
+    const plain = await runCoachLoop(input(fakeAi([textReply("Hello")])));
+    expect(plain).toMatchObject({ ok: true, replyText: "Hello", reaction: null });
+  });
+
   it("runs the tools Claude asks for and sends the results back", async () => {
     const ai = fakeAi([toolCall([{ name: "log_items", input: { a: 1 } }]), textReply("Logged.")]);
     const execute = vi.fn(okOutcome);

@@ -81,6 +81,7 @@ export const fr: Messages = {
   feed: {
     photoUnavailable: "Photo indisponible",
     removed: "Entrée supprimée",
+    reacted: (name: string, emoji: string) => `${name} a réagi avec ${emoji}`,
     loggedTo: (day) => `Enregistré pour\u202f: ${day}`,
     undo: "Annuler",
     kept: "Les conversations sont conservées pour aujourd’hui et les 3 jours précédents.",

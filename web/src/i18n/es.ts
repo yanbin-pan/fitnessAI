@@ -79,6 +79,7 @@ export const es: Messages = {
   feed: {
     photoUnavailable: "Foto no disponible",
     removed: "Entrada eliminada",
+    reacted: (name: string, emoji: string) => `${name} reaccionó con ${emoji}`,
     loggedTo: (day) => `Registrado en: ${day}`,
     undo: "Deshacer",
     kept: "Los chats se guardan hoy y los 3 días anteriores.",

@@ -6,7 +6,7 @@ import { Icon } from "../icons/Icon.tsx";
 import { chatOpen } from "../shared.ts";
 import type { ChatMessage, CompanionId, CompanionStatus, DayView, Entry } from "../shared.ts";
 import { CompanionAvatar, useHoldHint } from "./CompanionButton.tsx";
-import { COMPANION_NAMES } from "../shared.ts";
+import { COMPANION_NAMES, DEFAULT_COMPANION } from "../shared.ts";
 import { EntryCard } from "./EntryCard.tsx";
 import { Markdown } from "./Markdown.tsx";
 import { quietButton } from "./ui.tsx";
@@ -120,6 +120,20 @@ function CoachWorking({ id, speaker, live }: { id: string; speaker?: Speaker; li
   );
 }
 
+/** The companion's emoji on your bubble, like a tapback (2026-10-21): it sits on the bubble's top-left corner. */
+function ReactionBadge({ emoji, speaker }: { emoji: string; speaker?: Speaker }) {
+  const t = useT();
+  return (
+    <span
+      role="img"
+      aria-label={t.feed.reacted(COMPANION_NAMES[speaker?.id ?? DEFAULT_COMPANION], emoji)}
+      className="reaction-pop raised-sm absolute -left-3 -top-3 flex h-7 w-7 items-center justify-center rounded-full text-[15px] leading-none"
+    >
+      {emoji}
+    </span>
+  );
+}
+
 function Bubble({
   message, entries, date, today, onRetry, onEdit, onUndo, retrying, speaker, newest,
 }: { message: ChatMessage; entries: Map<string, Entry>; date: string; today: string; newest: string | null } & Pick<FeedProps, "onRetry" | "onEdit" | "onUndo" | "retrying" | "speaker">) {
@@ -129,8 +143,9 @@ function Bubble({
     const photoIds = message.photo_ids ?? [];
     return (
       <>
-        <div className="ml-10 flex flex-col items-end">
-          <div className="raised-tint tint-green max-w-full rounded-2xl rounded-br-md p-1.5">
+        <div className={`ml-10 flex flex-col items-end ${message.reaction ? "mt-2" : ""}`}>
+          <div className="raised-tint tint-green relative max-w-full rounded-2xl rounded-br-md p-1.5">
+            {message.reaction && <ReactionBadge emoji={message.reaction} speaker={speaker} />}
             {photoIds.length > 0 && (
               <div className="flex flex-wrap justify-end gap-1.5">
                 {photoIds.map((id, index) => (

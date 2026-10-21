@@ -1,7 +1,8 @@
 import { asc, eq, sql as rawSql } from "drizzle-orm";
 import { messages } from "../db/schema.ts";
 import type { Sql } from "../db/types.ts";
-import type { Card, ChatMessage, MessageRole, MessageStatus } from "../shared.ts";
+import { asReaction } from "../shared.ts";
+import type { Card, ChatMessage, MessageRole, MessageStatus, Reaction } from "../shared.ts";
 
 export type MessageRow = typeof messages.$inferSelect;
 
@@ -16,6 +17,7 @@ export function toChatMessage(row: MessageRow): ChatMessage {
     error_code: row.error_code,
     cards: row.cards,
     reply_to: row.reply_to,
+    reaction: row.reaction === null ? null : asReaction(row.reaction),
     sent_at: row.sent_at,
     created_at: row.created_at,
   };
@@ -65,6 +67,11 @@ export function insertReply(sql: Sql, r: { id: string; replyTo: string; date: st
       error_code: null, reply_to: r.replyTo, sent_at: null, created_at: r.nowIso,
     })
     .run();
+}
+
+/** The companion's reaction to a user message, set with its reply. */
+export function setMessageReaction(sql: Sql, id: string, reaction: Reaction | null): void {
+  sql.update(messages).set({ reaction }).where(eq(messages.id, id)).run();
 }
 
 /** A restart can strand messages as pending forever; mark them so Retry works. */

@@ -1,6 +1,8 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { AiError } from "../ai/client.ts";
 import type { AiClient, AiMessage, AiResponse, AiTool, AiUsage } from "../ai/client.ts";
+import { splitReaction } from "../shared.ts";
+import type { Reaction } from "../shared.ts";
 import type { ToolOutcome } from "./staging.ts";
 
 export type CoachFailure = "timeout" | "ai_error" | "ai_rate_limited" | "refused" | "max_tokens" | "tool_loop_limit";
@@ -23,7 +25,7 @@ export interface LoopInput {
 }
 
 export type LoopResult =
-  | { ok: true; turns: AiMessage[]; replyText: string; calls: number; usage: AiUsage; model: string | null }
+  | { ok: true; turns: AiMessage[]; replyText: string; reaction: Reaction | null; calls: number; usage: AiUsage; model: string | null }
   | { ok: false; failure: CoachFailure; calls: number; usage: AiUsage; model: string | null; detail?: string };
 
 function failureFor(err: AiError): CoachFailure {
@@ -36,6 +38,7 @@ export async function runCoachLoop(input: LoopInput): Promise<LoopResult> {
   const turns: AiMessage[] = [input.userTurn];
   const usage: AiUsage = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
   const texts: string[] = [];
+  let reaction: Reaction | null = null;
   let calls = 0;
   let model: string | null = null;
 
@@ -71,8 +74,13 @@ export async function runCoachLoop(input: LoopInput): Promise<LoopResult> {
 
     // Echo the content back exactly as it came: thinking blocks must be replayed unchanged.
     turns.push({ role: "assistant", content: response.content });
-    texts.push(...replyTexts);
-    if (toolUses.length === 0) return { ok: true, turns, replyText: texts.join("\n\n"), calls, usage, model };
+    // The turns keep the reaction tag, so the coach sees on replay how it reacted; the person sees only the words.
+    for (const raw of replyTexts) {
+      const split = splitReaction(raw);
+      reaction ??= split.reaction;
+      if (split.text.trim()) texts.push(split.text.trim());
+    }
+    if (toolUses.length === 0) return { ok: true, turns, replyText: texts.join("\n\n"), reaction, calls, usage, model };
 
     const results: Anthropic.Beta.BetaToolResultBlockParam[] = toolUses.map((use) => {
       input.onStep?.({ kind: "tool", name: use.name, input: use.input });

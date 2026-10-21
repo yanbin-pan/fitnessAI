@@ -86,6 +86,21 @@ describe("POST /api/messages", () => {
     expect(JSON.stringify(ai?.requests[0].messages[0])).toContain("Context for this message");
   });
 
+  it("puts the coach's reaction on the person's message, not in the reply", async () => {
+    const { app } = await appWith([textReply("[react:🙌] Great session!")]);
+    const body = (await send(app, "just did 5k")).json();
+    expect(body.user).toMatchObject({ reaction: "🙌" });
+    expect(body.reply).toMatchObject({ text: "Great session!", reaction: null });
+    expect(body.day.messages.find((m: { id: string }) => m.id === body.user.id)).toMatchObject({ reaction: "🙌" });
+  });
+
+  it("never reacts to two messages in a row", async () => {
+    const { app } = await appWith([textReply("[react:🙌] Great session!"), textReply("[react:🔥] Again!"), textReply("[react:👍] Nice.")]);
+    const reactions = [];
+    for (const text of ["5k run", "10k run", "15k run"]) reactions.push((await send(app, text)).json().user.reaction);
+    expect(reactions).toEqual(["🙌", null, "👍"]);
+  });
+
   it("returns the stored result for a repeated id without asking the coach again", async () => {
     const { app, ai } = await appWith([textReply("Hi!")]);
     const id = randomUUID();

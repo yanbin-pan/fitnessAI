@@ -96,6 +96,7 @@ export const en = {
   feed: {
     photoUnavailable: "Photo unavailable",
     removed: "Entry removed",
+    reacted: (name: string, emoji: string) => `${name} reacted ${emoji}`,
     loggedTo: (day: string) => `Logged to ${day}`,
     undo: "Undo",
     kept: "Chats are kept for today and the 3 days before.",
