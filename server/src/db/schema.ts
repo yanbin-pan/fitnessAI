@@ -162,6 +162,8 @@ export const messages = sqliteTable(
     status: text(),
     error_code: text(),
     reply_to: text().unique(),
+    /** User messages only: the companion's emoji reaction to it, set with the reply; null for none. */
+    reaction: text(),
     sent_at: text(),
     created_at: text().notNull(),
   },

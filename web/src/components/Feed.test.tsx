@@ -49,6 +49,12 @@ describe("Feed", () => {
     expect(onRetry).toHaveBeenCalledWith("m9");
   });
 
+  it("shows the companion's reaction on your bubble", () => {
+    render(<Feed view={dayView({ messages: [message({ id: "m1", reaction: "🙌" }), message({ id: "m2", text: "bread" })] })} logOnly={false} onRetry={vi.fn()} />);
+    expect(screen.getByRole("img", { name: "Zabaione reacted 🙌" })).toBeInTheDocument();
+    expect(screen.getAllByRole("img", { name: /reacted/ })).toHaveLength(1);
+  });
+
   it("offers Undo for what a reply logged, but not for older entries it corrected", async () => {
     const onUndo = vi.fn();
     const logged = entry({ id: "new", message_id: "m1", source: "coach" });

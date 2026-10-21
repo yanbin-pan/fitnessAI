@@ -79,6 +79,7 @@ export const lt: Messages = {
   feed: {
     photoUnavailable: "Nuotrauka nepasiekiama",
     removed: "Įrašas pašalintas",
+    reacted: (name: string, emoji: string) => `${name} sureagavo ${emoji}`,
     loggedTo: (day) => `Įrašyta į: ${day}`,
     undo: "Atšaukti",
     kept: "Pokalbiai saugomi šiandien ir 3 ankstesnes dienas.",

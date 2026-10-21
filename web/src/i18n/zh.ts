@@ -79,6 +79,7 @@ export const zh: Messages = {
   feed: {
     photoUnavailable: "照片不可用",
     removed: "记录已删除",
+    reacted: (name: string, emoji: string) => `${name} 回应了 ${emoji}`,
     loggedTo: (day) => `已记录到${day}`,
     undo: "撤销",
     kept: "对话保留今天及之前 3 天。",

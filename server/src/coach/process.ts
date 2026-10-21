@@ -3,7 +3,7 @@ import type { AiClient, AiMessage, AiUsage } from "../ai/client.ts";
 import { buildDayView, getDay, recentDays, snapshotValues } from "../days/days.ts";
 import type { Sql } from "../db/types.ts";
 import { healthContext } from "../health/records.ts";
-import { getMessage, insertReply, setMessageStatus } from "../messages/messages.ts";
+import { getMessage, insertReply, setMessageReaction, setMessageStatus } from "../messages/messages.ts";
 import { photoData } from "../photos/photos.ts";
 import { getProfile } from "../profile/profile.ts";
 import { todayIn } from "../time.ts";
@@ -172,6 +172,7 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
     });
     recordRun(tx, { ...run, nowIso: doneIso });
     setMessageStatus(tx, messageId, "done", null);
+    setMessageReaction(tx, messageId, result.reaction);
   });
   return { outcome: "done", calls: result.calls, usage: result.usage };
 }

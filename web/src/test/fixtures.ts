@@ -27,7 +27,7 @@ export function entry(overrides: Partial<Entry> = {}): Entry {
 export function message(overrides: Partial<ChatMessage> = {}): ChatMessage {
   return {
     id: "m1", date: "2026-10-03", role: "user", text: "porridge", photo_ids: [], status: "done", error_code: null,
-    cards: [], reply_to: null, sent_at: "2026-10-03T07:09:00.000Z", created_at: "2026-10-03T07:09:00.000Z",
+    cards: [], reply_to: null, reaction: null, sent_at: "2026-10-03T07:09:00.000Z", created_at: "2026-10-03T07:09:00.000Z",
     ...overrides,
   };
 }

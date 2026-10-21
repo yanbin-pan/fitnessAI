@@ -8,6 +8,8 @@ export {
   LANGUAGES, MAX_BACKDATE_DAYS, MAX_COPIES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, PROFILE_RANGES, SEXES,
 } from "../../shared/src/vocab.ts";
 export type { Activity, ActivityLevel, BodyGoal, CompanionId, Drink, ExerciseCategory, Language, Sex } from "../../shared/src/vocab.ts";
+export type { Reaction } from "../../shared/src/reactions.ts";
+export { DOUBT_REACTIONS } from "../../shared/src/reactions.ts";
 export { COMPANION_THRIVE_DAYS } from "../../shared/src/companions.ts";
 export { ALCOHOL_WEEK_GUIDE, KCAL_PER_UNIT, isDrink } from "../../shared/src/alcohol.ts";
 export type { AlcoholStatus, AlcoholWeek, DrinkTotal } from "../../shared/src/alcohol.ts";

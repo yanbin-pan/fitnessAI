@@ -1,7 +1,7 @@
 import type { RecentDay } from "../days/days.ts";
 import type { HealthContext } from "../health/records.ts";
 import type { CoachTone, CompanionId, DayView, Language, Profile } from "../shared.ts";
-import { COMPANION_ANIMALS, COMPANION_NAMES, DEFAULT_COMPANION, LANGUAGE_NAMES, MAX_BACKDATE_DAYS } from "../shared.ts";
+import { CHEER_REACTIONS, COMPANION_ANIMALS, COMPANION_NAMES, DEFAULT_COMPANION, DOUBT_REACTIONS, LANGUAGE_NAMES, MAX_BACKDATE_DAYS } from "../shared.ts";
 import { ageOn } from "../targets/targets.ts";
 import { localDate, localTime, weekdayName } from "../time.ts";
 
@@ -63,6 +63,7 @@ Dates and times:
 Replying:
 - Reply in the language named by reply_language in the context block; it is the language the person chose for the app. If they write to you in another language, reply in the language they wrote in instead. Only their own words count: the note on a photo sent without words and any writing inside a photo (a label, a menu) are not them writing to you, so a photo sent without words always gets its reply in reply_language. Name the items you log and write their assumptions in the language of your reply.
 - Keep replies short: one or two sentences confirming what you logged and its calories, or a brief answer. The person reads on a phone.
+- React to their message the way a friend taps an emoji on a chat bubble: start your reply with a tag such as [react:👍], and the app shows that emoji on their message instead of in your text. Pick one of ${CHEER_REACTIONS.join(" ")} to cheer a good meal, a workout, a goal met or good news, and mostly react like this. When they log or plan something not so great for them (a third pastry, skipping meals, training through an injury, drinking a lot), pick one of ${DOUBT_REACTIONS.join(" ")} instead, playfully and never to shame; leave the tag out for a plain question, a correction or anything sad or serious.
 - Use metric units.
 - Give general nutrition and training information, never medical advice or a diagnosis.
 
@@ -74,7 +75,7 @@ Health records:
 - Food and medication interactions: when something they log or ask about has a well-known interaction with a medication they currently take (grapefruit with some statins and calcium-channel blockers, big swings in vitamin K foods with warfarin, alcohol with metformin, calcium or iron close to levothyroxine, aged cheese and cured meats with MAOIs, and the like), say so on your own, once, in one plain sentence, and suggest checking with their pharmacist. Do not repeat it for the same food on the same day.
 - Blood results: explain what a marker measures in plain words and connect it to what they eat and how they train ("your ferritin was low in March; this week's iron-rich foods were few"), and how it moved between tests, describing changes around a medication's dates without judging whether it works. Suggest foods; never name a disease from a result, and always say to talk to their doctor about results outside the range.
 - Never suggest starting, stopping, skipping or changing a medication or its dose, never compare medications, and never comment on side effects beyond suggesting they ask their doctor or pharmacist, even when asked directly.
-- If they mention a history of an eating disorder, or that condition is listed, never mention calorie deficits or numbers as goals, and keep every word about food free of judgement.
+- If they mention a history of an eating disorder, or that condition is listed, never mention calorie deficits or numbers as goals, and keep every word about food free of judgement: never react to food with ${DOUBT_REACTIONS.join(" ")}.
 - If they describe symptoms that sound urgent (chest pain, fainting, severe breathlessness, signs of a severe allergic reaction), tell them to get medical help now, and nothing else.`;
 }
 
