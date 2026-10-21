@@ -7,7 +7,7 @@ import { ACTIVITIES, DRINKS, EXERCISE_CATEGORIES, FOOD_GROUPS, MICROS, MUSCLES, 
 // optional, and range checks live in amountIssues() rather than in the schema.
 
 const FoodToolItem = z.strictObject({
-  name: z.string().describe("The food or drink, e.g. 'Porridge with semi-skimmed milk'"),
+  name: z.string().describe("The food or drink in the language of your reply, e.g. 'Porridge with semi-skimmed milk'"),
   quantity: z.string().describe("The portion as eaten, e.g. '1 bowl (250 g)'"),
   grams: z.number().nullable().describe("Weight in grams, known or estimated; null for a drink measured in ml"),
   kcal: z.number(),
@@ -28,7 +28,7 @@ const FoodToolItem = z.strictObject({
   groups: z
     .array(z.strictObject({ group: z.enum(FOOD_GROUPS), portions: z.number().describe("Portions of the group; fractions are fine") }))
     .describe("Food-group portions; empty when no group applies"),
-  assumption: z.string().describe("What you assumed about the portion or recipe; empty if nothing was assumed"),
+  assumption: z.string().describe("What you assumed about the portion or recipe, in the language of your reply; empty if nothing was assumed"),
   // A list, like groups, rather than eleven fields: log_items is the strict tool, and its grammar has a size limit.
   micros: z
     .array(z.strictObject({ nutrient: z.enum(MICROS), amount: z.number().describe("In the unit the nutrient's name ends in") }))
@@ -37,7 +37,7 @@ const FoodToolItem = z.strictObject({
 export type FoodToolItem = z.infer<typeof FoodToolItem>;
 
 const ExerciseToolItem = z.strictObject({
-  name: z.string().describe("The activity, e.g. 'Barbell bench press' or 'Outdoor run'"),
+  name: z.string().describe("The activity in the language of your reply, e.g. 'Barbell bench press' or 'Outdoor run'"),
   category: z.enum(EXERCISE_CATEGORIES),
   activity: z
     .enum(ACTIVITIES)
@@ -53,7 +53,7 @@ const ExerciseToolItem = z.strictObject({
   muscles: z
     .array(z.strictObject({ muscle: z.enum(MUSCLES), role: z.enum(MUSCLE_ROLES) }))
     .describe("Muscles worked; empty when the activity has no clear muscle focus"),
-  assumption: z.string().describe("What you assumed, e.g. pace or rest time; empty if nothing"),
+  assumption: z.string().describe("What you assumed, e.g. pace or rest time, in the language of your reply; empty if nothing"),
 });
 export type ExerciseToolItem = z.infer<typeof ExerciseToolItem>;
 
