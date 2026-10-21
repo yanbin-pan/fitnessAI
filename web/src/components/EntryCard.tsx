@@ -7,7 +7,7 @@ import { CopyButton } from "./CopyPaste.tsx";
 import { SportBadge } from "./SportBadge.tsx";
 
 /** One logged entry: what, when, its calories and macros, where it came from, and every assumption made. */
-export function EntryCard({ entry, onEdit }: { entry: Entry; onEdit?: (entry: Entry) => void }) {
+export function EntryCard({ entry, onEdit, onUndo }: { entry: Entry; onEdit?: (entry: Entry) => void; onUndo?: () => void }) {
   const t = useT();
   const eaten = entry.foods.reduce((sum, f) => sum + f.kcal, 0);
   const burned = entry.exercises.reduce((sum, x) => sum + x.kcal, 0);
@@ -23,13 +23,16 @@ export function EntryCard({ entry, onEdit }: { entry: Entry; onEdit?: (entry: En
   const sport = entry.foods.length === 0 ? entry.exercises[0]?.activity : undefined;
   const body = (
     <span className="flex gap-3">
-      {sport ? (
-        <SportBadge activity={sport} />
-      ) : (
-        <span className="well-tint tint-amber flex h-9 w-9 shrink-0 items-center justify-center rounded-full">
-          <Icon name="restaurant" size={18} />
-        </span>
-      )}
+      {/* With Undo, the icon column keeps room below the badge for the undo button in the bottom-left corner. */}
+      <span className={`shrink-0 ${onUndo ? "pb-7" : ""}`}>
+        {sport ? (
+          <SportBadge activity={sport} />
+        ) : (
+          <span className="well-tint tint-amber flex h-9 w-9 items-center justify-center rounded-full">
+            <Icon name="restaurant" size={18} />
+          </span>
+        )}
+      </span>
       {/* Room on the right for the copy button in the corner. */}
       <span className="min-w-0 flex-1 pr-6">
         <span className="flex items-baseline justify-between gap-2">
@@ -71,7 +74,7 @@ export function EntryCard({ entry, onEdit }: { entry: Entry; onEdit?: (entry: En
       </span>
     </span>
   );
-  // The copy button sits beside the card's own button, not inside it: a button can't hold another.
+  // The copy and undo buttons sit beside the card's own button, not inside it: a button can't hold another.
   return (
     <div className="relative">
       {onEdit ? (
@@ -80,6 +83,16 @@ export function EntryCard({ entry, onEdit }: { entry: Entry; onEdit?: (entry: En
         </button>
       ) : (
         <div className="raised block w-full rounded-2xl p-3 text-left">{body}</div>
+      )}
+      {onUndo && (
+        <button
+          type="button"
+          aria-label={t.feed.undo}
+          onClick={onUndo}
+          className="tap absolute bottom-1 left-1 flex h-9 w-9 items-center justify-center rounded-full text-muted"
+        >
+          <Icon name="undo" size={16} />
+        </button>
       )}
       <CopyButton entry={entry} />
     </div>
