@@ -9,7 +9,6 @@ import { CompanionAvatar, useHoldHint } from "./CompanionButton.tsx";
 import { COMPANION_NAMES, DEFAULT_COMPANION } from "../shared.ts";
 import { EntryCard } from "./EntryCard.tsx";
 import { Markdown } from "./Markdown.tsx";
-import { quietButton } from "./ui.tsx";
 
 export type FeedItem = { kind: "message"; at: string; message: ChatMessage } | { kind: "entry"; at: string; entry: Entry };
 
@@ -198,20 +197,17 @@ function Bubble({
             </p>
           );
         }
-        if (entry.date === date) return <EntryCard key={card.id} entry={entry} onEdit={onEdit} />;
+        // Undo is a small icon in the corner of the reply's last undoable card (2026-10-21), and takes back all of them.
+        const undo = onUndo && card.id === undoable.at(-1) ? () => onUndo(undoable) : undefined;
+        if (entry.date === date) return <EntryCard key={card.id} entry={entry} onEdit={onEdit} onUndo={undo} />;
         // Back-dated by the coach ("yesterday I had..."): it belongs to another day, so say which.
         return (
           <div key={card.id} className="flex flex-col gap-1">
             <span className="text-xs text-muted">{t.feed.loggedTo(dayLabel(entry.date, today, t))}</span>
-            <EntryCard entry={entry} onEdit={onEdit} />
+            <EntryCard entry={entry} onEdit={onEdit} onUndo={undo} />
           </div>
         );
       })}
-      {onUndo && undoable.length > 0 && (
-        <button type="button" onClick={() => onUndo(undoable)} className={`${quietButton} min-h-11 self-start text-sm text-muted`}>
-          {t.feed.undo}
-        </button>
-      )}
     </div>
   );
 }
