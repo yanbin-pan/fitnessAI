@@ -64,3 +64,11 @@ export function clearDrafts(): void {
   preparing.current = Promise.resolve();
   for (const listener of listeners) listener();
 }
+
+/** The composer's text box, which a suggestion focuses. */
+export const COMPOSER_TEXT_ID = "composer-text";
+
+/** Puts `text` in the composer of the day `key`, in place of what was typed: a suggestion to send or change. */
+export function setDraftText(key: string, text: string): void {
+  write(key, { ...current<unknown>(key), text });
+}

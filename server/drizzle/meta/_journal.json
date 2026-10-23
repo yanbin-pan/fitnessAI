@@ -113,6 +113,13 @@
       "when": 1792578548188,
       "tag": "0015_message_reaction",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1792772219482,
+      "tag": "0016_tips_seen",
+      "breakpoints": true
     }
   ]
 }

@@ -1,11 +1,15 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, renderHook, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { dayLabel } from "../format.ts";
 import { en } from "../i18n/index.tsx";
-import type { ChatMessage } from "../shared.ts";
+import type { ChatMessage, SeenTip } from "../shared.ts";
+import { useDraft } from "./drafts.ts";
 import { dayView, entry, exerciseItem, foodItem, message } from "../test/fixtures.ts";
 import { Feed, buildFeed, newestCoachRow } from "./Feed.tsx";
+import type { FeedItem } from "./Feed.tsx";
+
+const rowId = (item: FeedItem) => (item.kind === "entry" ? item.entry.id : item.kind === "tip" ? item.tip.id : item.message.id);
 
 describe("buildFeed", () => {
   const coachEntry = entry({ id: "e1", logged_at: "2026-10-03T08:00:00.000Z", source: "coach" });
@@ -15,11 +19,21 @@ describe("buildFeed", () => {
   const view = dayView({ entries: [coachEntry, manual], messages: [question, reply] });
 
   it("keeps coach-created entries under their reply and lists manual entries on their own", () => {
-    expect(buildFeed(view, false).map((i) => (i.kind === "entry" ? i.entry.id : i.message.id))).toEqual(["m1", "m2", "e2"]);
+    expect(buildFeed(view, false).map(rowId)).toEqual(["m1", "m2", "e2"]);
+  });
+
+  it("puts the day's tips where they were shown, and leaves them out of Log only and other days", () => {
+    const tips: SeenTip[] = [
+      { id: "drinks", date: "2026-10-03", seen_at: "2026-10-03T08:30:00.000Z", vars: {} },
+      { id: "training", date: "2026-10-02", seen_at: "2026-10-02T08:30:00.000Z", vars: {} },
+    ];
+    expect(buildFeed(view, false, tips).map(rowId)).toEqual(["m1", "m2", "drinks", "e2"]);
+    expect(buildFeed(view, true, tips).map(rowId)).toEqual(["e1", "e2"]);
+    expect(newestCoachRow(view, false, null, tips)).toBe("tip-drinks");
   });
 
   it("shows only entries, in time order, in log-only mode", () => {
-    expect(buildFeed(view, true).map((i) => (i.kind === "entry" ? i.entry.id : i.message.id))).toEqual(["e1", "e2"]);
+    expect(buildFeed(view, true).map(rowId)).toEqual(["e1", "e2"]);
   });
 });
 
@@ -176,5 +190,21 @@ describe("Feed", () => {
     render(<Feed view={dayView({ messages: [older] })} logOnly={false} onRetry={() => {}} />);
     expect(screen.getByText("porridge")).toBeInTheDocument();
     expect(screen.queryByRole("img")).toBeNull();
+  });
+
+  it("shows a tip with its numbers, and Try it puts its question in the composer", async () => {
+    const tip: SeenTip = { id: "close-day", date: "2026-10-03", seen_at: "2026-10-03T16:00:00.000Z", vars: { kcal: 620, protein_g: 41 } };
+    render(<Feed view={dayView()} logOnly={false} onRetry={() => {}} tips={[tip]} />);
+    expect(screen.getByText(en.tips.closeDay("620", "41"))).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: `${en.tips.tryIt}: ${en.tips.asks["close-day"]}` }));
+    // The composer reads the same draft store.
+    expect(renderHook(() => useDraft("2026-10-03")).result.current.text).toBe(en.tips.asks["close-day"]);
+  });
+
+  it("names the low vitamins of a vitamin tip, and offers no Try it on a past day", () => {
+    const tip: SeenTip = { id: "vitamin-gaps", date: "2026-10-02", seen_at: "2026-10-02T16:00:00.000Z", vars: { nutrients: ["iron_mg", "folate_ug"] } };
+    render(<Feed view={dayView({ date: "2026-10-02" })} logOnly={false} onRetry={() => {}} tips={[tip]} />);
+    expect(screen.getByText(en.tips.vitaminGaps("Iron and Folate", 2))).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: new RegExp(en.tips.tryIt) })).toBeNull();
   });
 });

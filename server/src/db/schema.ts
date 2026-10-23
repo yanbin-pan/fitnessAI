@@ -266,3 +266,14 @@ export const companionInteractions = sqliteTable(
   },
   (t) => [primaryKey({ columns: [t.date, t.kind] })],
 );
+
+/**
+ * The companion's tips that have been shown (2026-10-23 pet tips design): each once, ever, with the local day and moment
+ * it went into the chat and the day's numbers it was shown with.
+ */
+export const tipsSeen = sqliteTable("tips_seen", {
+  id: text().primaryKey(),
+  date: text().notNull(),
+  seen_at: text().notNull(),
+  vars: text({ mode: "json" }).$type<unknown>().notNull(),
+});
