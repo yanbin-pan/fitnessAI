@@ -5,9 +5,9 @@ export type { CalorieStatus } from "../../shared/src/calendar.ts";
 export { addDays, chatOpen, daysBetween, isIsoDate, isTimeZone } from "../../shared/src/dates.ts";
 export {
   ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, COMPANION_CHANGE_MONTHS, COMPANION_NAMES, DEFAULT_COMPANION, DRINKS, EXERCISE_CATEGORIES,
-  LANGUAGES, MAX_BACKDATE_DAYS, MAX_COPIES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, PROFILE_RANGES, SEXES,
+  LANGUAGES, MAX_BACKDATE_DAYS, MAX_COPIES, MICROS, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, PROFILE_RANGES, SEXES,
 } from "../../shared/src/vocab.ts";
-export type { Activity, ActivityLevel, BodyGoal, CompanionId, Drink, ExerciseCategory, Language, Sex } from "../../shared/src/vocab.ts";
+export type { Activity, ActivityLevel, BodyGoal, CompanionId, Drink, ExerciseCategory, Language, Micro, Sex } from "../../shared/src/vocab.ts";
 export type { Reaction } from "../../shared/src/reactions.ts";
 export { DOUBT_REACTIONS } from "../../shared/src/reactions.ts";
 export { COMPANION_THRIVE_DAYS } from "../../shared/src/companions.ts";
@@ -25,4 +25,6 @@ export {
 } from "../../shared/src/about.ts";
 export type * from "../../shared/src/about.ts";
 export type * from "../../shared/src/api.ts";
-export type { CompanionInteractionInput, DocumentInput, ExerciseItemInput, About, FactDraftInput, FactInput, FoodItemInput, HealthChatInput, MessageInput, ObservationInput, Profile, ProfileInput } from "../../shared/src/schemas.ts";
+export { MAX_TIP_NUTRIENTS, TIP_IDS, tipsAllowedBy } from "../../shared/src/tips.ts";
+export type { SeenTip, TipId, TipVars, TipsView } from "../../shared/src/tips.ts";
+export type { CompanionInteractionInput, DocumentInput, TipSeenInput, ExerciseItemInput, About, FactDraftInput, FactInput, FoodItemInput, HealthChatInput, MessageInput, ObservationInput, Profile, ProfileInput } from "../../shared/src/schemas.ts";

@@ -10,6 +10,7 @@ import { registerPhotoRoutes } from "./photos.ts";
 import { registerProfileRoutes } from "./profile.ts";
 import { registerRecordRoutes } from "./records.ts";
 import { registerRegularRoutes } from "./regulars.ts";
+import { registerTipRoutes } from "./tips.ts";
 
 export function registerRoutes(app: FastifyInstance, deps: AppDeps): void {
   registerHealth(app);
@@ -22,4 +23,5 @@ export function registerRoutes(app: FastifyInstance, deps: AppDeps): void {
   registerInsightRoutes(app, deps);
   registerCompanionRoutes(app, deps);
   registerRecordRoutes(app, deps);
+  registerTipRoutes(app, deps);
 }

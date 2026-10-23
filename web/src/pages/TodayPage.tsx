@@ -23,6 +23,7 @@ import { useT } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
 import { greetingFor } from "../greeting.ts";
 import { storeDay, useDay, useLoadedProfile } from "../queries.ts";
+import { useTipSignal, useTips } from "../tips/tips.ts";
 import { COMPANIONS, DEFAULT_COMPANION, MAX_BACKDATE_DAYS, chatOpen, daysBetween } from "../shared.ts";
 import type { DeleteResult, Entry } from "../shared.ts";
 
@@ -65,7 +66,14 @@ export function TodayPage() {
   const t = useT();
   const day = useDay(date);
   const profile = useLoadedProfile();
+  const stored = profile.data?.profile ?? null;
   const client = useQueryClient();
+  // The companion's tips (2026-10-23 pet tips design): once onboarding is done, it glows while one is due today.
+  const tipsOn = stored !== null && stored.onboarding !== "show" && day.data?.companion !== undefined;
+  useTipSignal(day.data, tipsOn, t.tips.label);
+  const seenTips = useTips(tipsOn).data?.tips;
+  const tips = Array.isArray(seenTips) ? seenTips : [];
+  const dayTips = day.data ? tips.filter((tip) => tip.date === day.data.date).length : 0;
   const [logOnly, setLogOnly] = useState(false);
   const [summaryCard, setSummaryCard] = useState<HTMLDivElement | null>(null);
   const bar = useRef<HTMLDivElement>(null);
@@ -76,7 +84,7 @@ export function TodayPage() {
   // brings the page down to it. Undo and edits don't move it.
   const shownDate = day.data?.date;
   const shownToday = day.data ? day.data.date === day.data.today : false;
-  const itemCount = day.data ? day.data.entries.length + day.data.messages.length : 0;
+  const itemCount = day.data ? day.data.entries.length + day.data.messages.length + dayTips : 0;
   const lastShown = useRef<{ date?: string; count: number }>({ count: 0 });
   useLayoutEffect(() => {
     if (!shownDate) return;
@@ -160,7 +168,6 @@ export function TodayPage() {
     return <main className="mx-auto max-w-xl p-6 text-muted">{day.isError ? t.day.loadFailed : t.common.loading}</main>;
   }
   const view = day.data;
-  const stored = profile.data?.profile ?? null;
   const isToday = view.date === view.today;
   // The server refuses a new entry dated more than MAX_BACKDATE_DAYS back (too_old), so don't offer one there.
   const addable = view.date <= view.today && daysBetween(view.date, view.today) <= MAX_BACKDATE_DAYS;
@@ -169,7 +176,7 @@ export function TodayPage() {
   // An older server sends no companion fields: Zabaione, and no mood to show.
   const companion = stored && COMPANIONS.includes(stored.companion) ? stored.companion : DEFAULT_COMPANION;
   const speaker = view.companion ? { id: companion, status: view.companion } : undefined;
-  const coachInChat = newestCoachRow(view, logOnly, greeting) !== null;
+  const coachInChat = newestCoachRow(view, logOnly, greeting, tips) !== null;
   return (
     // The bottom padding leaves the end of the feed clear of the tab bar and of the composer, whose height changes
     // (photos, notices, a longer message) and is published as --composer-h. A day without a composer uses the fallback.
@@ -221,6 +228,7 @@ export function TodayPage() {
         }}
         greeting={greeting}
         speaker={speaker}
+        tips={tips}
       />
       {addable && (
         <div className="flex flex-wrap items-center gap-2 px-4">

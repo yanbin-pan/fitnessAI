@@ -787,6 +787,36 @@ export const en = {
     download: "Download my health data",
     noHealthData: "You haven't added any health data.",
   },
+  /** Tips from the companion (2026-10-23 pet tips design): ways to use the app that aren't obvious, once each. */
+  tips: {
+    label: "has a tip for you",
+    kicker: "Little trick",
+    tryIt: "Try it",
+    closeDay: (kcal: string, protein: string) => `You've still got ${kcal} kcal and ${protein} g of protein to go today. Ask me “how do I close today?” and I'll put together a dinner that fits, from foods you already eat.`,
+    vitaminGaps: (nutrients: string, count: number) => `${nutrients} ${count === 1 ? "has" : "have"} been running a bit low this week. Ask me “what should I eat for my gaps?” and I'll pick foods that fill them and still fit your goal.`,
+    items: {
+      "shared-plate": "Big sharing plate? Snap the whole thing and tell me “I had about half” or “split between 4”. I'll only count your share.",
+      "menu-photo": "Eating out? Send me a photo of the menu and ask which dish fits your day best.",
+      "plan-ahead": "Plan before you go: “sushi tonight, what should I order?” and I'll pick around what you've already eaten today.",
+      "several-photos": "You can send up to 4 photos in one message: starter, main and dessert in one go.",
+      "same-again": "Same as yesterday? Just say “same breakfast as yesterday”. Or tap the copy icon on a meal and paste it onto another day.",
+      "fix-by-talking": "Logged something wrong? Just tell me, like “the pasta was a big portion actually”, and I'll fix the entry.",
+      "training": "Workouts count too: “ran 5k in 28 min” or “45 min of legs”, and I'll log it and work out what you burned.",
+      "paste-screenshot": "Ordered on a delivery app? Paste the screenshot of your order straight into the message box and I'll log it.",
+      "log-past-day": "Forgot to log a day? Tap the calendar, pick the day and tell me what you had. Your week stays honest.",
+      "log-only": "Just want the food, no chat? Switch the chat to Log and you'll only see what you ate and did.",
+      "drinks": "Drinks count too. Log a glass of wine or a beer and I'll keep an eye on your units for the week.",
+      "blood-tests": "Got blood test results? Add them in Health and I'll keep them in mind, like your cholesterol when you ask what to order.",
+      "hold-to-peek": "Hold me for a second to peek at how your week is going, without opening anything.",
+      "coach-tone": "Want me gentler, or more direct? Change how I talk in Settings › Coach.",
+    },
+    asks: {
+      "close-day": "How do I close today?",
+      "vitamin-gaps": "What should I eat for my gaps?",
+      "shared-plate": "I had about half of this",
+      "menu-photo": "Which dish fits my day best?",
+    },
+  },
 };
 
 export type Messages = typeof en;

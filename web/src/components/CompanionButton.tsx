@@ -3,6 +3,8 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../api.ts";
 import { CompanionBadge, CompanionView, useCompanionStills } from "../companions/CompanionView.tsx";
+import { usePetSignal } from "../companions/signal.ts";
+import type { PetSignal } from "../companions/signal.ts";
 import { petColours } from "../companions/species.ts";
 import { unitsText } from "./Drinks.tsx";
 import { kcal10, thousands } from "../format.ts";
@@ -48,6 +50,17 @@ function usePetWash(companion: CompanionId): CSSProperties {
 function whyText(status: CompanionStatus, t: Messages): string {
   if (status.mood === "okay" && status.avg_kcal === null) return t.companion.why.fresh;
   return t.companion.why[status.mood];
+}
+
+/** The halo round the companion while it has something for you (2026-10-23 pet tips design). */
+function GlowRing({ signal }: { signal: PetSignal | null }) {
+  if (!signal) return null;
+  return <span aria-hidden="true" data-testid="pet-glow" className="pet-glow pointer-events-none absolute inset-0 rounded-full" />;
+}
+
+/** The companion's button name: what it has for you, when it has something, else its mood. */
+function buttonLabel(name: string, mood: string, signal: PetSignal | null, t: Messages): string {
+  return signal ? `${name}, ${signal.label}` : t.companion.open(name, mood);
 }
 
 /** The companion large, with its mood and the week behind it (2026-10-08 companions design §7). */
@@ -133,32 +146,39 @@ function CompanionBubble({ companion, status, onClose, origin }: { companion: Co
 /** The day bar's top-left button: the companion in small, moving, and the bubble it opens. */
 export function CompanionButton({ companion, status }: { companion: CompanionId; status: CompanionStatus }) {
   const t = useT();
+  const signal = usePetSignal();
   const [open, setOpen] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
   const close = () => {
     setOpen(false);
     button.current?.focus();
   };
+  const mood = status.over_alcohol === true && status.mood !== "inactive" ? `${t.companion.moods[status.mood]}, ${t.companion.alcoholShort}` : t.companion.moods[status.mood];
   return (
     <>
-      <button
-        ref={button}
-        type="button"
-        aria-label={t.companion.open(
-          COMPANION_NAMES[companion],
-          status.over_alcohol === true && status.mood !== "inactive" ? `${t.companion.moods[status.mood]}, ${t.companion.alcoholShort}` : t.companion.moods[status.mood],
-        )}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        className={`tap flex h-11 w-11 items-center justify-center overflow-hidden rounded-full ${open ? "pressed" : "raised-sm"}`}
-        onClick={() => {
-          if (!open) reportInteraction("open");
-          setOpen(!open);
-        }}
-      >
-        {/* Held still while the bubble shows the same companion large. */}
-        <CompanionView companion={companion} mood={status.mood} overAlcohol={status.over_alcohol === true} framing="mini" fps={30} paused={open} className="h-11 w-11" badgeClassName="h-9 w-9 text-base" />
-      </button>
+      <span className="relative shrink-0">
+        <button
+          ref={button}
+          type="button"
+          aria-label={buttonLabel(COMPANION_NAMES[companion], mood, signal, t)}
+          aria-expanded={signal ? undefined : open}
+          aria-haspopup={signal ? undefined : "dialog"}
+          className={`tap flex h-11 w-11 items-center justify-center overflow-hidden rounded-full ${open ? "pressed" : "raised-sm"}`}
+          onClick={() => {
+            // Glowing, a tap opens what the companion has for you; its window is the next tap.
+            if (signal && !open) {
+              signal.open();
+              return;
+            }
+            if (!open) reportInteraction("open");
+            setOpen(!open);
+          }}
+        >
+          {/* Held still while the bubble shows the same companion large. */}
+          <CompanionView companion={companion} mood={status.mood} overAlcohol={status.over_alcohol === true} framing="mini" fps={30} paused={open} className="h-11 w-11" badgeClassName="h-9 w-9 text-base" />
+        </button>
+        <GlowRing signal={open ? null : signal} />
+      </span>
       {open && <CompanionBubble companion={companion} status={status} onClose={close} />}
     </>
   );
@@ -246,6 +266,9 @@ function CompanionPeek({ companion, status, anchor }: { companion: CompanionId; 
  */
 export function CompanionAvatar({ companion, status, live }: { companion: CompanionId; status: CompanionStatus; live: boolean }) {
   const t = useT();
+  const raised = usePetSignal();
+  // Only the moving one, beside the newest reply, glows.
+  const signal = live ? raised : null;
   const wash = usePetWash(companion);
   const stills = useCompanionStills();
   const [open, setOpen] = useState(false);
@@ -281,42 +304,51 @@ export function CompanionAvatar({ companion, status, live }: { companion: Compan
   const mood = status.over_alcohol === true && status.mood !== "inactive" ? `${t.companion.moods[status.mood]}, ${t.companion.alcoholShort}` : t.companion.moods[status.mood];
   return (
     <>
-      <button
-        ref={button}
-        type="button"
-        aria-label={t.companion.open(COMPANION_NAMES[companion], mood)}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        className={`relative flex h-8 w-8 shrink-0 touch-manipulation select-none items-center justify-center rounded-full [-webkit-touch-callout:none] overflow-hidden ${open || peeking ? "pressed" : "raised-sm"}`}
-        style={wash}
-        onPointerDown={onPointerDown}
-        onPointerUp={endPress}
-        onPointerCancel={endPress}
-        onPointerLeave={endPress}
-        onContextMenu={(event) => event.preventDefault()}
-        onClick={() => {
-          if (peeked.current) {
-            peeked.current = false;
-            return;
-          }
-          reportInteraction("open");
-          markHintSeen();
-          setOpen(true);
-        }}
-      >
-        <span className="flex h-8 w-8 items-center justify-center">
-          {live ? (
-            <CompanionView
-              companion={companion} mood={status.mood} overAlcohol={status.over_alcohol === true} framing="face" fps={30} fidget paused={open || peeking}
-              className="h-8 w-8" badgeClassName="h-7 w-7 text-xs"
-            />
-          ) : stills?.[companion] ? (
-            <img src={stills[companion]} alt="" className="h-8 w-8 object-contain" />
-          ) : (
-            <CompanionBadge companion={companion} className="h-7 w-7 text-xs" />
-          )}
-        </span>
-      </button>
+      <span className="relative shrink-0">
+        <button
+          ref={button}
+          type="button"
+          aria-label={buttonLabel(COMPANION_NAMES[companion], mood, signal, t)}
+          aria-expanded={signal ? undefined : open}
+          aria-haspopup={signal ? undefined : "dialog"}
+          className={`relative flex h-8 w-8 shrink-0 touch-manipulation select-none items-center justify-center rounded-full [-webkit-touch-callout:none] overflow-hidden ${open || peeking ? "pressed" : "raised-sm"}`}
+          style={wash}
+          onPointerDown={onPointerDown}
+          onPointerUp={endPress}
+          onPointerCancel={endPress}
+          onPointerLeave={endPress}
+          onContextMenu={(event) => event.preventDefault()}
+          onClick={() => {
+            if (peeked.current) {
+              peeked.current = false;
+              return;
+            }
+            // Glowing, a tap opens what the companion has for you; its window is the next tap.
+            if (signal) {
+              markHintSeen();
+              signal.open();
+              return;
+            }
+            reportInteraction("open");
+            markHintSeen();
+            setOpen(true);
+          }}
+        >
+          <span className="flex h-8 w-8 items-center justify-center">
+            {live ? (
+              <CompanionView
+                companion={companion} mood={status.mood} overAlcohol={status.over_alcohol === true} framing="face" fps={30} fidget paused={open || peeking}
+                className="h-8 w-8" badgeClassName="h-7 w-7 text-xs"
+              />
+            ) : stills?.[companion] ? (
+              <img src={stills[companion]} alt="" className="h-8 w-8 object-contain" />
+            ) : (
+              <CompanionBadge companion={companion} className="h-7 w-7 text-xs" />
+            )}
+          </span>
+        </button>
+        <GlowRing signal={open || peeking ? null : signal} />
+      </span>
       {peeking && button.current && <CompanionPeek companion={companion} status={status} anchor={button.current} />}
       {open && <CompanionBubble companion={companion} status={status} onClose={close} origin={button.current} />}
     </>

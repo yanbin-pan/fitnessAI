@@ -4,24 +4,30 @@ import { dayLabel, failureText } from "../format.ts";
 import { useT } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
 import { chatOpen } from "../shared.ts";
-import type { ChatMessage, CompanionId, CompanionStatus, DayView, Entry } from "../shared.ts";
+import type { ChatMessage, CompanionId, CompanionStatus, DayView, Entry, SeenTip } from "../shared.ts";
 import { CompanionAvatar, useHoldHint } from "./CompanionButton.tsx";
 import { COMPANION_NAMES, DEFAULT_COMPANION } from "../shared.ts";
 import { EntryCard } from "./EntryCard.tsx";
 import { Markdown } from "./Markdown.tsx";
+import { COMPOSER_TEXT_ID, setDraftText } from "./drafts.ts";
+import { tipAsk, tipText } from "../tips/text.ts";
 
-export type FeedItem = { kind: "message"; at: string; message: ChatMessage } | { kind: "entry"; at: string; entry: Entry };
+export type FeedItem =
+  | { kind: "message"; at: string; message: ChatMessage }
+  | { kind: "entry"; at: string; entry: Entry }
+  | { kind: "tip"; at: string; tip: SeenTip };
 
 const byTime = (items: FeedItem[]) => [...items].sort((a, b) => a.at.localeCompare(b.at));
 
-/** The day as one timeline: the conversation, with coach-made entries under their reply. */
-export function buildFeed(view: DayView, logOnly: boolean): FeedItem[] {
+/** The day as one timeline: the conversation, with coach-made entries under their reply, and the companion's tips of the day. */
+export function buildFeed(view: DayView, logOnly: boolean, tips: SeenTip[] = []): FeedItem[] {
   const asItems = (list: Entry[]): FeedItem[] => list.map((entry) => ({ kind: "entry", at: entry.logged_at, entry }));
   if (logOnly) return byTime(asItems(view.entries));
   const carded = new Set(view.messages.flatMap((m) => m.cards.map((c) => c.id)));
   return byTime([
     ...view.messages.map((message): FeedItem => ({ kind: "message", at: message.created_at, message })),
     ...asItems(view.entries.filter((e) => !carded.has(e.id))),
+    ...tips.filter((tip) => tip.date === view.date).map((tip): FeedItem => ({ kind: "tip", at: tip.seen_at, tip })),
   ]);
 }
 
@@ -30,12 +36,13 @@ export type Speaker = { id: CompanionId; status: CompanionStatus };
 
 /**
  * The coach's newest row in the chat (2026-10-20): the companion moves there. `working-<id>` while a reply is on its
- * way, the greeting's "greeting", a reply's id; null when the chat shows nothing from the coach.
+ * way, the greeting's "greeting", a reply's id, `tip-<id>` for a tip; null when the chat shows nothing from the coach.
  */
-export function newestCoachRow(view: DayView, logOnly: boolean, greeting: string | null | undefined): string | null {
+export function newestCoachRow(view: DayView, logOnly: boolean, greeting: string | null | undefined, tips: SeenTip[] = []): string | null {
   if (logOnly) return null;
   let newest: string | null = greeting ? "greeting" : null;
-  for (const item of buildFeed(view, false)) {
+  for (const item of buildFeed(view, false, tips)) {
+    if (item.kind === "tip") newest = `tip-${item.tip.id}`;
     if (item.kind !== "message") continue;
     const { message } = item;
     if (message.role === "user" && message.status === "pending") newest = `working-${message.id}`;
@@ -75,6 +82,8 @@ interface FeedProps {
   greeting?: string | null;
   /** The companion, which stands beside the coach's replies and moves on the newest. */
   speaker?: Speaker;
+  /** The companion's tips shown so far (2026-10-23 pet tips design); the day's stand in the chat when they were shown. */
+  tips?: SeenTip[];
 }
 
 /** Zabaione's hello, drawn like one of its replies. */
@@ -86,6 +95,40 @@ function Greeting({ text, speaker, live }: { text: string; speaker?: Speaker; li
         <p className="raised-tint tint-custard rounded-2xl rounded-bl-md px-3 py-2">{text}</p>
       </div>
       {speaker && live && <HoldHint speaker={speaker} />}
+    </div>
+  );
+}
+
+/**
+ * A tip from the companion in the chat (2026-10-23 pet tips design), drawn like one of its replies with a rim of the
+ * glow it came from. Today, Try it puts the question it suggests in the composer, to send or change.
+ */
+function TipBubble({ tip, date, today, speaker, live }: { tip: SeenTip; date: string; today: string; speaker?: Speaker; live: boolean }) {
+  const t = useT();
+  const ask = date === today ? tipAsk(tip.id, t) : undefined;
+  return (
+    <div className="mr-6 flex flex-col gap-2">
+      <div className="flex items-end gap-2">
+        <CoachMark speaker={speaker} live={live} />
+        <div className="raised-tint tint-custard tip-rim min-w-0 rounded-2xl rounded-bl-md px-3 py-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-(--tint-ink)">✦ {t.tips.kicker}</p>
+          <p className="mt-0.5">{tipText(tip, t)}</p>
+        </div>
+      </div>
+      {ask && (
+        <div className="ml-10">
+          <button
+            type="button"
+            onClick={() => {
+              setDraftText(date, ask);
+              document.getElementById(COMPOSER_TEXT_ID)?.focus();
+            }}
+            className="tap well-tint tint-custard rounded-full px-3 py-1.5 text-left text-sm font-semibold"
+          >
+            {t.tips.tryIt}: {ask}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -212,9 +255,9 @@ function Bubble({
   );
 }
 
-export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying, greeting, speaker }: FeedProps) {
+export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying, greeting, speaker, tips = [] }: FeedProps) {
   const t = useT();
-  const items = buildFeed(view, logOnly);
+  const items = buildFeed(view, logOnly, tips);
   // A card can point at an entry dated another day (back-dated), which travels in linked_entries.
   // (An older server does not send the field yet.)
   const entries = new Map([...view.entries, ...(view.linked_entries ?? [])].map((e) => [e.id, e]));
@@ -226,7 +269,7 @@ export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying, greetin
     ) : null;
   // The hello belongs to the chat, so Log only leaves it out.
   const hello = greeting && !logOnly ? greeting : null;
-  const newest = newestCoachRow(view, logOnly, hello);
+  const newest = newestCoachRow(view, logOnly, hello, tips);
   // A greeting already invites the first message, so it stands in for the empty-day text.
   if (items.length === 0 && hello) {
     return (
@@ -254,7 +297,11 @@ export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying, greetin
           </li>
         )}
         {items.map((item) =>
-          item.kind === "entry" ? (
+          item.kind === "tip" ? (
+            <li key={`t-${item.tip.id}`}>
+              <TipBubble tip={item.tip} date={view.date} today={view.today} speaker={speaker} live={newest === `tip-${item.tip.id}`} />
+            </li>
+          ) : item.kind === "entry" ? (
             <li key={`e-${item.entry.id}`}>
               <EntryCard entry={item.entry} onEdit={onEdit} />
             </li>

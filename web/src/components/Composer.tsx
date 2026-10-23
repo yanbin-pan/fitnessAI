@@ -12,7 +12,7 @@ import { preparePhoto } from "../photos/prepare.ts";
 import { storeDay } from "../queries.ts";
 import { MAX_PHOTOS_PER_MESSAGE } from "../shared.ts";
 import type { EntryResult, MessageInput, PhotoUpload, Regular } from "../shared.ts";
-import { preparing, removed, useDraft } from "./drafts.ts";
+import { COMPOSER_TEXT_ID, preparing, removed, useDraft } from "./drafts.ts";
 import { sportOf } from "./SportBadge.tsx";
 
 interface Attachment {
@@ -362,6 +362,7 @@ export function Composer({ date, suggestions = [] }: { date: string; suggestions
             <input type="file" accept="image/*" multiple aria-label={t.composer.addPhotos} disabled={full || phase === "storing"} onChange={onFiles} className="sr-only" />
           </label>
           <textarea
+            id={COMPOSER_TEXT_ID}
             aria-label={t.composer.message}
             rows={1}
             value={text}

@@ -10,6 +10,7 @@ import {
 import {
   ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, COMPANION_INTERACTIONS, DEFAULT_COMPANION, DRINKS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_COPIES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, PROFILE_RANGES, SEXES,
 } from "./vocab.ts";
+import { MAX_TIP_NUTRIENTS, TIP_IDS } from "./tips.ts";
 
 // Request bodies the API accepts. Each schema's parsed output (defaults filled in)
 // is exported as a type of the same name.
@@ -203,6 +204,20 @@ export type RegularLogInput = z.infer<typeof RegularLogInput>;
 /** One interaction with the companion, counted per day for the owner's dashboard (2026-10-08 companions design §8). */
 export const CompanionInteractionInput = z.object({ kind: z.enum(COMPANION_INTERACTIONS) });
 export type CompanionInteractionInput = z.infer<typeof CompanionInteractionInput>;
+
+/** A tip the phone has just put in the chat (2026-10-23 pet tips design), with the day's numbers it was shown with. */
+export const TipSeenInput = z.object({
+  id: z.enum(TIP_IDS),
+  vars: z
+    .object({
+      kcal: z.number().int().min(0).max(20000).optional(),
+      protein_g: z.number().int().min(0).max(2000).optional(),
+      nutrients: z.array(z.enum(MICROS)).max(MAX_TIP_NUTRIENTS).optional(),
+    })
+    .strict()
+    .default({}),
+});
+export type TipSeenInput = z.input<typeof TipSeenInput>;
 
 const isoOrNull = IsoDate.nullable().default(null);
 
