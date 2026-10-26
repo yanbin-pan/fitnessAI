@@ -58,7 +58,7 @@ export const lt: Messages = {
     grams: (value, target) => `${value} iš ${target} g`,
     addBack: (added, workout) => `+${added} kcal iš ${workout} kcal fizinio aktyvumo`,
   },
-  macros: { protein: "Baltymai", carbs: "Angliavandeniai", fat: "Riebalai", fibre: "Skaidulos", proteinShort: "B", carbsShort: "A", fatShort: "R" },
+  macros: { protein: "Baltymai", carbs: "Angliavandeniai", fat: "Riebalai", fibre: "Skaidulos", proteinShort: "B", carbsShort: "A", fatShort: "R", fibreShort: "S" },
   activity: {
     title: "Aktyvumas",
     details: (sport) => `${sport}: išsamiau`,
