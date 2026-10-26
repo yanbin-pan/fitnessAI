@@ -75,7 +75,7 @@ export const en = {
     grams: (value: number, target: number) => `${value} of ${target} g`,
     addBack: (added: number, workout: number) => `+${added} kcal from ${workout} kcal of exercise`,
   },
-  macros: { protein: "Protein", carbs: "Carbs", fat: "Fat", fibre: "Fibre", proteinShort: "P", carbsShort: "C", fatShort: "F" },
+  macros: { protein: "Protein", carbs: "Carbs", fat: "Fat", fibre: "Fibre", proteinShort: "P", carbsShort: "C", fatShort: "F", fibreShort: "Fib" },
   activity: {
     title: "Activity",
     details: (sport: string) => `${sport} details`,

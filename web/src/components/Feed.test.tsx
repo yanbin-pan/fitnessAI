@@ -130,7 +130,7 @@ describe("Feed", () => {
   it("says when an entry came from a photo, and shows a meal's macros", () => {
     render(<Feed view={dayView({ entries: [entry({ source: "photo" })] })} logOnly={false} onRetry={() => {}} />);
     expect(screen.getByText("from photo")).toBeInTheDocument();
-    expect(screen.getByText("P 10 · C 50 · F 6")).toBeInTheDocument();
+    expect(screen.getByText("P 10 · C 50 · F 6 · Fib 5")).toBeInTheDocument();
   });
 
   it("explains that a day before the chat window has no conversation", () => {
@@ -174,15 +174,15 @@ describe("Feed", () => {
     // One sport badge, for the exercise-only entry; the entry with food and a workout shows a meal, not Gym.
     expect(screen.getAllByRole("img").map((icon) => icon.getAttribute("aria-label"))).toEqual(["Tennis"]);
     // One macros line, for the entry with food.
-    expect(screen.getAllByText(/^P \d+ · C \d+ · F \d+$/)).toHaveLength(1);
+    expect(screen.getAllByText(/^P \d+ · C \d+ · F \d+ · Fib \d+$/)).toHaveLength(1);
   });
 
   it("adds up a meal's foods before rounding its macros to whole grams", () => {
-    const half = { protein_g: 10.4, carbs_g: 20.4, fat_g: 5.4 };
+    const half = { protein_g: 10.4, carbs_g: 20.4, fat_g: 5.4, fibre_g: 2.4 };
     const meal = entry({ foods: [foodItem({ id: "f1", ...half }), foodItem({ id: "f2", ...half })] });
     render(<Feed view={dayView({ entries: [meal] })} logOnly={false} onRetry={() => {}} />);
     // 20.8, 40.8 and 10.8 round to 21, 41 and 11; rounding each food first would give 20, 40 and 10.
-    expect(screen.getByText("P 21 · C 41 · F 11")).toBeInTheDocument();
+    expect(screen.getByText("P 21 · C 41 · F 11 · Fib 5")).toBeInTheDocument();
   });
 
   it("still shows a message when an older server leaves photo_ids out", () => {

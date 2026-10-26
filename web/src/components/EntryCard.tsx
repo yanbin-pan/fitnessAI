@@ -12,7 +12,7 @@ export function EntryCard({ entry, onEdit, onUndo }: { entry: Entry; onEdit?: (e
   const eaten = entry.foods.reduce((sum, f) => sum + f.kcal, 0);
   const burned = entry.exercises.reduce((sum, x) => sum + x.kcal, 0);
   const names = entryNames(entry);
-  const grams = (key: "protein_g" | "carbs_g" | "fat_g") => Math.round(entry.foods.reduce((sum, f) => sum + f[key], 0));
+  const grams = (key: "protein_g" | "carbs_g" | "fat_g" | "fibre_g") => Math.round(entry.foods.reduce((sum, f) => sum + f[key], 0));
   const facts = [
     eaten > 0 ? `${Math.round(eaten)} ${t.units.kcal}` : null,
     burned > 0 ? t.entry.burned(Math.round(burned)) : null,
@@ -43,10 +43,10 @@ export function EntryCard({ entry, onEdit, onUndo }: { entry: Entry; onEdit?: (e
         {eaten > 0 && (
           <span className="flex gap-2.5 text-xs text-muted">
             <span className="sr-only">
-              {t.macros.proteinShort} {grams("protein_g")} · {t.macros.carbsShort} {grams("carbs_g")} · {t.macros.fatShort} {grams("fat_g")}
+              {t.macros.proteinShort} {grams("protein_g")} · {t.macros.carbsShort} {grams("carbs_g")} · {t.macros.fatShort} {grams("fat_g")} · {t.macros.fibreShort} {grams("fibre_g")}
             </span>
             {/* The same, with each macro's dot in its colour (2026-10-20); read once, from the line above. */}
-            {([["protein_g", t.macros.proteinShort, "bg-protein"], ["carbs_g", t.macros.carbsShort, "bg-carbs"], ["fat_g", t.macros.fatShort, "bg-fat"]] as const).map(([key, short, dot]) => (
+            {([["protein_g", t.macros.proteinShort, "bg-protein"], ["carbs_g", t.macros.carbsShort, "bg-carbs"], ["fat_g", t.macros.fatShort, "bg-fat"], ["fibre_g", t.macros.fibreShort, "bg-fibre"]] as const).map(([key, short, dot]) => (
               <span key={key} aria-hidden="true" className="flex items-center gap-1">
                 <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
                 {short} {grams(key)}

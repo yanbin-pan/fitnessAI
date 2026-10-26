@@ -58,7 +58,7 @@ export const zh: Messages = {
     grams: (value, target) => `${value} / ${target} 克`,
     addBack: (added, workout) => `+${added} 千卡，来自 ${workout} 千卡运动消耗`,
   },
-  macros: { protein: "蛋白质", carbs: "碳水", fat: "脂肪", fibre: "膳食纤维", proteinShort: "蛋白", carbsShort: "碳水", fatShort: "脂肪" },
+  macros: { protein: "蛋白质", carbs: "碳水", fat: "脂肪", fibre: "膳食纤维", proteinShort: "蛋白", carbsShort: "碳水", fatShort: "脂肪", fibreShort: "纤维" },
   activity: {
     title: "运动",
     details: (sport) => `${sport}详情`,

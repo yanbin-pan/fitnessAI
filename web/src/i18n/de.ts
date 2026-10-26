@@ -58,7 +58,7 @@ export const de: Messages = {
     grams: (value, target) => `${value} von ${target} g`,
     addBack: (added, workout) => `+${added} kcal aus ${workout} kcal Training`,
   },
-  macros: { protein: "Eiweiß", carbs: "Kohlenhydrate", fat: "Fett", fibre: "Ballaststoffe", proteinShort: "E", carbsShort: "K", fatShort: "F" },
+  macros: { protein: "Eiweiß", carbs: "Kohlenhydrate", fat: "Fett", fibre: "Ballaststoffe", proteinShort: "E", carbsShort: "K", fatShort: "F", fibreShort: "B" },
   activity: {
     title: "Aktivität",
     details: (sport) => `${sport}: Details`,
