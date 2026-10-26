@@ -73,12 +73,12 @@ describe("companionStatus", () => {
     expect(companionStatus(days, TODAY).mood).toBe("okay");
   });
 
-  it("thrives once the week has been Okay on each of the last 14 days", () => {
+  it("thrives once the week has been Okay on each of the last 7 days", () => {
     const steady = run(COMPANION_LOOKBACK_DAYS, 1, 2050);
-    expect(companionStatus(steady, TODAY)).toMatchObject({ mood: "thriving", okay_streak: 14 });
-    // The oldest of the 14 weeks needs 4 logged days of its own: history from 17 days back is just enough.
-    expect(companionStatus(run(17, 1, 2050), TODAY)).toMatchObject({ mood: "thriving" });
-    expect(companionStatus(run(16, 1, 2050), TODAY)).toMatchObject({ mood: "okay", okay_streak: 13 });
+    expect(companionStatus(steady, TODAY)).toMatchObject({ mood: "thriving", okay_streak: 7 });
+    // The oldest of the 7 weeks needs 4 logged days of its own: history from 10 days back is just enough.
+    expect(companionStatus(run(10, 1, 2050), TODAY)).toMatchObject({ mood: "thriving" });
+    expect(companionStatus(run(9, 1, 2050), TODAY)).toMatchObject({ mood: "okay", okay_streak: 6 });
   });
 
   it("restarts the streak after a week that was off", () => {
@@ -94,7 +94,7 @@ describe("companionStatus", () => {
     const alternate = run(COMPANION_LOOKBACK_DAYS, 1, 2000).filter((_, i) => i % 2 === 0);
     const status = companionStatus(alternate, TODAY);
     expect(status.mood).toBe("okay");
-    expect(status.okay_streak).toBeLessThan(14);
+    expect(status.okay_streak).toBeLessThan(7);
     // Stopped logging 6 days ago: still awake, but the week no longer counts.
     expect(companionStatus(run(COMPANION_LOOKBACK_DAYS, 6, 2000), TODAY)).toMatchObject({ mood: "okay", okay_streak: 0 });
   });
