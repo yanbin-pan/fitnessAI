@@ -18,7 +18,7 @@ export const COMPANION_SEARCH_DAYS = 28;
 /** Within this share of the target either way the week is Okay; beyond it, Sluggish (under) or Overfed (over). */
 export const COMPANION_TOLERANCE = 0.15;
 /** Days in a row with an Okay week that make Thriving. */
-export const COMPANION_THRIVE_DAYS = 14;
+export const COMPANION_THRIVE_DAYS = 7;
 /** A day's average counts towards Thriving only with this many fully logged days in its own calendar week: Okay needs logging. */
 export const COMPANION_STREAK_MIN_LOGGED = 4;
 /** How far back the days must go: the oldest average the streak looks at searches back to this many days before today. */

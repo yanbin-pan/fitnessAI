@@ -107,7 +107,7 @@ x      = smoothstep(70, 92, score) * (1 - sleep) * (1 - over)         // extra j
 | Inactive | Nothing logged for 7 days (flag) | **Asleep.** Slumped forward, sitting lower, ears drooping, eyes shut, frown, washed-out colour, slow breathing, floating "z" sprites |
 | Sluggish | 7-day average > 15 % under target (score 20) | **Awake but run-down and hungry.** Droopy posture, tired eyes with shadows underneath, wobbly uneasy mouth, pale drained colour, sweat drop, tummy grumbles, keeps glancing at an **empty food bowl** |
 | Okay     | 7-day average within 15 % (score 55) | **Calm and content.** Sitting tall, ears up, round blinking eyes, small smile, gentle head tilt, gentle tail wag, full colour |
-| Thriving | Okay for 14 days in a row (score 95) | **Ecstatic and energetic.** Everything in Okay, plus continuous hops, happy `^ ^` eyes, open smile, rosier cheeks, energy FX |
+| Thriving | Okay for 7 days in a row (score 95) | **Ecstatic and energetic.** Everything in Okay, plus continuous hops, happy `^ ^` eyes, open smile, rosier cheeks, energy FX |
 | Overfed  | 7-day average > 15 % over target (flag) | **Stuffed and uncomfortable.** Slightly rounder belly and cheeks, slumped and droopy, tired heavy eyes, uneasy mouth, sweat drop, burps, winces with an "oof…", crumbs on the face, an **overflowing bowl** of pastries with a cannolo rolled out |
 
 Sluggish must read as "not being fed well" while the companion is clearly awake. **It must not

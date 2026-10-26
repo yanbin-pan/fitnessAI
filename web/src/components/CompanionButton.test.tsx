@@ -18,7 +18,7 @@ describe("CompanionButton", () => {
     expect(bubble).toHaveTextContent("Okay");
     expect(bubble).toHaveTextContent("Right around target this week. Steady.");
     expect(bubble).toHaveTextContent("7-day average: 2,104 of 2,320 kcal");
-    expect(bubble).toHaveTextContent("3 of 14 days on track towards Thriving");
+    expect(bubble).toHaveTextContent("3 of 7 days on track towards Thriving");
     expect(bubble).toHaveTextContent("Follows your last 7 fully logged days, not a single day.");
     expect(button).toHaveAttribute("aria-expanded", "true");
   });
@@ -83,7 +83,7 @@ describe("CompanionAvatar", () => {
   it("opens the full window on a tap, named like the day bar's button", async () => {
     render(<CompanionAvatar companion="bombolone" status={okay} live={false} />);
     await userEvent.click(screen.getByRole("button", { name: "Bombolone, Okay. How your week is going" }));
-    expect(screen.getByRole("dialog", { name: "Bombolone" })).toHaveTextContent("3 of 14 days on track towards Thriving");
+    expect(screen.getByRole("dialog", { name: "Bombolone" })).toHaveTextContent("3 of 7 days on track towards Thriving");
   });
 
   it("peeks while held and closes on release, without opening the full window", () => {
