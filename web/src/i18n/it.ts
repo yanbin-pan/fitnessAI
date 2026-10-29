@@ -678,6 +678,8 @@ export const it: Messages = {
         direct: "“Proteine basse di nuovo, terzo giorno di fila. Rimedia a cena.”",
       },
       seePlan: "Vedi il mio piano",
+      heardFrom: "Come hai conosciuto Zabaione?",
+      heardFromNames: { friend: "Da un amico", social: "Social", search: "Ricerca sul web", app_store: "App Store", other: "Altro" },
     },
     plan: {
       ready: "Tutto pronto",

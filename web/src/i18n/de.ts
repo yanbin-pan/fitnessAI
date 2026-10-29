@@ -678,6 +678,8 @@ export const de: Messages = {
         direct: "„Wieder zu wenig Protein, dritter Tag in Folge. Gleich das beim Abendessen aus.“",
       },
       seePlan: "Meinen Plan ansehen",
+      heardFrom: "Wie hast du von Zabaione erfahren?",
+      heardFromNames: { friend: "Von Freunden", social: "Social Media", search: "Websuche", app_store: "App Store", other: "Anderes" },
     },
     plan: {
       ready: "Alles bereit",

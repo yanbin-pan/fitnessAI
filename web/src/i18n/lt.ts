@@ -678,6 +678,8 @@ export const lt: Messages = {
         direct: "„Vėl per mažai baltymų, jau trečia diena. Ištaisykite per vakarienę.“",
       },
       seePlan: "Rodyti mano planą",
+      heardFrom: "Kaip sužinojote apie Zabaione?",
+      heardFromNames: { friend: "Iš draugo", social: "Socialiniai tinklai", search: "Paieška internete", app_store: "App Store", other: "Kita" },
     },
     plan: {
       ready: "Viskas paruošta",

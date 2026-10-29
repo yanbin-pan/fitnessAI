@@ -5,7 +5,7 @@ import {
 } from "./health.ts";
 import type { FactKind, FoodLevel, HealthCondition } from "./health.ts";
 import {
-  ALCOHOL_HABITS, COACH_TONES, COFFEE_HABITS, COOKING, EXPERIENCES, FOCUSES, MAX_SESSIONS_WEEK, MEAL_PATTERNS, SKIN_GOALS, SKIN_TRIGGERS, SKIN_TYPES, SPORTS,
+  ALCOHOL_HABITS, COACH_TONES, COFFEE_HABITS, COOKING, EXPERIENCES, FOCUSES, HEARD_FROM, MAX_SESSIONS_WEEK, MEAL_PATTERNS, SKIN_GOALS, SKIN_TRIGGERS, SKIN_TYPES, SPORTS,
 } from "./about.ts";
 import {
   ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, COMPANION_INTERACTIONS, DEFAULT_COMPANION, DRINKS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_COPIES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, PROFILE_RANGES, SEXES,
@@ -127,6 +127,7 @@ export const AboutInput = z.object({
   skin_goals: picks(SKIN_GOALS),
   skin_triggers: picks(SKIN_TRIGGERS),
   skin_type: pick(SKIN_TYPES),
+  heard_from: pick(HEARD_FROM),
 });
 export type AboutInput = z.input<typeof AboutInput>;
 export type About = z.output<typeof AboutInput>;

@@ -34,6 +34,10 @@ export type SkinTrigger = (typeof SKIN_TRIGGERS)[number];
 export const SKIN_TYPES = ["dry", "oily", "combination", "sensitive"] as const;
 export type SkinType = (typeof SKIN_TYPES)[number];
 
+/** How the person heard about Zabaione, asked once at the end of onboarding: signups per channel on the owner's dashboard. */
+export const HEARD_FROM = ["friend", "social", "search", "app_store", "other"] as const;
+export type HeardFrom = (typeof HEARD_FROM)[number];
+
 /** How the coach talks: kind and soft, plain, or blunt. */
 export const COACH_TONES = ["gentle", "balanced", "direct"] as const;
 export type CoachTone = (typeof COACH_TONES)[number];

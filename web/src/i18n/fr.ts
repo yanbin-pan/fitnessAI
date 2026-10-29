@@ -680,6 +680,8 @@ export const fr: Messages = {
         direct: "« Protéines basses encore, troisième jour d’affilée. Corrigez au dîner. »",
       },
       seePlan: "Voir mon plan",
+      heardFrom: "Comment avez-vous connu Zabaione ?",
+      heardFromNames: { friend: "Par un ami", social: "Réseaux sociaux", search: "Recherche web", app_store: "App Store", other: "Autre" },
     },
     plan: {
       ready: "C’est prêt",

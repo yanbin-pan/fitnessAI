@@ -8,11 +8,11 @@ import { thousands } from "../format.ts";
 import { LANGUAGE_NAMES, useI18n, useT } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
 import { useHealth, useProfile } from "../queries.ts";
-import { DEFAULT_COMPANION, LANGUAGES, MAX_NAME_LENGTH } from "../shared.ts";
-import type { About, CoachTone, CompanionId, Focus, HealthView, Language, ProfileInput, ProfileView } from "../shared.ts";
+import { DEFAULT_COMPANION, HEARD_FROM, LANGUAGES, MAX_NAME_LENGTH } from "../shared.ts";
+import type { About, CoachTone, CompanionId, Focus, HealthView, HeardFrom, Language, ProfileInput, ProfileView } from "../shared.ts";
 import { deviceTimeZone } from "../timezones.ts";
 import {
-  AnswerLabel, Chip, DietChips, FactChips, FactList, FocusTiles, HabitAnswers, SkinAnswers, ToneChoice, TrainingAnswers, healthOptions, useConsent, useProfileSave,
+  AnswerLabel, Chip, DietChips, FactChips, FactList, FocusTiles, HabitAnswers, OneOf, SkinAnswers, ToneChoice, TrainingAnswers, healthOptions, useConsent, useProfileSave,
 } from "./answers.tsx";
 import type { Habits, SkinValue, TrainingValue } from "./answers.tsx";
 import { BodyFields, GoalFields, bodyFormFrom, bodyPatch, validateBody } from "./body.tsx";
@@ -87,6 +87,7 @@ function Flow({ view }: { view: ProfileView | null }) {
   const [skin, setSkin] = useState<SkinValue>({ skin_goals: stored?.about.skin_goals ?? [], skin_triggers: stored?.about.skin_triggers ?? [], skin_type: stored?.about.skin_type ?? null });
   const [companion, setCompanion] = useState<CompanionId>(stored?.companion ?? DEFAULT_COMPANION);
   const [tone, setTone] = useState<CoachTone>(stored?.coach_tone ?? "balanced");
+  const [heardFrom, setHeardFrom] = useState<HeardFrom | null>(stored?.about.heard_from ?? null);
 
   const steps: Step[] = ["welcome", "focus", "body", "training", "health", "food", ...(focus.includes("skin") ? (["skin"] as const) : []), "coach", "plan"];
   const [step, setStep] = useState<Step>("welcome");
@@ -233,12 +234,13 @@ function Flow({ view }: { view: ProfileView | null }) {
       const locked = (view?.companion_locked_until ?? null) !== null;
       return (
         <Frame {...frame} title={t.onboarding.coach.title} body={t.onboarding.coach.body}
-          footer={button(t.onboarding.coach.seePlan, next({ ...(locked ? {} : { companion }), coach_tone: tone, companion_prompt: "done" }))}>
+          footer={button(t.onboarding.coach.seePlan, next({ ...(locked ? {} : { companion }), coach_tone: tone, companion_prompt: "done", about: { ...about(), heard_from: heardFrom } }))}>
           <CompanionPicker legend={t.onboarding.coach.title} value={companion} onChange={setCompanion} locked={locked} />
           <div>
             <AnswerLabel>{t.onboarding.coach.tone}</AnswerLabel>
             <ToneChoice value={tone} onChange={setTone} />
           </div>
+          <OneOf label={t.onboarding.coach.heardFrom} options={HEARD_FROM} names={t.onboarding.coach.heardFromNames} value={heardFrom} onChange={setHeardFrom} />
         </Frame>
       );
     }

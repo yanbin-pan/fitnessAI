@@ -1,5 +1,5 @@
 import type {
-  Activity, AlcoholHabit, CoachTone, CoffeeHabit, Cooking, DocumentKind, Experience, FactKind, Focus, FoodLevel, HealthCondition, LabFlag, MarkerNutrient,
+  Activity, AlcoholHabit, CoachTone, CoffeeHabit, Cooking, DocumentKind, Experience, FactKind, Focus, FoodLevel, HealthCondition, HeardFrom, LabFlag, MarkerNutrient,
   MealPattern, SkinGoal, SkinTrigger, SkinType, Sport,
 } from "../shared.ts";
 
@@ -722,6 +722,8 @@ export const en = {
         direct: "“Protein's low again, third day running. Fix it at dinner.”",
       } as Record<CoachTone, string>,
       seePlan: "See my plan",
+      heardFrom: "How did you hear about Zabaione?",
+      heardFromNames: { friend: "From a friend", social: "Social media", search: "Web search", app_store: "App Store", other: "Other" } as Record<HeardFrom, string>,
     },
     plan: {
       ready: "All set",

@@ -1,6 +1,7 @@
 import http from "node:http";
 import { Counter, Gauge, Histogram, Registry, collectDefaultMetrics } from "prom-client";
 import type { ProcessOutcome, ProcessOutcomeCode } from "./coach/process.ts";
+import type { Engagement } from "./engagement/engagement.ts";
 import { shortKey } from "./people/people.ts";
 
 /**
@@ -170,6 +171,81 @@ export function registerCompanionInteractions(metrics: Metrics, read: () => Comp
         const labels = { kind: counts.kind, ...personLabels(counts.person, metrics.names) };
         this.set({ ...labels, period: "this_month" }, counts.thisMonth);
         this.set({ ...labels, period: "last_month" }, counts.lastMonth);
+      }
+    },
+  });
+}
+
+/** One person's engagement, worked out from their own records. */
+export interface EngagementRow {
+  person: { key: string; owner: boolean };
+  engagement: Engagement;
+}
+
+/**
+ * How engaged people are (2026-10-29 engagement tracking), worked out again from each person's own records on every
+ * scrape, as the spend is: so cohorts and retention reach back to each person's first day although Prometheus keeps only
+ * 7 days. Everything is a gauge of the moment; Grafana reads the latest value. `cohort` is the Monday of the week the
+ * person first logged something or talked to the coach ("none" before that); `activated` is yes, no, or pending while
+ * their first week runs.
+ */
+export function registerEngagement(metrics: Metrics, readNow: () => EngagementRow[], clock: () => number = Date.now): void {
+  // The four gauges collect one after another on the same scrape: they share one read of everyone's records.
+  let cached: { at: number; rows: EngagementRow[] } | undefined;
+  const read = () => {
+    if (!cached || clock() - cached.at > 5_000) cached = { at: clock(), rows: readNow() };
+    return cached.rows;
+  };
+  const label = (row: EngagementRow) => {
+    const { engagement: e } = row;
+    return { ...personLabels(row.person, metrics.names), cohort: e.cohort ?? "none", activated: e.activated ?? "none" };
+  };
+  new Gauge<"person" | "role" | "cohort" | "activated" | "channel" | "onboarded">({
+    name: "fitnessai_engagement_person",
+    help: "1 per person the app holds data for, labelled with their start week (cohort), activation, how they heard of the app (channel) and whether they finished onboarding",
+    labelNames: ["person", "role", "cohort", "activated", "channel", "onboarded"],
+    registers: [metrics.registry],
+    collect() {
+      this.reset();
+      for (const row of read()) this.set({ ...label(row), channel: row.engagement.channel, onboarded: row.engagement.onboarded ? "yes" : "no" }, 1);
+    },
+  });
+  new Gauge<"person" | "role" | "cohort" | "activated" | "week">({
+    name: "fitnessai_engagement_retained",
+    help: "1 if the person came back in week N after the week they started (days 7N to 7N+6), else 0; only weeks that have ended",
+    labelNames: ["person", "role", "cohort", "activated", "week"],
+    registers: [metrics.registry],
+    collect() {
+      this.reset();
+      for (const row of read()) {
+        for (const { week, active } of row.engagement.retained) this.set({ ...label(row), week: String(week) }, active ? 1 : 0);
+      }
+    },
+  });
+  new Gauge<"person" | "role" | "window">({
+    name: "fitnessai_engagement_active_days",
+    help: "Days with a meal, workout or coach message logged in the last 7 or 28 days of the person's timezone, today included",
+    labelNames: ["person", "role", "window"],
+    registers: [metrics.registry],
+    collect() {
+      this.reset();
+      for (const row of read()) {
+        const labels = personLabels(row.person, metrics.names);
+        this.set({ ...labels, window: "7d" }, row.engagement.activeDays.d7);
+        this.set({ ...labels, window: "28d" }, row.engagement.activeDays.d28);
+      }
+    },
+  });
+  new Gauge<"person" | "role" | "kind" | "week">({
+    name: "fitnessai_engagement_actions_week",
+    help: "Meals, workouts and coach messages per calendar week (week: its Monday), the last 8 weeks, zeros included",
+    labelNames: ["person", "role", "kind", "week"],
+    registers: [metrics.registry],
+    collect() {
+      this.reset();
+      for (const row of read()) {
+        const labels = personLabels(row.person, metrics.names);
+        for (const { week, kind, count } of row.engagement.weekly) this.set({ ...labels, kind, week }, count);
       }
     },
   });
