@@ -65,7 +65,7 @@ export function storedProfile(overrides: Partial<Profile> = {}): Profile {
     name: "Bin", name_prompt: "done", companion: "zabaione", companion_prompt: "done",
     about: {
       focus: ["lose_fat", "skin"], target_weight_kg: 76, sports: ["gym"], sessions_week: 4, experience: null,
-      meals: null, cooking: null, alcohol: null, coffee: null, skin_goals: ["glow"], skin_triggers: [], skin_type: null,
+      meals: null, cooking: null, alcohol: null, coffee: null, skin_goals: ["glow"], skin_triggers: [], skin_type: null, heard_from: null,
     },
     coach_tone: "balanced", onboarding: "done",
     ...overrides,

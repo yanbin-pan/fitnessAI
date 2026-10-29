@@ -678,6 +678,8 @@ export const zh: Messages = {
         direct: "“蛋白质又不够，连续第三天了。晚饭补上。”",
       },
       seePlan: "看看我的计划",
+      heardFrom: "你是怎么知道 Zabaione 的？",
+      heardFromNames: { friend: "朋友推荐", social: "社交媒体", search: "网络搜索", app_store: "App Store", other: "其他" },
     },
     plan: {
       ready: "准备好了",

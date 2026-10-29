@@ -148,6 +148,13 @@ recorded, so the panels jump once. After a price cut, the 24 h and 7-day panels 
 whole total until that moment is more than 7 days old, when Prometheus drops it. The bill in
 the Claude Console is the authority.
 
+A second dashboard, **Zabaione engagement**, shows activation (food logged on 3 days plus
+one coach chat in someone's first week), retention by start-week cohort, signups per
+channel and weekly activity. The app works these out from each person's own records on
+every scrape (`server/src/engagement/`), so no event log is kept and the cohorts reach back
+to everyone's first day. The channel is the answer to "How did you hear about Zabaione?" at
+the end of onboarding.
+
 **Adding someone** — both lists, because the app checks its own as well as Cloudflare's:
 
 1. `sops k8s/80-secrets.sops.yaml` and add the email to `ALLOWED_EMAILS`
