@@ -28,8 +28,8 @@ const REPORT: InsightReport = {
   focus: ["Add a pear to lunch."],
 };
 const point = (week_start: string, kcal: number, sessions: number): WeekPoint => ({
-  week_start, food_days: 6, kcal, kcal_target: 2100, protein_g: 140, protein_target: 144, protein_g_per_kg: 1.7, carbs_g: 210, fat_g: 70,
-  fibre_g: 20, fibre_target: 30, sugars_g: 60, salt_g: 6, fluid_ml: 900, alcohol_units: 2, sessions, minutes: 200, active_kcal: 1400,
+  week_start, food_days: 6, kcal, kcal_target: 2100, protein_g: 140, protein_target: 144, protein_g_per_kg: 1.7, carbs_g: 210, carbs_target: 230, fat_g: 70, fat_target: 70,
+  saturated_fat_g: 22, saturated_fat_max: 30, fibre_g: 20, fibre_target: 30, sugars_g: 60, sugars_max: 90, salt_g: 6, salt_max: 6, alcohol_units: 2, sessions, minutes: 200, active_kcal: 1400,
   by_activity: sessions > 0 ? [{ activity: "tennis", sessions: 2, minutes: 120, kcal: 900 }, { activity: "gym", sessions: sessions - 2, minutes: 80, kcal: 500 }] : [],
 });
 const PREVIOUS = point("2026-09-21", 2100, 2);
@@ -114,6 +114,7 @@ describe("past weeks and trends", () => {
     const calories = await screen.findByRole("region", { name: "Calories" });
     expect(within(calories).getByRole("img")).toHaveAttribute("aria-label", "Calories: 21 Sept 2,100, 28 Sept 1,980");
     expect(screen.getByText("Weekly averages · 2 weeks")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Carbs" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Salt" }));
     expect(screen.getByRole("region", { name: "Salt" })).toBeInTheDocument();
     const past = screen.getByRole("region", { name: "Past reports" });
@@ -133,13 +134,12 @@ describe("reading the charts", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Week of 28 Sept1,980 kcal a daytarget 2,100");
     const training = within(screen.getByRole("region", { name: "Training" })).getByRole("img");
     fireEvent.keyDown(training, { key: "ArrowLeft" });
-    fireEvent.keyDown(training, { key: "Enter" });
-    const sheet = screen.getByRole("dialog", { name: "Training · Week of 28 Sept" });
-    expect(sheet).toHaveTextContent("1,400 kcal");
-    expect(sheet).toHaveTextContent("Tennis");
-    expect(sheet).not.toHaveTextContent("sets");
-    fireEvent.click(within(sheet).getByRole("button", { name: "Close" }));
-    expect(screen.queryByRole("dialog")).toBeNull();
+    const table = within(screen.getByRole("region", { name: "Training" })).getByRole("table", { name: "Training · Week of 28 Sept" });
+    expect(within(table).getByRole("rowheader", { name: "Tennis" }).closest("tr")).toHaveTextContent("2×2 h900");
+    expect(within(table).getAllByRole("row")).toHaveLength(3);
+    fireEvent.click(screen.getByRole("button", { name: "Saturated fat" }));
+    expect(screen.getByRole("region", { name: "Saturated fat" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Drinks" })).toBeNull();
   });
 });
 

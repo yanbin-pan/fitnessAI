@@ -497,7 +497,6 @@ export const de: Messages = {
       target: (value: string) => `Ziel ${value}`,
       kcalDay: "kcal pro Tag",
       gDay: "g pro Tag",
-      mlDay: "ml pro Tag",
       unitsWeek: "Einheiten pro Woche",
       kcalWeek: "kcal pro Woche",
       minWeek: "Minuten pro Woche",
@@ -514,7 +513,7 @@ export const de: Messages = {
       tapBar: "Tippe auf einen Balken für die Aufschlüsselung der Woche",
       weekOf: (date: string) => `Woche vom ${date}`,
       breakdown: {
-        title: "Training", close: "Schließen", sessions: "Einheiten", time: "Zeit", active: "Aktive Energie",
+        title: "Training", sessions: "Einheiten", time: "Zeit",
         byActivity: "Nach Aktivität", none: "In dieser Woche kein Training eingetragen.",
       },
     },

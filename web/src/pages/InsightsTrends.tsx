@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
+import type { ReactNode } from "react";
 import { thousands } from "../format.ts";
 import { useT } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
@@ -32,16 +32,18 @@ interface Metric {
 const MAIN: Metric[] = [
   { id: "kcal", name: (t) => t.insights.calories, unit: (t) => t.insights.trends.kcalDay, value: (w) => w.kcal, target: (w) => w.kcal_target, food: true, colour: "var(--nm-accent)", tint: "tint-green", icon: "restaurant", digits: 0 },
   { id: "protein", name: (t) => t.insights.protein, unit: (t) => t.insights.trends.gDay, value: (w) => w.protein_g, target: (w) => w.protein_target, food: true, colour: "var(--color-protein)", tint: "tint-blue", icon: "fitness_center", digits: 0 },
+  { id: "carbs", name: (t) => t.insights.nutrients.carbs_g, unit: (t) => t.insights.trends.gDay, value: (w) => w.carbs_g, target: (w) => w.carbs_target, food: true, colour: "var(--color-carbs)", tint: "tint-amber", icon: "restaurant", digits: 0 },
+  { id: "fat", name: (t) => t.insights.nutrients.fat_g, unit: (t) => t.insights.trends.gDay, value: (w) => w.fat_g, target: (w) => w.fat_target, food: true, colour: "var(--color-fat)", tint: "tint-rose", icon: "restaurant", digits: 0 },
   { id: "fibre", name: (t) => t.insights.fibre, unit: (t) => t.insights.trends.gDay, value: (w) => w.fibre_g, target: (w) => w.fibre_target, food: true, colour: "var(--color-fibre)", tint: "tint-teal", icon: "nutrition", digits: 0 },
   { id: "sessions", name: (t) => t.insights.trainingTile, unit: (t) => t.insights.sessionsWeek, value: (w) => w.sessions, food: false, colour: "#f08a4b", tint: "tint-orange", icon: "directions_run", digits: 0, bars: true },
 ];
 
+/** The rest, behind chips: fat split into its two kinds, the upper limits drawn where there is one. */
 const MORE: Metric[] = [
-  { id: "carbs", name: (t) => t.insights.nutrients.carbs_g, unit: (t) => t.insights.trends.gDay, value: (w) => w.carbs_g, food: true, colour: "var(--color-carbs)", tint: "tint-amber", icon: "restaurant", digits: 0 },
-  { id: "fat", name: (t) => t.insights.nutrients.fat_g, unit: (t) => t.insights.trends.gDay, value: (w) => w.fat_g, food: true, colour: "var(--color-fat)", tint: "tint-rose", icon: "restaurant", digits: 0 },
-  { id: "sugars", name: (t) => t.insights.nutrients.sugars_g, unit: (t) => t.insights.trends.gDay, value: (w) => w.sugars_g, food: true, colour: "var(--color-carbs)", tint: "tint-amber", icon: "restaurant", digits: 0 },
-  { id: "salt", name: (t) => t.insights.nutrients.salt_g, unit: (t) => t.insights.trends.gDay, value: (w) => w.salt_g, food: true, colour: "var(--color-muted)", tint: "tint-slate", icon: "restaurant", digits: 1 },
-  { id: "fluid", name: (t) => t.insights.nutrients.fluid_ml, unit: (t) => t.insights.trends.mlDay, value: (w) => w.fluid_ml, food: true, colour: "var(--color-protein)", tint: "tint-blue", icon: "local_bar", digits: 0 },
+  { id: "saturated", name: (t) => t.nutrients.names.saturated_fat, unit: (t) => t.insights.trends.gDay, value: (w) => w.saturated_fat_g, target: (w) => w.saturated_fat_max, food: true, colour: "var(--color-fat-sat)", tint: "tint-rose", icon: "restaurant", digits: 0 },
+  { id: "unsaturated", name: (t) => t.nutrients.names.unsaturated_fat, unit: (t) => t.insights.trends.gDay, value: (w) => Math.max(0, Math.round((w.fat_g - w.saturated_fat_g) * 10) / 10), food: true, colour: "var(--color-fat)", tint: "tint-rose", icon: "restaurant", digits: 0 },
+  { id: "sugars", name: (t) => t.insights.nutrients.sugars_g, unit: (t) => t.insights.trends.gDay, value: (w) => w.sugars_g, target: (w) => w.sugars_max, food: true, colour: "var(--color-carbs)", tint: "tint-amber", icon: "restaurant", digits: 0 },
+  { id: "salt", name: (t) => t.insights.nutrients.salt_g, unit: (t) => t.insights.trends.gDay, value: (w) => w.salt_g, target: (w) => w.salt_max, food: true, colour: "var(--color-muted)", tint: "tint-slate", icon: "restaurant", digits: 1 },
   { id: "alcohol", name: (t) => t.insights.trends.alcohol, unit: (t) => t.insights.trends.unitsWeek, value: (w) => w.alcohol_units, food: true, colour: "#8a6ff0", tint: "tint-violet", icon: "wine_bar", digits: 1 },
   { id: "active", name: (t) => t.insights.trends.active, unit: (t) => t.insights.trends.kcalWeek, value: (w) => w.active_kcal, food: false, colour: "#f2a93b", tint: "tint-amber", icon: "sunny", digits: 0 },
   { id: "minutes", name: (t) => t.insights.trends.minutes, unit: (t) => t.insights.trends.minWeek, value: (w) => w.minutes, food: false, colour: "#f08a4b", tint: "tint-orange", icon: "directions_run", digits: 0 },
@@ -56,7 +58,7 @@ function format(n: number, digits: number, t: Messages): string {
 }
 
 /** One measure over the weeks: a line (or bars), the person's own target dashed behind it. Tap (or arrow keys) to read a week. */
-function Chart({ metric, weeks, t, onBar, hint }: { metric: Metric; weeks: WeekPoint[]; t: Messages; onBar?: (week: WeekPoint) => void; hint?: string }) {
+function Chart({ metric, weeks, t, details, hint }: { metric: Metric; weeks: WeekPoint[]; t: Messages; details?: (week: WeekPoint) => ReactNode; hint?: string }) {
   const [selected, setSelected] = useState<number | null>(null);
   const points = weeks.map((w, i) => ({ i, w, v: metric.food && w.food_days === 0 ? null : metric.value(w), target: metric.target?.(w) ?? null }));
   const values = points.flatMap((p) => (p.v === null ? [] : [p.v]));
@@ -85,10 +87,8 @@ function Chart({ metric, weeks, t, onBar, hint }: { metric: Metric; weeks: WeekP
     const at = fraction * W;
     return shown.reduce((best, p) => (Math.abs(x(p.i) - at) < Math.abs(x(best.i) - at) ? p : best), shown[0]);
   };
-  const choose = (p: (typeof shown)[number]) => {
-    setSelected(p.i);
-    if (metric.bars && onBar) onBar(p.w);
-  };
+  // Tapping the marked week again closes it, and with it a bar's breakdown.
+  const choose = (p: (typeof shown)[number]) => setSelected(selected === p.i ? null : p.i);
   const step = (by: number) => {
     const at = picked ? shown.indexOf(picked) : shown.length;
     const next = shown[Math.max(0, Math.min(shown.length - 1, at + by))];
@@ -108,7 +108,7 @@ function Chart({ metric, weeks, t, onBar, hint }: { metric: Metric; weeks: WeekP
         <p className="text-lg font-semibold">{format(last.v, metric.digits, t)}</p>
       </div>
       <div className="relative">
-        {picked && (
+        {picked && !(metric.bars && details) && (
           <div
             role="status"
             className="raised-sm pointer-events-none absolute -top-1 z-10 whitespace-nowrap rounded-xl px-2.5 py-1.5 text-xs"
@@ -137,7 +137,7 @@ function Chart({ metric, weeks, t, onBar, hint }: { metric: Metric; weeks: WeekP
           onKeyDown={(event) => {
             if (event.key === "ArrowLeft") step(-1);
             else if (event.key === "ArrowRight") step(1);
-            else if ((event.key === "Enter" || event.key === " ") && picked) choose(picked);
+            else if ((event.key === "Enter" || event.key === " ") && picked) setSelected(null);
             else if (event.key === "Escape") setSelected(null);
             else return;
             event.preventDefault();
@@ -192,84 +192,59 @@ function Chart({ metric, weeks, t, onBar, hint }: { metric: Metric; weeks: WeekP
           ))}
         </svg>
       </div>
-      {hint && <p className="mt-1 text-center text-[11px] text-muted">{hint}</p>}
+      {picked && details ? details(picked.w) : hint && <p className="mt-1 text-center text-[11px] text-muted">{hint}</p>}
     </section>
   );
 }
 
-/** The training behind one week's bar: energy, time and sessions, and each activity's share of the calories. */
-function TrainingSheet({ week, onClose }: { week: WeekPoint; onClose: () => void }) {
+/** The training behind one week's bar, opened under the chart like Today's fats and sugar rows: a table of activities. */
+function TrainingTable({ week }: { week: WeekPoint }) {
   const t = useT();
   const b = t.insights.trends.breakdown;
   const top = Math.max(1, ...week.by_activity.map((a) => a.kcal));
-  const hours = (min: number) => (min >= 60 ? `${Math.floor(min / 60)} h ${min % 60 ? `${min % 60} min` : ""}`.trim() : `${min} min`);
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-  return createPortal(
-    <>
-      <div aria-hidden="true" onClick={onClose} className="fixed inset-0 z-40 bg-black/30" />
-      <div
-        role="dialog"
-        aria-label={`${b.title} · ${t.insights.trends.weekOf(shortDate(week.week_start, t))}`}
-        className="fixed inset-x-0 bottom-[calc(var(--tabbar-h)_+_env(safe-area-inset-bottom))] z-50 mx-auto max-h-[75vh] max-w-xl overflow-y-auto px-3 pb-2"
-      >
-        <div className="raised rounded-3xl p-4">
-          <div className="flex items-center justify-between gap-2">
-            <p className="flex items-center gap-2 font-semibold">
-              <Well tint="tint-orange" icon="directions_run" />
-              <span>
-                {b.title}
-                <span className="block text-xs font-normal text-muted">{t.insights.trends.weekOf(shortDate(week.week_start, t))}</span>
-              </span>
-            </p>
-            <button type="button" aria-label={b.close} onClick={onClose} className="raised-sm tap flex h-8 w-8 items-center justify-center rounded-full">
-              <Icon name="close" size={18} />
-            </button>
-          </div>
-          {week.sessions === 0 ? (
-            <p className="mt-3 text-sm text-muted">{b.none}</p>
-          ) : (
-            <>
-              <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
-                {[
-                  [b.active, `${thousands(week.active_kcal, t)} ${t.units.kcal}`],
-                  [b.time, hours(week.minutes)],
-                  [b.sessions, String(week.sessions)],
-                ].map(([label, value]) => (
-                  <div key={label} className="pressed rounded-2xl px-1 py-2">
-                    <dt className="text-[11px] text-muted">{label}</dt>
-                    <dd className="text-base font-semibold">{value}</dd>
-                  </div>
-                ))}
-              </dl>
-              <h3 className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted">{b.byActivity}</h3>
-              <ul className="mt-2 flex flex-col gap-2.5">
-                {week.by_activity.map((a) => (
-                  <li key={a.activity} className="flex items-center gap-2.5">
-                    <SportBadge activity={a.activity} size={30} labelled={false} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-2 text-sm">
-                        <span className="font-medium">{sportName(a.activity, t).label}</span>
-                        <span className="text-xs text-muted">
-                          {a.sessions}× · {hours(a.minutes)} · {thousands(a.kcal, t)} {t.units.kcal}
-                        </span>
-                      </div>
-                      <div className="pressed mt-1 h-2 rounded-full">
-                        <div className="h-2 rounded-full" style={{ width: `${(a.kcal / top) * 100}%`, backgroundColor: "#f08a4b" }} />
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
-      </div>
-    </>,
-    document.body,
+  const hours = (min: number) => (min >= 60 ? `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}` : `${min} min`);
+  return (
+    <div className="pressed mt-2 rounded-2xl px-3 py-2.5" aria-live="polite">
+      <p className="flex items-baseline justify-between gap-2 text-sm">
+        <span className="font-medium">{t.insights.trends.weekOf(shortDate(week.week_start, t))}</span>
+        <span className="text-xs tabular-nums text-muted">
+          {thousands(week.active_kcal, t)} {t.units.kcal} · {hours(week.minutes)}
+        </span>
+      </p>
+      {week.by_activity.length === 0 ? (
+        <p className="mt-2 border-t border-(--nm-lo) pt-2 text-xs text-muted">{b.none}</p>
+      ) : (
+        <table className="mt-2 w-full border-t border-(--nm-lo) text-xs">
+          <caption className="sr-only">{`${b.title} · ${t.insights.trends.weekOf(shortDate(week.week_start, t))}`}</caption>
+          <thead>
+            <tr className="text-[0.6875rem] text-muted">
+              <th scope="col" className="pt-2 text-left font-semibold">{b.byActivity}</th>
+              <th scope="col" className="pt-2 text-right font-semibold">{b.sessions}</th>
+              <th scope="col" className="pt-2 text-right font-semibold">{b.time}</th>
+              <th scope="col" className="pt-2 text-right font-semibold">{t.units.kcal}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {week.by_activity.map((a) => (
+              <tr key={a.activity}>
+                <th scope="row" className="py-1 text-left font-normal">
+                  <span className="flex items-center gap-2">
+                    <SportBadge activity={a.activity} size={22} labelled={false} />
+                    <span className="min-w-0">
+                      <span className="block truncate">{sportName(a.activity, t).label}</span>
+                      <span aria-hidden="true" className="mt-0.5 block h-1 rounded-full" style={{ width: `${Math.max(6, (a.kcal / top) * 100)}%`, backgroundColor: "#f08a4b" }} />
+                    </span>
+                  </span>
+                </th>
+                <td className="py-1 text-right tabular-nums">{a.sessions}×</td>
+                <td className="py-1 text-right tabular-nums text-muted">{hours(a.minutes)}</td>
+                <td className="py-1 text-right font-medium tabular-nums">{thousands(a.kcal, t)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }
 
@@ -300,7 +275,6 @@ export function InsightsTrends({ history, current, onOpen }: { history: Insights
   const t = useT();
   const [range, setRange] = useState<Range>("8");
   const [extra, setExtra] = useState<string | null>(null);
-  const [training, setTraining] = useState<WeekPoint | null>(null);
   const weeks = range === "all" ? history.weeks : history.weeks.slice(-Number(range));
   const glance = history.reports.slice(0, 8).reverse();
   const latest = history.reports[0]?.week_start;
@@ -356,10 +330,16 @@ export function InsightsTrends({ history, current, onOpen }: { history: Insights
         <>
           <p className="mt-3 px-1 text-xs text-muted">{t.insights.trends.tapChart}</p>
           {MAIN.map((metric) => (
-            <Chart key={metric.id} metric={metric} weeks={weeks} t={t} onBar={metric.bars ? setTraining : undefined} hint={metric.bars ? t.insights.trends.tapBar : undefined} />
+            <Chart
+              key={metric.id}
+              metric={metric}
+              weeks={weeks}
+              t={t}
+              details={metric.bars ? (week) => <TrainingTable week={week} /> : undefined}
+              hint={metric.bars ? t.insights.trends.tapBar : undefined}
+            />
           ))}
           {more && <Chart metric={more} weeks={weeks} t={t} />}
-          {training && <TrainingSheet week={training} onClose={() => setTraining(null)} />}
           <div className="mt-4 flex flex-wrap items-center gap-1.5">
             <span className="mr-1 text-xs text-muted">{t.insights.trends.more}</span>
             {MORE.map((m) => (

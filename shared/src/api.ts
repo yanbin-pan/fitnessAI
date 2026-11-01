@@ -334,12 +334,18 @@ export interface WeekPoint {
   protein_target: number | null;
   protein_g_per_kg: number;
   carbs_g: number;
+  carbs_target: number | null;
   fat_g: number;
+  fat_target: number | null;
+  saturated_fat_g: number;
+  /** Upper limits: saturated fat by sex, total sugars and salt (UK reference intakes). */
+  saturated_fat_max: number | null;
   fibre_g: number;
   fibre_target: number | null;
   sugars_g: number;
+  sugars_max: number | null;
   salt_g: number;
-  fluid_ml: number;
+  salt_max: number | null;
   alcohol_units: number;
   sessions: number;
   minutes: number;
