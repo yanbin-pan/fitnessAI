@@ -226,6 +226,9 @@ export const it: Messages = {
     saturatedByFood: "Grassi saturi, per alimento",
   },
   quick: {
+    unpin: "Rimuovi",
+    hide: "Nascondi",
+    swipeHint: "Scorri a sinistra per rimuovere",
     open: "Registrazione rapida",
     due: "Qualcosa che di solito registri adesso",
     items: "Preferiti",
@@ -241,6 +244,8 @@ export const it: Messages = {
     undoFailed: "Impossibile annullare. Apri la voce per eliminarla.",
   },
   frequent: {
+    starOn: "Nei preferiti: tocca per rimuovere",
+    starOff: "Salva nei preferiti",
     title: "Preferiti",
     close: "Chiudi",
     meals: "Pasti",
@@ -251,7 +256,7 @@ export const it: Messages = {
     pin: "Fissa",
     dismiss: (name) => `Non suggerire ${name}`,
     add: "Aggiungi",
-    tip: "Suggerimento: apri un pasto registrato e tocca ☆ per salvarlo qui.",
+    tip: "Suggerimento: tocca ☆ su un pasto registrato per salvarlo qui.",
     loadFailed: "Impossibile caricare i preferiti.",
     back: "Preferiti",
     name: "Nome",
@@ -264,8 +269,6 @@ export const it: Messages = {
     remove: "Rimuovi",
     confirmRemove: "Rimuovere dai preferiti?",
     timesLogged: (n) => (n === 1 ? "Registrato una volta in 4 settimane" : `Registrato ${n} volte in 4 settimane`),
-    saveEntry: "Salva nei preferiti",
-    savedEntry: "Salvato nei preferiti",
   },
   health: {
     title: "Salute",

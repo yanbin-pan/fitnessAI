@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { api } from "../api.ts";
 import { useT } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
@@ -264,11 +265,13 @@ export function FrequentSheet({ featured, onClose }: { featured: readonly Activi
     void client.invalidateQueries({ queryKey: ["day"] });
     onClose();
   };
-  return (
-    <div role="dialog" aria-modal="true" aria-label={t.frequent.title} className="fixed inset-0 z-40 flex items-end bg-black/30 sm:items-center" onClick={close}>
+  // On the body, not inside the chat bar: there it sat in the bar's stacking layer, under the tab bar, and its list could
+  // not be scrolled to the end.
+  return createPortal(
+    <div role="dialog" aria-modal="true" aria-label={t.frequent.title} className="fixed inset-0 z-50 flex items-end bg-black/30 sm:items-center" onClick={close}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="raised max-h-[88dvh] w-full overflow-y-auto rounded-t-3xl p-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)] sm:mx-auto sm:max-w-xl sm:rounded-3xl"
+        className="raised max-h-[88dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl p-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)] sm:mx-auto sm:max-w-xl sm:rounded-3xl"
       >
         {editing ? (
           <Editor key={editing.id} start={editing} featured={featured} onBack={() => setEditing(null)} />
@@ -297,6 +300,7 @@ export function FrequentSheet({ featured, onClose }: { featured: readonly Activi
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

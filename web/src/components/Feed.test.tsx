@@ -1,6 +1,8 @@
-import { fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render as rtlRender, renderHook, screen } from "@testing-library/react";
+import type { ReactElement, ReactNode } from "react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { dayLabel } from "../format.ts";
 import { en } from "../i18n/index.tsx";
 import type { ChatMessage, SeenTip } from "../shared.ts";
@@ -8,6 +10,16 @@ import { useDraft } from "./drafts.ts";
 import { dayView, entry, exerciseItem, foodItem, message } from "../test/fixtures.ts";
 import { Feed, buildFeed, newestCoachRow } from "./Feed.tsx";
 import type { FeedItem } from "./Feed.tsx";
+
+// Entry cards ask for the frequent items (for their stars), so each render gets a query client and an empty list.
+function Providers({ children }: { children: ReactNode }) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+}
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: Providers });
+beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify({ items: [], suggestions: [] }), { headers: { "content-type": "application/json" } }))));
+});
 
 const rowId = (item: FeedItem) => (item.kind === "entry" ? item.entry.id : item.kind === "tip" ? item.tip.id : item.message.id);
 

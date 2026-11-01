@@ -4,6 +4,7 @@ import { useT } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
 import type { Entry } from "../shared.ts";
 import { CopyButton } from "./CopyPaste.tsx";
+import { FrequentStar } from "./FrequentStar.tsx";
 import { SportBadge } from "./SportBadge.tsx";
 
 /** One logged entry: what, when, its calories and macros, where it came from, and every assumption made. */
@@ -74,7 +75,7 @@ export function EntryCard({ entry, onEdit, onUndo }: { entry: Entry; onEdit?: (e
       </span>
     </span>
   );
-  // The copy and undo buttons sit beside the card's own button, not inside it: a button can't hold another.
+  // The star, copy and undo buttons sit beside the card's own button, not inside it: a button can't hold another.
   return (
     <div className="relative">
       {onEdit ? (
@@ -94,6 +95,7 @@ export function EntryCard({ entry, onEdit, onUndo }: { entry: Entry; onEdit?: (e
           <Icon name="undo" size={16} />
         </button>
       )}
+      <FrequentStar entry={entry} />
       <CopyButton entry={entry} />
     </div>
   );
