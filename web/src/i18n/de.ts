@@ -473,6 +473,14 @@ export const de: Messages = {
       latest: "Neuester",
       kept: "Jeder Bericht bleibt erhalten.",
       loadFailed: "Deine früheren Wochen konnten nicht geladen werden.",
+      tapChart: "Tippe auf ein Diagramm, um die Werte einer Woche zu sehen",
+      tapBar: "Tippe auf einen Balken für die Aufschlüsselung der Woche",
+      weekOf: (date: string) => `Woche vom ${date}`,
+      breakdown: {
+        title: "Training", close: "Schließen", sessions: "Einheiten", time: "Zeit", active: "Aktive Energie",
+        byActivity: "Nach Aktivität", effort: "Aufwand: Sätze pro Muskel", noSets: "In dieser Woche keine Kraftsätze eingetragen.", none: "In dieser Woche kein Training eingetragen.",
+      },
+      muscles: { chest: "Brust", upper_back: "Oberer Rücken", lats: "Latissimus", shoulders: "Schultern", biceps: "Bizeps", triceps: "Trizeps", forearms: "Unterarme", core: "Rumpf", glutes: "Gesäß", quads: "Quadrizeps", hamstrings: "Beinbeuger", calves: "Waden" },
     },
   },
   settings: {

@@ -30,6 +30,8 @@ const REPORT: InsightReport = {
 const point = (week_start: string, kcal: number, sessions: number): WeekPoint => ({
   week_start, food_days: 6, kcal, kcal_target: 2100, protein_g: 140, protein_target: 144, protein_g_per_kg: 1.7, carbs_g: 210, fat_g: 70,
   fibre_g: 20, fibre_target: 30, sugars_g: 60, salt_g: 6, fluid_ml: 900, alcohol_units: 2, sessions, minutes: 200, active_kcal: 1400,
+  by_activity: sessions > 0 ? [{ activity: "tennis", sessions: 2, minutes: 120, kcal: 900 }, { activity: "gym", sessions: sessions - 2, minutes: 80, kcal: 500 }] : [],
+  sets_per_muscle: { chest: 12, upper_back: 8 },
 });
 const PREVIOUS = point("2026-09-21", 2100, 2);
 const ready = {
@@ -119,6 +121,26 @@ describe("past weeks and trends", () => {
     fireEvent.click(within(past).getByText("An older week."));
     expect(await screen.findByText("Past report")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Week" })).toHaveAttribute("aria-selected", "true");
+  });
+});
+
+describe("reading the charts", () => {
+  it("shows a week's numbers when picked, and opens the training breakdown from a bar", async () => {
+    serve(ready);
+    renderWithProviders(<InsightsPage />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Trends" }));
+    const calories = within(await screen.findByRole("region", { name: "Calories" })).getByRole("img");
+    fireEvent.keyDown(calories, { key: "ArrowLeft" });
+    expect(screen.getByRole("status")).toHaveTextContent("Week of 28 Sept1,980 kcal a daytarget 2,100");
+    const training = within(screen.getByRole("region", { name: "Training" })).getByRole("img");
+    fireEvent.keyDown(training, { key: "ArrowLeft" });
+    fireEvent.keyDown(training, { key: "Enter" });
+    const sheet = screen.getByRole("dialog", { name: "Training · Week of 28 Sept" });
+    expect(sheet).toHaveTextContent("1,400 kcal");
+    expect(sheet).toHaveTextContent("Tennis");
+    expect(sheet).toHaveTextContent("Upper back");
+    fireEvent.click(within(sheet).getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
 

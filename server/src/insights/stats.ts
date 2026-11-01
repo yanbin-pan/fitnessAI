@@ -77,12 +77,13 @@ export function computeStats(sql: Sql, profile: Profile, periodEnd: string, nowI
   // Training: weekly figures over the whole four weeks, rest days included.
   const exercises = list.flatMap((entry) => entry.exercises.map((item) => ({ entry, item })));
   const sessions = new Set(exercises.map(({ entry }) => entry.id)).size;
-  const activities = new Map<Activity, { entries: Set<string>; minutes: number }>();
+  const activities = new Map<Activity, { entries: Set<string>; minutes: number; kcal: number }>();
   const sets = new Map<Muscle, number>();
   for (const { entry, item } of exercises) {
-    const a = activities.get(item.activity) ?? { entries: new Set<string>(), minutes: 0 };
+    const a = activities.get(item.activity) ?? { entries: new Set<string>(), minutes: 0, kcal: 0 };
     a.entries.add(entry.id);
     a.minutes += item.duration_min ?? 0;
+    a.kcal += item.kcal;
     activities.set(item.activity, a);
     if (item.sets !== null) {
       for (const m of item.muscles) sets.set(m.muscle, (sets.get(m.muscle) ?? 0) + item.sets * (m.role === "primary" ? 1 : 0.5));
@@ -126,7 +127,7 @@ export function computeStats(sql: Sql, profile: Profile, periodEnd: string, nowI
       minutes_per_week: Math.round(exercises.reduce((total, { item }) => total + (item.duration_min ?? 0), 0) / weeks),
       active_kcal_per_week: Math.round(kcalTotal / weeks),
       by_activity: [...activities]
-        .map(([activity, a]) => ({ activity, sessions: a.entries.size, minutes: Math.round(a.minutes) }))
+        .map(([activity, a]) => ({ activity, sessions: a.entries.size, minutes: Math.round(a.minutes), kcal: Math.round(a.kcal) }))
         .sort((x, y) => y.sessions - x.sessions || y.minutes - x.minutes),
       sets_per_muscle: Object.fromEntries([...sets].map(([muscle, total]) => [muscle, round1(total / weeks)])),
       training_days_last_7: trainingDates.filter((date) => date >= lastWeekStart).length,
@@ -160,6 +161,8 @@ export function weekPoint(stats: InsightStats): WeekPoint {
     sessions: stats.training.sessions_per_week,
     minutes: stats.training.minutes_per_week,
     active_kcal: stats.training.active_kcal_per_week,
+    by_activity: stats.training.by_activity.map((a) => ({ ...a, kcal: a.kcal ?? 0 })),
+    sets_per_muscle: stats.training.sets_per_muscle,
   };
 }
 

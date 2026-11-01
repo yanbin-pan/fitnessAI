@@ -473,6 +473,14 @@ export const it: Messages = {
       latest: "Ultimo",
       kept: "Ogni report viene conservato.",
       loadFailed: "Impossibile caricare le settimane passate.",
+      tapChart: "Tocca un grafico per vedere i numeri di una settimana",
+      tapBar: "Tocca una barra per il dettaglio della settimana",
+      weekOf: (date: string) => `Settimana del ${date}`,
+      breakdown: {
+        title: "Allenamento", close: "Chiudi", sessions: "Sessioni", time: "Tempo", active: "Energia attiva",
+        byActivity: "Per attività", effort: "Impegno: serie per muscolo", noSets: "Nessuna serie di forza registrata quella settimana.", none: "Nessun allenamento registrato quella settimana.",
+      },
+      muscles: { chest: "Petto", upper_back: "Dorso alto", lats: "Dorsali", shoulders: "Spalle", biceps: "Bicipiti", triceps: "Tricipiti", forearms: "Avambracci", core: "Core", glutes: "Glutei", quads: "Quadricipiti", hamstrings: "Femorali", calves: "Polpacci" },
     },
   },
   settings: {

@@ -7,7 +7,7 @@ export {
   ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, COMPANION_CHANGE_MONTHS, COMPANION_NAMES, DEFAULT_COMPANION, DRINKS, EXERCISE_CATEGORIES,
   LANGUAGES, MAX_BACKDATE_DAYS, MAX_COPIES, MICROS, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, PROFILE_RANGES, SEXES,
 } from "../../shared/src/vocab.ts";
-export type { Activity, ActivityLevel, BodyGoal, CompanionId, Drink, ExerciseCategory, Language, Micro, Sex } from "../../shared/src/vocab.ts";
+export type { Activity, ActivityLevel, BodyGoal, CompanionId, Drink, ExerciseCategory, Language, Micro, Muscle, Sex } from "../../shared/src/vocab.ts";
 export type { Reaction } from "../../shared/src/reactions.ts";
 export { DOUBT_REACTIONS } from "../../shared/src/reactions.ts";
 export { COMPANION_THRIVE_DAYS } from "../../shared/src/companions.ts";

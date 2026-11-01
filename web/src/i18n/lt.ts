@@ -473,6 +473,14 @@ export const lt: Messages = {
       latest: "Naujausia",
       kept: "Visos ataskaitos išsaugomos.",
       loadFailed: "Nepavyko įkelti ankstesnių savaičių.",
+      tapChart: "Bakstelėkite grafiką, kad pamatytumėte savaitės skaičius",
+      tapBar: "Bakstelėkite stulpelį, kad pamatytumėte savaitės išklotinę",
+      weekOf: (date: string) => `Savaitė nuo ${date}`,
+      breakdown: {
+        title: "Treniruotės", close: "Uždaryti", sessions: "Treniruotės", time: "Laikas", active: "Aktyvi energija",
+        byActivity: "Pagal veiklą", effort: "Krūvis: serijos raumeniui", noSets: "Tą savaitę jėgos serijų neužregistruota.", none: "Tą savaitę treniruočių neužregistruota.",
+      },
+      muscles: { chest: "Krūtinė", upper_back: "Viršutinė nugara", lats: "Plačiausieji", shoulders: "Pečiai", biceps: "Bicepsai", triceps: "Tricepsai", forearms: "Dilbiai", core: "Liemuo", glutes: "Sėdmenys", quads: "Keturgalviai", hamstrings: "Šlaunų užpakaliniai", calves: "Blauzdos" },
     },
   },
   settings: {

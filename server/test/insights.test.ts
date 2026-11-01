@@ -90,7 +90,7 @@ describe("computeStats", () => {
       sets_per_muscle: { chest: 16, triceps: 8 }, dates: ["2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04"],
     });
     // The run on 10 September is outside the week, but inside the four weeks the load is judged against.
-    expect(t.by_activity).toEqual([{ activity: "gym", sessions: 4, minutes: 180 }]);
+    expect(t.by_activity).toEqual([{ activity: "gym", sessions: 4, minutes: 180, kcal: 800 }]);
     expect(t.load_ratio).toBe(2.67); // 800 kcal this week against 300 a week on average: a sharp rise
   });
 
@@ -111,7 +111,7 @@ describe("weeklySeries", () => {
     const weeks = weeklySeries(db, profile, TODAY, MONDAY.toISOString(), 52);
     expect(weeks.map((w) => w.week_start)).toEqual(["2026-09-14", "2026-09-28"]);
     expect(weeks[0]).toMatchObject({ food_days: 2, kcal: 2000, protein_g: 140, fibre_g: 25, sessions: 0 });
-    expect(weeks[1]).toMatchObject({ food_days: 0, kcal: 0, sessions: 1, minutes: 40, active_kcal: 400 });
+    expect(weeks[1]).toMatchObject({ food_days: 0, kcal: 0, sessions: 1, minutes: 40, active_kcal: 400, by_activity: [{ activity: "running", sessions: 1, minutes: 40, kcal: 400 }] });
   });
 
   it("goes back at most the number of weeks asked", () => {
