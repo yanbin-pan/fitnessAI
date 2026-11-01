@@ -7,7 +7,7 @@ import { Icon } from "../icons/Icon.tsx";
 import type { IconName } from "../icons/paths.ts";
 import { SportBadge, sportName } from "../components/SportBadge.tsx";
 import type { InsightsHistory, InsightSummary, WeekPoint } from "../shared.ts";
-import { SEVERITY_FILL, Well, shortDate } from "./InsightsPage.tsx";
+import { Well, shortDate } from "./InsightsPage.tsx";
 
 // Trends (2026-11-01 insights history design): each finished week's averages over time, worked out from the log, and
 // every past report kept and reachable. Nothing here calls the model.
@@ -248,13 +248,32 @@ function TrainingTable({ week }: { week: WeekPoint }) {
   );
 }
 
-function Dots({ report }: { report: InsightSummary }) {
+/** The week's wins: a ring filled by the share of findings going well, the count of them inside. One calm colour, never red. */
+function WinsRing({ report, size = 30, count = true }: { report: InsightSummary; size?: number; count?: boolean }) {
+  const total = report.tally.good + report.tally.watch + report.tally.act;
+  const share = total > 0 ? report.tally.good / total : 0;
+  const stroke = size >= 24 ? 3.5 : 2.5;
+  const r = (size - stroke) / 2;
+  const length = 2 * Math.PI * r;
   return (
-    <>
-      {(["nutrition", "training", "recovery"] as const).map((area) => (
-        <span key={area} aria-hidden="true" className={`h-2 w-2 rounded-full ${SEVERITY_FILL[report.areas[area]]}`} />
-      ))}
-    </>
+    <span aria-hidden="true" className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--nm-lo)" strokeOpacity={0.55} strokeWidth={stroke} />
+        {share > 0 && (
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke="var(--nm-accent)"
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={`${share * length} ${length}`}
+          />
+        )}
+      </svg>
+      {count && <span className="absolute text-[11px] font-bold tabular-nums text-accent-ink">{report.tally.good}</span>}
+    </span>
   );
 }
 
@@ -310,9 +329,9 @@ export function InsightsTrends({ history, current, onOpen }: { history: Insights
                   type="button"
                   onClick={() => onOpen(r.week_start)}
                   aria-label={`${shortDate(r.period_start, t)} – ${shortDate(r.period_end, t)}: ${tallyText(r, t)}`}
-                  className={`tap flex w-full flex-col items-center gap-[3px] rounded-[10px] py-1.5 ${r.week_start === current ? "well-tint tint-green" : "raised-sm"}`}
+                  className={`tap flex w-full items-center justify-center rounded-[10px] py-1.5 ${r.week_start === current ? "well-tint tint-green" : "raised-sm"}`}
                 >
-                  <Dots report={r} />
+                  <WinsRing report={r} />
                 </button>
                 <span aria-hidden="true" className="mt-1 block whitespace-nowrap text-center text-[10px] text-muted">
                   {glanceLabel(r.period_start, i > 0 ? glance[i - 1].period_start : null, t)}
@@ -383,7 +402,7 @@ export function InsightsTrends({ history, current, onOpen }: { history: Insights
                       </span>
                       <span className="block truncate text-sm font-medium">{r.headline}</span>
                       <span className="mt-1 flex items-center gap-1">
-                        <Dots report={r} />
+                        <WinsRing report={r} size={16} count={false} />
                         <span className="ml-1 truncate text-xs text-muted">{tallyText(r, t)}</span>
                       </span>
                     </span>

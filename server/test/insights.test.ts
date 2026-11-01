@@ -265,8 +265,8 @@ describe("past reports", () => {
 
     const history = insightsHistory(ctx.db, getProfile(ctx.db) as Profile, MONDAY);
     expect(history.reports).toEqual([
-      { week_start: "2026-10-12", period_start: "2026-10-05", period_end: "2026-10-11", headline: "Second week.", tally: { good: 1, watch: 1, act: 1 }, areas: { nutrition: "act", training: "watch", recovery: "good" } },
-      { week_start: "2026-10-05", period_start: "2026-09-28", period_end: "2026-10-04", headline: REPORT.headline, tally: { good: 1, watch: 1, act: 1 }, areas: { nutrition: "act", training: "watch", recovery: "good" } },
+      { week_start: "2026-10-12", period_start: "2026-10-05", period_end: "2026-10-11", headline: "Second week.", tally: { good: 1, watch: 1, act: 1 } },
+      { week_start: "2026-10-05", period_start: "2026-09-28", period_end: "2026-10-04", headline: REPORT.headline, tally: { good: 1, watch: 1, act: 1 } },
     ]);
     expect(history.weeks.map((w) => w.week_start)).toEqual(["2026-09-14", "2026-09-21", "2026-09-28"]);
 

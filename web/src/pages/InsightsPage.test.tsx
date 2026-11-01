@@ -39,8 +39,8 @@ const ready = {
 };
 const HISTORY: InsightsHistory = {
   reports: [
-    { week_start: "2026-10-05", period_start: "2026-09-28", period_end: "2026-10-04", headline: REPORT.headline, tally: { good: 0, watch: 1, act: 1 }, areas: { nutrition: "act", training: "watch", recovery: "good" } },
-    { week_start: "2026-09-28", period_start: "2026-09-21", period_end: "2026-09-27", headline: "An older week.", tally: { good: 2, watch: 0, act: 0 }, areas: { nutrition: "good", training: "good", recovery: "good" } },
+    { week_start: "2026-10-05", period_start: "2026-09-28", period_end: "2026-10-04", headline: REPORT.headline, tally: { good: 0, watch: 1, act: 1 } },
+    { week_start: "2026-09-28", period_start: "2026-09-21", period_end: "2026-09-27", headline: "An older week.", tally: { good: 2, watch: 0, act: 0 } },
   ],
   weeks: [PREVIOUS, point("2026-09-28", 1980, 3.5)],
 };
