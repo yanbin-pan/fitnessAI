@@ -373,8 +373,6 @@ export interface InsightSummary {
   headline: string;
   /** How many findings were going well, to watch and to change. */
   tally: Record<FindingSeverity, number>;
-  /** The worst finding in each area, and recovery as a level: the dots in Trends' week strip. */
-  areas: { nutrition: FindingSeverity; training: FindingSeverity; recovery: FindingSeverity };
 }
 
 /** What GET /api/insights/history returns: every stored report, newest first, and the weekly averages, oldest first. */

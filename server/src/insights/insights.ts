@@ -59,11 +59,6 @@ export function insightPayload(sql: Sql, profile: Profile, week: string, now: Da
   return stored ? payload(sql, profile, stored, now.toISOString()) : null;
 }
 
-const RANK: Record<FindingSeverity, number> = { good: 0, watch: 1, act: 2 };
-const worst = (findings: { severity: FindingSeverity }[]): FindingSeverity =>
-  findings.reduce<FindingSeverity>((w, f) => (RANK[f.severity] > RANK[w] ? f.severity : w), "good");
-const RECOVERY: Record<InsightReport["recovery"]["status"], FindingSeverity> = { fresh: "good", balanced: "good", fatigued: "watch", overreaching: "act" };
-
 function tally(report: InsightReport): Record<FindingSeverity, number> {
   const counts: Record<FindingSeverity, number> = { good: 0, watch: 0, act: 0 };
   for (const finding of [...report.nutrition.findings, ...report.training.findings]) counts[finding.severity]++;
@@ -76,8 +71,7 @@ export function insightsHistory(sql: Sql, profile: Profile, now: Date): Insights
   const reports = rows.map((row) => {
     const stats = row.stats as InsightStats;
     const report = row.report as InsightReport;
-    return { week_start: row.week_start, period_start: stats.period_start, period_end: stats.period_end, headline: report.headline, tally: tally(report),
-      areas: { nutrition: worst(report.nutrition.findings), training: worst(report.training.findings), recovery: RECOVERY[report.recovery.status] } };
+    return { week_start: row.week_start, period_start: stats.period_start, period_end: stats.period_end, headline: report.headline, tally: tally(report) };
   });
   return { reports, weeks: weeklySeries(sql, profile, todayIn(profile.timezone, now), now.toISOString(), INSIGHTS_TREND_WEEKS) };
 }
