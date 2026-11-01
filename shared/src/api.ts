@@ -1,5 +1,5 @@
 import type { AlcoholWeek } from "./alcohol.ts";
-import type { Activity, BodyGoal, Drink, ExerciseCategory, EntrySource, FoodGroup, Muscle, MuscleRole } from "./vocab.ts";
+import type { Activity, BodyGoal, Drink, ExerciseCategory, EntrySource, FoodGroup, FrequentSlot, Muscle, MuscleRole } from "./vocab.ts";
 import type { CompanionStatus } from "./companions.ts";
 import type { NutrientSignals } from "./nutrients.ts";
 import type { ExerciseItemInput, FoodItemInput, MicroAmount, Profile } from "./schemas.ts";
@@ -116,8 +116,11 @@ export interface DayView {
   messages: ChatMessage[];
   /** The editor's featured activities for this person: their four most-logged over the 60 days ending on this day, filled from a starter set (spec §11.1). */
   featured: Activity[];
-  /** Today only: regulars due around now and not yet logged today, to log with a tap (2026-10-06 design §2.2). Empty on other days. */
-  suggestions: Regular[];
+  /**
+   * Today only: what the chat bar's quick button offers (2026-11-01 frequent items), pinned items first, then regulars
+   * found in the log that are not pinned; each nearest its usual time of day first. Empty on other days.
+   */
+  quick: QuickItem[];
   /**
    * How fats, sugar, salt, vitamins and minerals look over the last 7 complete days (the 7 ending on this day, for a past
    * day): words, never numbers (2026-10-06 nutrients design).
@@ -150,6 +153,42 @@ export interface Regular {
   /** The person changed its name or items. */
   edited: boolean;
   logged_today: boolean;
+}
+
+/** A meal or activity the person pinned to log with a tap (2026-11-01 frequent items). */
+export interface FrequentItem {
+  id: string;
+  kind: RegularKind;
+  name: string;
+  foods: FoodItemInput[];
+  exercises: ExerciseItemInput[];
+  kcal: number;
+  slot: FrequentSlot;
+  /** The regular it was pinned from, which is no longer suggested; null when made by hand or from an entry. */
+  source_key: string | null;
+  /** Times logged with a tap in the last four weeks. */
+  times_logged: number;
+  logged_today: boolean;
+}
+
+/** One chip behind the quick button: a pinned item (ref "f:<id>") or a regular suggested from the log (ref "r:<key>"). */
+export interface QuickItem {
+  ref: string;
+  kind: RegularKind;
+  name: string;
+  kcal: number;
+  /** The first exercise's activity, for the chip's icon; null for a meal. */
+  activity: Activity | null;
+  pinned: boolean;
+  /** Not logged today, and now is its usual time: the quick button shows a dot while anything is due. */
+  due: boolean;
+  logged_today: boolean;
+}
+
+/** What GET /api/frequent returns: the pinned items, and the regulars that could still be pinned. */
+export interface FrequentView {
+  items: FrequentItem[];
+  suggestions: Regular[];
 }
 
 /** What GET /api/regulars returns. */

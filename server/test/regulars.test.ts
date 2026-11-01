@@ -220,19 +220,19 @@ describe("regulars routes", () => {
   it("suggests today's regular in the day view, logs it with one tap, once, and stops suggesting it", async () => {
     ctx = await withBreakfast();
     const day = (await ctx.app.inject({ method: "GET", url: "/api/days/today", headers: ctx.headers })).json();
-    expect(day.suggestions.map((r: { name: string }) => r.name)).toEqual(["Porridge, Coffee"]);
-    const key = day.suggestions[0].key;
+    expect(day.quick).toMatchObject([{ name: "Porridge, Coffee", pinned: false, due: true }]);
+    const key = day.quick[0].ref.slice(2);
     const id = randomUUID();
     const tap = () => ctx!.app.inject({ method: "POST", url: `/api/regulars/${key}/log`, headers: ctx!.headers, payload: { id } });
     const first = await tap();
     expect(first.statusCode).toBe(201);
     expect(first.json().entry).toMatchObject({ id, date: TODAY, source: "regular", foods: [{ name: "Porridge" }, { name: "Coffee" }] });
-    expect(first.json().day.suggestions).toEqual([]);
+    expect(first.json().day.quick).toEqual([]);
     expect((await tap()).statusCode).toBe(200);
     const today = (await ctx.app.inject({ method: "GET", url: "/api/days/today", headers: ctx.headers })).json();
     expect(today.entries).toHaveLength(1);
     // Another day's view never carries suggestions.
-    expect((await ctx.app.inject({ method: "GET", url: "/api/days/2026-10-02", headers: ctx.headers })).json().suggestions).toEqual([]);
+    expect((await ctx.app.inject({ method: "GET", url: "/api/days/2026-10-02", headers: ctx.headers })).json().quick).toEqual([]);
   });
 
   it("edits a regular's name and items, but has no way to add one", async () => {
