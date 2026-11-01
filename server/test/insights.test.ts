@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AiError } from "../src/ai/client.ts";
 import { callsOn, recordRun } from "../src/coach/usage.ts";
-import { ensureWeeklyInsight, latestInsight, weekStartOf } from "../src/insights/insights.ts";
+import { ensureWeeklyInsight, insightsHistory, latestInsight, weekStartOf } from "../src/insights/insights.ts";
 import { INSIGHTS_INSTRUCTIONS, InsightReportSchema, insightsInstructions, reportJsonSchema } from "../src/insights/report.ts";
-import { computeStats, loggedDays } from "../src/insights/stats.ts";
+import { computeStats, loggedDays, weeklySeries } from "../src/insights/stats.ts";
 import { runInsights } from "../src/jobs.ts";
 import { insertEntry } from "../src/log/entries.ts";
 import type { ExerciseItemData, FoodItemData } from "../src/log/entries.ts";
@@ -70,7 +70,7 @@ describe("computeStats", () => {
     log(db, "2026-10-01", { foods: [sampleFood({ kcal: 1800, protein_g: 120, fibre_g: 20, salt_g: 5, alcohol_units: 2, groups: [{ group: "vegetables", portions: 3 }] })] });
     log(db, "2026-10-02", { foods: [sampleFood({ kcal: 2200, protein_g: 160, fibre_g: 30, salt_g: 7, alcohol_units: 0, groups: [{ group: "vegetables", portions: 1 }] })] });
     const stats = computeStats(db, profile, "2026-10-04", MONDAY.toISOString());
-    expect(stats).toMatchObject({ period_start: "2026-09-07", period_end: "2026-10-04", days_logged: 2, food_days: 2, protein_g_per_kg: 1.8 });
+    expect(stats).toMatchObject({ period_start: "2026-09-28", period_end: "2026-10-04", days_logged: 2, food_days: 2, protein_g_per_kg: 1.8 });
     expect(stats.nutrients.kcal.average).toBe(2000);
     expect(stats.nutrients.kcal.target).toBeCloseTo(2345.8, 1); // the profile's daily target (no exercise those days)
     expect(stats.nutrients.salt_g).toEqual({ average: 6, target: 6 });
@@ -79,17 +79,18 @@ describe("computeStats", () => {
     expect(stats.food_groups).toEqual({ vegetables: 2 });
   });
 
-  it("works out weekly training, sets per muscle, the run of training days and the load", () => {
+  it("works out the week's training and sets per muscle, and the load against the four weeks it ends", () => {
     const gym = sampleExercise({ name: "Bench", activity: "gym", category: "strength", sets: 4, kcal: 200, duration_min: 45,
       muscles: [{ muscle: "chest", role: "primary" }, { muscle: "triceps", role: "secondary" }] });
     for (const date of ["2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04"]) log(db, date, { exercises: [gym] });
     log(db, "2026-09-10", { exercises: [sampleExercise({ activity: "running", kcal: 400, duration_min: 40 })] });
     const t = computeStats(db, profile, "2026-10-04", MONDAY.toISOString()).training;
     expect(t).toMatchObject({
-      sessions_per_week: 1.3, minutes_per_week: 55, active_kcal_per_week: 300, training_days_last_7: 4, longest_streak: 4,
-      sets_per_muscle: { chest: 4, triceps: 2 },
+      sessions_per_week: 4, minutes_per_week: 180, active_kcal_per_week: 800, training_days_last_7: 4, longest_streak: 4,
+      sets_per_muscle: { chest: 16, triceps: 8 }, dates: ["2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04"],
     });
-    expect(t.by_activity).toEqual([{ activity: "gym", sessions: 4, minutes: 180 }, { activity: "running", sessions: 1, minutes: 40 }]);
+    // The run on 10 September is outside the week, but inside the four weeks the load is judged against.
+    expect(t.by_activity).toEqual([{ activity: "gym", sessions: 4, minutes: 180, kcal: 800 }]);
     expect(t.load_ratio).toBe(2.67); // 800 kcal this week against 300 a week on average: a sharp rise
   });
 
@@ -98,6 +99,24 @@ describe("computeStats", () => {
     expect(stats).toMatchObject({ days_logged: 0, food_days: 0, protein_g_per_kg: 0 });
     expect(stats.nutrients.kcal).toEqual({ average: 0, target: null });
     expect(stats.training.load_ratio).toBeNull();
+  });
+});
+
+describe("weeklySeries", () => {
+  it("averages each finished Monday-to-Sunday week, skipping empty weeks and the week under way", () => {
+    log(db, "2026-09-14", { foods: [sampleFood({ kcal: 1800, protein_g: 120, fibre_g: 20 })] }); // week of 14 Sep
+    log(db, "2026-09-16", { foods: [sampleFood({ kcal: 2200, protein_g: 160, fibre_g: 30 })] });
+    log(db, "2026-09-30", { exercises: [sampleExercise({ activity: "running", kcal: 400, duration_min: 40 })] }); // week of 28 Sep
+    log(db, "2026-10-05", { foods: [sampleFood({ kcal: 5000 })] }); // this week: not finished
+    const weeks = weeklySeries(db, profile, TODAY, MONDAY.toISOString(), 52);
+    expect(weeks.map((w) => w.week_start)).toEqual(["2026-09-14", "2026-09-28"]);
+    expect(weeks[0]).toMatchObject({ food_days: 2, kcal: 2000, protein_g: 140, fibre_g: 25, sessions: 0 });
+    expect(weeks[1]).toMatchObject({ food_days: 0, kcal: 0, sessions: 1, minutes: 40, active_kcal: 400, by_activity: [{ activity: "running", sessions: 1, minutes: 40, kcal: 400 }] });
+  });
+
+  it("goes back at most the number of weeks asked", () => {
+    days(db, 60);
+    expect(weeklySeries(db, profile, TODAY, MONDAY.toISOString(), 4).map((w) => w.week_start)).toEqual(["2026-09-07", "2026-09-14", "2026-09-21", "2026-09-28"]);
   });
 });
 
@@ -147,7 +166,8 @@ describe("ensureWeeklyInsight", () => {
     const [request] = ai.structuredRequests;
     expect(request.system).toBe(INSIGHTS_INSTRUCTIONS);
     expect(request.prompt).toContain("Write in Italian.");
-    expect(request.prompt).toContain('"period_end":"2026-10-04"');
+    expect(request.prompt).toContain('"period_start":"2026-09-28","period_end":"2026-10-04"');
+    expect(request.prompt).toContain('Week before, daily averages and weekly training (JSON): {"week_start":"2026-09-21"');
     expect(request.schema).toEqual(reportJsonSchema());
     expect(latestInsight(db)).toMatchObject({ week_start: TODAY, language: "it", report: REPORT });
     expect(callsOn(db, TODAY)).toBe(1);
@@ -215,7 +235,7 @@ describe("GET /api/insights", () => {
     expect((await get()).json()).toMatchObject({ status: "pending", insight: null });
     await expect.poll(async () => (await get()).json().status).toBe("ready");
     const view = (await get()).json();
-    expect(view.insight).toMatchObject({ week_start: TODAY, report: REPORT, stats: { food_days: 14 } });
+    expect(view.insight).toMatchObject({ week_start: TODAY, report: REPORT, stats: { food_days: 7 }, previous: { food_days: 7, kcal: 2000 } });
     expect(ai.structuredRequests).toHaveLength(1);
   });
 
@@ -223,7 +243,39 @@ describe("GET /api/insights", () => {
     ctx = await testApp({ now: MONDAY, ai: null });
     saveProfile(ctx.db, makeProfile(), MONDAY.toISOString());
     days(ctx.db, 14);
-    expect((await get()).json()).toMatchObject({ status: "off", insight: { report: null, stats: { food_days: 14 } } });
+    expect((await get()).json()).toMatchObject({ status: "off", insight: { report: null, stats: { food_days: 7 } } });
+  });
+});
+
+describe("past reports", () => {
+  let ctx: TestApp | undefined;
+  afterEach(async () => {
+    await ctx?.close();
+    ctx = undefined;
+  });
+
+  it("keeps every week's report, lists them newest first with their tally, and opens any of them", async () => {
+    const ai = fakeAi([], [jsonReply(REPORT), jsonReply({ ...REPORT, headline: "Second week." })]);
+    ctx = await testApp({ now: MONDAY, ai });
+    saveProfile(ctx.db, makeProfile(), MONDAY.toISOString());
+    days(ctx.db, 21);
+    const deps = (now: Date) => ({ sql: ctx!.db, profile: getProfile(ctx!.db) as Profile, ai, now, dailyCallCap: 200 });
+    await ensureWeeklyInsight(deps(MONDAY));
+    await ensureWeeklyInsight(deps(new Date("2026-10-12T07:00:00.000Z")));
+
+    const history = insightsHistory(ctx.db, getProfile(ctx.db) as Profile, MONDAY);
+    expect(history.reports).toEqual([
+      { week_start: "2026-10-12", period_start: "2026-10-05", period_end: "2026-10-11", headline: "Second week.", tally: { good: 1, watch: 1, act: 1 }, areas: { nutrition: "act", training: "watch", recovery: "good" } },
+      { week_start: "2026-10-05", period_start: "2026-09-28", period_end: "2026-10-04", headline: REPORT.headline, tally: { good: 1, watch: 1, act: 1 }, areas: { nutrition: "act", training: "watch", recovery: "good" } },
+    ]);
+    expect(history.weeks.map((w) => w.week_start)).toEqual(["2026-09-14", "2026-09-21", "2026-09-28"]);
+
+    const route = await ctx.app.inject({ method: "GET", url: "/api/insights/history", headers: ctx.headers });
+    expect(route.json().reports).toHaveLength(2);
+    const old = await ctx.app.inject({ method: "GET", url: "/api/insights/2026-10-05", headers: ctx.headers });
+    expect(old.json()).toMatchObject({ week_start: "2026-10-05", report: REPORT, stats: { period_end: "2026-10-04" }, previous: { week_start: "2026-09-21" } });
+    expect((await ctx.app.inject({ method: "GET", url: "/api/insights/2026-01-05", headers: ctx.headers })).statusCode).toBe(404);
+    expect((await ctx.app.inject({ method: "GET", url: "/api/insights/nope", headers: ctx.headers })).statusCode).toBe(400);
   });
 });
 

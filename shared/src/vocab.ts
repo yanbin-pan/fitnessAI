@@ -178,9 +178,13 @@ export function slotOf(hhmm: string): FrequentSlot {
   return "any";
 }
 
-/** Insights (2026-10-06 design §3): written weekly, once there are seven days of data. */
+/** Insights (2026-10-06 design §3): written weekly, once there are seven days of data. Each report covers the past week
+ *  (2026-11-01 insights history design); training load still compares that week with the four weeks it ends. */
 export const INSIGHTS_MIN_DATA_DAYS = 7;
-export const INSIGHTS_WINDOW_DAYS = 28;
+export const INSIGHTS_WINDOW_DAYS = 7;
+export const INSIGHTS_LOAD_DAYS = 28;
+/** The most weeks the Trends view plots. */
+export const INSIGHTS_TREND_WEEKS = 52;
 
 /**
  * The vitamins and minerals the coach estimates per food (2026-10-06 nutrients design): each name ends in its unit.

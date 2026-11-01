@@ -1,11 +1,11 @@
-import { countDistinct, isNull } from "drizzle-orm";
+import { asc, countDistinct, isNull } from "drizzle-orm";
 import { adjustedTargets } from "../days/days.ts";
 import { entries } from "../db/schema.ts";
 import type { Sql } from "../db/types.ts";
 import { signalDays } from "../days/signals.ts";
 import { listEntriesBetween } from "../log/entries.ts";
-import { INSIGHTS_WINDOW_DAYS, SATURATED_FAT_MAX_G, addDays, daysBetween, nutrientSignals } from "../shared.ts";
-import type { Activity, Entry, FoodGroup, InsightStats, Muscle, NutrientStat, Profile } from "../shared.ts";
+import { INSIGHTS_LOAD_DAYS, INSIGHTS_WINDOW_DAYS, SATURATED_FAT_MAX_G, addDays, daysBetween, nutrientSignals } from "../shared.ts";
+import type { Activity, Entry, FoodGroup, InsightStats, Muscle, NutrientStat, Profile, WeekPoint } from "../shared.ts";
 
 // The numbers behind the weekly insights (2026-10-06 design §3.2). Worked out here, exactly, so the analysis is written
 // from facts: the model interprets them, it never adds them up.
@@ -40,8 +40,16 @@ function longestRun(dates: string[]): number {
   return best;
 }
 
-/** The four weeks ending on `periodEnd` (yesterday, when a report is written: a finished day). */
-export function computeStats(sql: Sql, profile: Profile, periodEnd: string, nowIso: string): InsightStats {
+/** The first day anything was logged, or null. */
+export function firstLoggedDate(sql: Sql): string | null {
+  return sql.select({ date: entries.date }).from(entries).where(isNull(entries.deleted_at)).orderBy(asc(entries.date)).limit(1).get()?.date ?? null;
+}
+
+/**
+ * The week ending on `periodEnd` (yesterday, when a report is written: a finished day). Training load alone looks
+ * further back: the last 7 days against the weekly average of the four weeks they end.
+ */
+export function computeStats(sql: Sql, profile: Profile, periodEnd: string, nowIso: string, options: { load?: boolean } = {}): InsightStats {
   const periodStart = addDays(periodEnd, 1 - INSIGHTS_WINDOW_DAYS);
   const weeks = INSIGHTS_WINDOW_DAYS / 7;
   const list = listEntriesBetween(sql, periodStart, periodEnd).map((row) => row.entry);
@@ -69,12 +77,13 @@ export function computeStats(sql: Sql, profile: Profile, periodEnd: string, nowI
   // Training: weekly figures over the whole four weeks, rest days included.
   const exercises = list.flatMap((entry) => entry.exercises.map((item) => ({ entry, item })));
   const sessions = new Set(exercises.map(({ entry }) => entry.id)).size;
-  const activities = new Map<Activity, { entries: Set<string>; minutes: number }>();
+  const activities = new Map<Activity, { entries: Set<string>; minutes: number; kcal: number }>();
   const sets = new Map<Muscle, number>();
   for (const { entry, item } of exercises) {
-    const a = activities.get(item.activity) ?? { entries: new Set<string>(), minutes: 0 };
+    const a = activities.get(item.activity) ?? { entries: new Set<string>(), minutes: 0, kcal: 0 };
     a.entries.add(entry.id);
     a.minutes += item.duration_min ?? 0;
+    a.kcal += item.kcal;
     activities.set(item.activity, a);
     if (item.sets !== null) {
       for (const m of item.muscles) sets.set(m.muscle, (sets.get(m.muscle) ?? 0) + item.sets * (m.role === "primary" ? 1 : 0.5));
@@ -84,6 +93,15 @@ export function computeStats(sql: Sql, profile: Profile, periodEnd: string, nowI
   const lastWeekStart = addDays(periodEnd, -6);
   const kcalTotal = exercises.reduce((total, { item }) => total + item.kcal, 0);
   const kcalLastWeek = exercises.filter(({ entry }) => entry.date >= lastWeekStart).reduce((total, { item }) => total + item.kcal, 0);
+  // The load's baseline: active kcal a week over the four weeks ending with this one (skipped for Trends, which has no use for it).
+  const loadKcal =
+    options.load === false
+      ? 0
+      : listEntriesBetween(sql, addDays(periodEnd, 1 - INSIGHTS_LOAD_DAYS), periodEnd).reduce(
+          (total, { entry }) => total + entry.exercises.reduce((sumKcal, item) => sumKcal + item.kcal, 0),
+          0,
+        );
+  const loadWeeks = INSIGHTS_LOAD_DAYS / 7;
 
   return {
     period_start: periodStart,
@@ -109,13 +127,58 @@ export function computeStats(sql: Sql, profile: Profile, periodEnd: string, nowI
       minutes_per_week: Math.round(exercises.reduce((total, { item }) => total + (item.duration_min ?? 0), 0) / weeks),
       active_kcal_per_week: Math.round(kcalTotal / weeks),
       by_activity: [...activities]
-        .map(([activity, a]) => ({ activity, sessions: a.entries.size, minutes: Math.round(a.minutes) }))
+        .map(([activity, a]) => ({ activity, sessions: a.entries.size, minutes: Math.round(a.minutes), kcal: Math.round(a.kcal) }))
         .sort((x, y) => y.sessions - x.sessions || y.minutes - x.minutes),
       sets_per_muscle: Object.fromEntries([...sets].map(([muscle, total]) => [muscle, round1(total / weeks)])),
       training_days_last_7: trainingDates.filter((date) => date >= lastWeekStart).length,
       longest_streak: longestRun(trainingDates),
-      load_ratio: kcalTotal > 0 ? Math.round((kcalLastWeek / (kcalTotal / weeks)) * 100) / 100 : null,
+      load_ratio: loadKcal > 0 ? Math.round((kcalLastWeek / (loadKcal / loadWeeks)) * 100) / 100 : null,
+      dates: trainingDates,
     },
     signals: nutrientSignals(signalDays(list), profile.sex),
   };
+}
+
+/** A week's numbers as Trends plots them and a report compares with. */
+export function weekPoint(stats: InsightStats): WeekPoint {
+  const n = stats.nutrients;
+  return {
+    week_start: stats.period_start,
+    food_days: stats.food_days,
+    kcal: n.kcal.average,
+    kcal_target: n.kcal.target,
+    protein_g: n.protein_g.average,
+    protein_target: n.protein_g.target,
+    protein_g_per_kg: stats.protein_g_per_kg,
+    carbs_g: n.carbs_g.average,
+    fat_g: n.fat_g.average,
+    fibre_g: n.fibre_g.average,
+    fibre_target: n.fibre_g.target,
+    sugars_g: n.sugars_g.average,
+    salt_g: n.salt_g.average,
+    fluid_ml: n.fluid_ml.average,
+    alcohol_units: stats.alcohol_units_per_week,
+    sessions: stats.training.sessions_per_week,
+    minutes: stats.training.minutes_per_week,
+    active_kcal: stats.training.active_kcal_per_week,
+    by_activity: stats.training.by_activity.map((a) => ({ ...a, kcal: a.kcal ?? 0 })),
+  };
+}
+
+/**
+ * Each finished Monday-to-Sunday week's averages, oldest first: from the week of the first log (or `maxWeeks` back) to
+ * the week before `today`'s. Weeks with nothing logged are left out. Worked out from the log, never by the model.
+ */
+export function weeklySeries(sql: Sql, profile: Profile, today: string, nowIso: string, maxWeeks: number): WeekPoint[] {
+  const first = firstLoggedDate(sql);
+  if (first === null) return [];
+  const thisWeek = addDays(today, -((new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7));
+  const firstWeek = addDays(first, -((new Date(`${first}T00:00:00Z`).getUTCDay() + 6) % 7));
+  const points: WeekPoint[] = [];
+  for (let week = addDays(thisWeek, -7 * maxWeeks); week < thisWeek; week = addDays(week, 7)) {
+    if (week < firstWeek) continue;
+    const stats = computeStats(sql, profile, addDays(week, 6), nowIso, { load: false });
+    if (stats.days_logged > 0) points.push(weekPoint(stats));
+  }
+  return points;
 }
