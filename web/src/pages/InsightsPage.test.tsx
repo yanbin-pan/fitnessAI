@@ -143,6 +143,44 @@ describe("reading the charts", () => {
   });
 });
 
+describe("arranging the charts", () => {
+  const order = () => screen.getAllByRole("button", { name: /^Move / }).map((b) => b.getAttribute("aria-label"));
+
+  it("moves a chart with its grip's arrow keys and keeps the order for next time", async () => {
+    localStorage.removeItem("trends-order");
+    serve(ready);
+    const { unmount } = renderWithProviders(<InsightsPage />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Trends" }));
+    await screen.findByRole("region", { name: "Calories" });
+    expect(order()).toEqual(["Move Calories", "Move Protein", "Move Carbs", "Move Fat", "Move Fibre", "Move Training"]);
+    const training = screen.getByRole("button", { name: "Move Training" });
+    fireEvent.keyDown(training, { key: "ArrowUp" });
+    fireEvent.keyDown(training, { key: "ArrowUp" });
+    expect(order()).toEqual(["Move Calories", "Move Protein", "Move Carbs", "Move Training", "Move Fat", "Move Fibre"]);
+    expect(training).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("button", { name: "Move Calories" }), { key: "ArrowUp" });
+    expect(order()[0]).toBe("Move Calories");
+    unmount();
+
+    serve(ready);
+    renderWithProviders(<InsightsPage />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Trends" }));
+    await screen.findByRole("region", { name: "Calories" });
+    expect(order()).toEqual(["Move Calories", "Move Protein", "Move Carbs", "Move Training", "Move Fat", "Move Fibre"]);
+    localStorage.removeItem("trends-order");
+  });
+
+  it("ignores a stored order it does not recognise", async () => {
+    localStorage.setItem("trends-order", JSON.stringify(["fibre", "drinks", 3]));
+    serve(ready);
+    renderWithProviders(<InsightsPage />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Trends" }));
+    await screen.findByRole("region", { name: "Calories" });
+    expect(order()).toEqual(["Move Fibre", "Move Calories", "Move Protein", "Move Carbs", "Move Fat", "Move Training"]);
+    localStorage.removeItem("trends-order");
+  });
+});
+
 describe("judging the numbers", () => {
   it("judges targets, bands and limits each their own way", () => {
     expect(nutrientLevel({ average: 2000, target: 2100 }, "near")).toBe("good");

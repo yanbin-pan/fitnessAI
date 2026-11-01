@@ -514,6 +514,7 @@ export const lt: Messages = {
       loadFailed: "Nepavyko įkelti ankstesnių savaičių.",
       tapChart: "Bakstelėkite grafiką, kad pamatytumėte savaitės skaičius",
       tapBar: "Bakstelėkite stulpelį, kad pamatytumėte savaitės išklotinę",
+      move: (name: string) => `Perkelti: ${name}`,
       weekOf: (date: string) => `Savaitė nuo ${date}`,
       breakdown: {
         title: "Treniruotės", sessions: "Treniruotės", time: "Laikas",

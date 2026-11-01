@@ -514,6 +514,7 @@ export const zh: Messages = {
       loadFailed: "无法加载往期数据。",
       tapChart: "点按图表查看某一周的数字",
       tapBar: "点按柱形查看该周明细",
+      move: (name: string) => `移动${name}`,
       weekOf: (date: string) => `周起始 ${date}`,
       breakdown: {
         title: "训练", sessions: "次数", time: "时长",

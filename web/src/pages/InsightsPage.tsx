@@ -495,7 +495,15 @@ export function InsightsPage() {
     <main className="mx-auto max-w-xl px-4 pb-28 pt-[calc(env(safe-area-inset-top)_+_1rem)]">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">{t.insights.title}</h1>
-        {hasReports && <Tabs tab={tab} onTab={setTab} />}
+        {hasReports && (
+          <Tabs
+            tab={tab}
+            onTab={(next) => {
+              setTab(next);
+              window.scrollTo?.({ top: 0 });
+            }}
+          />
+        )}
       </div>
       {!view ? (
         <p className={`mt-4 text-sm ${insights.isError ? "text-danger" : "text-muted"}`} role={insights.isError ? "alert" : undefined}>
