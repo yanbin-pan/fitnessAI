@@ -7,7 +7,7 @@ import { storeDay } from "../queries.ts";
 import type { DeleteResult, Entry, EntryResult, QuickItem } from "../shared.ts";
 import { sportOf } from "./SportBadge.tsx";
 
-// The chat bar's quick logging (2026-11-01 frequent items): a ⚡ button that opens the pinned and suggested items in a
+// The chat bar's quick logging (2026-11-01 frequent items): a star button that opens the pinned and suggested items in a
 // card floating above the bar, and matches offered while typing. A tap logs with no word to the coach, so no tokens.
 
 /** Lowercase, without accents, for matching what is typed against names. */
@@ -153,7 +153,7 @@ function QuickChip({ item, quick, typed, onLogged }: { item: QuickItem; quick: Q
   );
 }
 
-/** The ⚡ button beside the camera, with a dot while something is due. */
+/** The star button beside the camera, with a dot while something is due. */
 export function QuickButton({ open, due, onToggle, disabled }: { open: boolean; due: boolean; onToggle: () => void; disabled?: boolean }) {
   const t = useT();
   return (
@@ -165,7 +165,7 @@ export function QuickButton({ open, due, onToggle, disabled }: { open: boolean; 
       onClick={onToggle}
       className={`tap relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-accent-ink disabled:opacity-40 ${open ? "pressed" : "raised-sm"}`}
     >
-      <Icon name="bolt" size={22} />
+      <Icon name="star" size={22} />
       {due && !open && (
         <span role="img" aria-label={t.quick.due} className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-accent shadow-[0_0_0_2px_var(--nm-base)]" />
       )}
