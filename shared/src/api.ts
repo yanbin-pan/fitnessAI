@@ -268,7 +268,8 @@ export interface InsightStats {
     sessions_per_week: number;
     minutes_per_week: number;
     active_kcal_per_week: number;
-    by_activity: { activity: Activity; sessions: number; minutes: number }[];
+    /** kcal is missing from reports written before 2026-11-01. */
+    by_activity: { activity: Activity; sessions: number; minutes: number; kcal?: number }[];
     /** Weekly sets per muscle: a primary muscle counts a set, a secondary half. */
     sets_per_muscle: Partial<Record<Muscle, number>>;
     training_days_last_7: number;
@@ -304,6 +305,9 @@ export interface WeekPoint {
   sessions: number;
   minutes: number;
   active_kcal: number;
+  /** The week's training by activity, most sessions first, and weekly sets per muscle: Trends' training breakdown. */
+  by_activity: { activity: Activity; sessions: number; minutes: number; kcal: number }[];
+  sets_per_muscle: Partial<Record<Muscle, number>>;
 }
 
 /** A stored report, as a stored report is shown: its numbers, the coach's text, and the week before for comparison. */
