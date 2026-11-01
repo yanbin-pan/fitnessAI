@@ -460,7 +460,6 @@ export const lt: Messages = {
       target: (value: string) => `tikslas ${value}`,
       kcalDay: "kcal per dieną",
       gDay: "g per dieną",
-      mlDay: "ml per dieną",
       unitsWeek: "vienetų per savaitę",
       kcalWeek: "kcal per savaitę",
       minWeek: "minučių per savaitę",
@@ -477,7 +476,7 @@ export const lt: Messages = {
       tapBar: "Bakstelėkite stulpelį, kad pamatytumėte savaitės išklotinę",
       weekOf: (date: string) => `Savaitė nuo ${date}`,
       breakdown: {
-        title: "Treniruotės", close: "Uždaryti", sessions: "Treniruotės", time: "Laikas", active: "Aktyvi energija",
+        title: "Treniruotės", sessions: "Treniruotės", time: "Laikas",
         byActivity: "Pagal veiklą", none: "Tą savaitę treniruočių neužregistruota.",
       },
     },

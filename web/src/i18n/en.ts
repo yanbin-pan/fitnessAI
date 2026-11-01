@@ -496,7 +496,6 @@ export const en = {
       target: (value: string) => `target ${value}`,
       kcalDay: "kcal a day",
       gDay: "g a day",
-      mlDay: "ml a day",
       unitsWeek: "units a week",
       kcalWeek: "kcal a week",
       minWeek: "minutes a week",
@@ -513,7 +512,7 @@ export const en = {
       tapBar: "Tap a bar for that week's breakdown",
       weekOf: (date: string) => `Week of ${date}`,
       breakdown: {
-        title: "Training", close: "Close", sessions: "Sessions", time: "Time", active: "Active energy",
+        title: "Training", sessions: "Sessions", time: "Time",
         byActivity: "By activity", none: "No training logged that week.",
       },
     },

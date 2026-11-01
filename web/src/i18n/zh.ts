@@ -460,7 +460,6 @@ export const zh: Messages = {
       target: (value: string) => `目标 ${value}`,
       kcalDay: "千卡/天",
       gDay: "克/天",
-      mlDay: "毫升/天",
       unitsWeek: "单位/周",
       kcalWeek: "千卡/周",
       minWeek: "分钟/周",
@@ -477,7 +476,7 @@ export const zh: Messages = {
       tapBar: "点按柱形查看该周明细",
       weekOf: (date: string) => `周起始 ${date}`,
       breakdown: {
-        title: "训练", close: "关闭", sessions: "次数", time: "时长", active: "活动消耗",
+        title: "训练", sessions: "次数", time: "时长",
         byActivity: "按运动", none: "那一周没有记录训练。",
       },
     },
