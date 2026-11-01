@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { ApiError } from "../api.ts";
 import { SetupPrompt } from "../components/SetupPrompt.tsx";
@@ -7,27 +8,34 @@ import { useT } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
 import type { IconName } from "../icons/paths.ts";
-import { useInsights } from "../queries.ts";
-import type { FindingSeverity, InsightFinding, InsightReport, InsightStats, NutrientStat, RecoveryStatus } from "../shared.ts";
+import { useInsightReport, useInsights, useInsightsHistory } from "../queries.ts";
+import type { FindingSeverity, InsightFinding, InsightPayload, InsightReport, InsightStats, NutrientStat, RecoveryStatus, WeekPoint } from "../shared.ts";
+import { InsightsTrends } from "./InsightsTrends.tsx";
 
-// The weekly analysis (2026-10-06 design §3.4). Severity always travels with its word: the colour repeats it, never
-// carries it alone (dataviz: status colours ship with a label). Text stays in the ink tokens.
+// The weekly analysis (2026-10-06 design §3.4), with colour and icons and every past week kept (2026-11-01 insights
+// history design). Severity always travels with its word or its own icon: the colour repeats it, never carries it alone.
 
-const SEVERITY_FILL: Record<FindingSeverity, string> = { good: "bg-good", watch: "bg-watch", act: "bg-act" };
+export const SEVERITY_FILL: Record<FindingSeverity, string> = { good: "bg-good", watch: "bg-watch", act: "bg-act" };
+/** Each severity's hue and icon, for its wells and chips. */
+export const SEVERITY_TINT: Record<FindingSeverity, { tint: string; icon: IconName }> = {
+  good: { tint: "tint-green", icon: "check" },
+  watch: { tint: "tint-amber", icon: "info" },
+  act: { tint: "tint-rose", icon: "warning" },
+};
 const RECOVERY_LEVEL: Record<RecoveryStatus, FindingSeverity> = { fresh: "good", balanced: "good", fatigued: "watch", overreaching: "act" };
 
 type NutrientKey = keyof InsightStats["nutrients"];
 /** How each nutrient is judged against its number: a target to meet, a band around it, or a limit to stay under. */
-const NUTRIENTS: { key: NutrientKey; unit: "kcal" | "g" | "ml"; judge: "near" | "band" | "goal" | "limit" | "drink" }[] = [
-  { key: "kcal", unit: "kcal", judge: "near" },
-  { key: "protein_g", unit: "g", judge: "goal" },
-  { key: "carbs_g", unit: "g", judge: "band" },
-  { key: "fat_g", unit: "g", judge: "band" },
-  { key: "fibre_g", unit: "g", judge: "goal" },
-  { key: "saturated_fat_g", unit: "g", judge: "limit" },
-  { key: "sugars_g", unit: "g", judge: "limit" },
-  { key: "salt_g", unit: "g", judge: "limit" },
-  { key: "fluid_ml", unit: "ml", judge: "drink" },
+const NUTRIENTS: { key: NutrientKey; unit: "kcal" | "g" | "ml"; judge: "near" | "band" | "goal" | "limit" | "drink"; dot: string }[] = [
+  { key: "kcal", unit: "kcal", judge: "near", dot: "bg-accent" },
+  { key: "protein_g", unit: "g", judge: "goal", dot: "bg-protein" },
+  { key: "carbs_g", unit: "g", judge: "band", dot: "bg-carbs" },
+  { key: "fat_g", unit: "g", judge: "band", dot: "bg-fat" },
+  { key: "fibre_g", unit: "g", judge: "goal", dot: "bg-fibre" },
+  { key: "saturated_fat_g", unit: "g", judge: "limit", dot: "bg-fat-sat" },
+  { key: "sugars_g", unit: "g", judge: "limit", dot: "bg-carbs" },
+  { key: "salt_g", unit: "g", judge: "limit", dot: "bg-muted" },
+  { key: "fluid_ml", unit: "ml", judge: "drink", dot: "bg-protein" },
 ];
 
 export function nutrientLevel(stat: NutrientStat, judge: (typeof NUTRIENTS)[number]["judge"]): FindingSeverity {
@@ -57,28 +65,67 @@ export function loadWord(ratio: number | null, t: Messages): string {
   return t.insights.load.sharp;
 }
 
+/** "27 Oct" in the app's language. */
+export function shortDate(date: string, t: Messages): string {
+  return new Intl.DateTimeFormat(t.locale, { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`));
+}
+
+/** A small hued well holding an icon: the touch of colour on each card. */
+export function Well({ tint, icon, size = 28, iconSize = 16 }: { tint: string; icon: IconName; size?: number; iconSize?: number }) {
+  return (
+    <span aria-hidden="true" className={`well-tint ${tint} inline-flex shrink-0 items-center justify-center rounded-[10px]`} style={{ width: size, height: size }}>
+      <Icon name={icon} size={iconSize} />
+    </span>
+  );
+}
+
 function SeverityLabel({ level }: { level: FindingSeverity }) {
   const t = useT();
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
+    <span className="inline-flex shrink-0 items-center gap-1.5 text-xs text-muted">
       <span aria-hidden="true" className={`h-2 w-2 rounded-full ${SEVERITY_FILL[level]}`} />
       {t.insights.severity[level]}
     </span>
   );
 }
 
-function Tile({ label, value, note }: { label: string; value: string; note: string }) {
+/** A change on the week before, in grey: the number's own colour already says whether it is good. */
+function Delta({ change, digits = 0 }: { change: number | null; digits?: number }) {
+  const t = useT();
+  if (change === null) return null;
+  const rounded = Number(change.toFixed(digits));
+  if (rounded === 0) return null;
+  const shown = Math.abs(rounded).toLocaleString(t.locale, { maximumFractionDigits: digits });
+  return (
+    <span className="text-[11px] font-semibold text-muted" title={t.insights.vsBefore}>
+      <span aria-hidden="true">{rounded > 0 ? "▲" : "▼"}</span> {shown}
+      <span className="sr-only">
+        {" "}
+        {rounded > 0 ? "+" : "−"}
+        {shown} {t.insights.vsBefore}
+      </span>
+    </span>
+  );
+}
+
+function Tile({ tint, icon, label, value, note, change }: { tint: string; icon: IconName; label: string; value: string; note: string; change: ReactNode }) {
   return (
     <div className="raised-sm rounded-2xl p-3">
-      <p className="text-xs text-muted">{label}</p>
-      <p className="mt-0.5 text-xl font-semibold">{value}</p>
-      <p className="text-xs text-muted">{note}</p>
+      <p className="flex items-center gap-2 text-xs text-muted">
+        <Well tint={tint} icon={icon} size={26} iconSize={15} />
+        {label}
+      </p>
+      <p className="mt-1.5 text-xl font-semibold">{value}</p>
+      <p className="flex items-baseline justify-between gap-2 text-xs text-muted">
+        <span>{note}</span>
+        {change}
+      </p>
     </div>
   );
 }
 
 /** A nutrient's daily average on a track that runs to 150 % of its number, with a tick at the number itself. */
-function Meter({ name, stat, unit, level }: { name: string; stat: NutrientStat; unit: string; level: FindingSeverity }) {
+function Meter({ name, dot, stat, unit, level }: { name: string; dot: string; stat: NutrientStat; unit: string; level: FindingSeverity }) {
   const t = useT();
   const target = stat.target ?? 0;
   const share = target > 0 ? Math.min(stat.average / target, 1.5) / 1.5 : 0;
@@ -87,7 +134,10 @@ function Meter({ name, stat, unit, level }: { name: string; stat: NutrientStat; 
   return (
     <div>
       <div className="flex items-baseline justify-between gap-2 text-sm">
-        <span>{name}</span>
+        <span className="flex items-center gap-1.5">
+          <span aria-hidden="true" className={`h-2 w-2 rounded-full ${dot}`} />
+          {name}
+        </span>
         <span className="text-xs text-muted">
           {shown(stat.average)} / {shown(unit === "kcal" ? kcal10(target) : target)} {unit}
         </span>
@@ -112,85 +162,183 @@ function Meter({ name, stat, unit, level }: { name: string; stat: NutrientStat; 
 
 function Finding({ finding }: { finding: InsightFinding }) {
   const t = useT();
+  const { tint, icon } = SEVERITY_TINT[finding.severity];
   return (
-    <li className="pressed rounded-2xl p-3">
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="font-medium">{finding.title}</p>
-        <SeverityLabel level={finding.severity} />
+    <li className="pressed flex gap-2.5 rounded-2xl p-3">
+      <Well tint={tint} icon={icon} size={26} iconSize={15} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="font-medium">{finding.title}</p>
+          <SeverityLabel level={finding.severity} />
+        </div>
+        <p className="mt-1 text-sm">{finding.detail}</p>
+        {finding.foods.length > 0 && (
+          <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="text-muted">{t.insights.tryFoods}</span>
+            {finding.foods.map((food) => (
+              <span key={food} className={`well-tint ${tint} rounded-full px-2.5 py-1`}>
+                {food}
+              </span>
+            ))}
+          </p>
+        )}
       </div>
-      <p className="mt-1 text-sm">{finding.detail}</p>
-      {finding.foods.length > 0 && (
-        <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="text-muted">{t.insights.tryFoods}</span>
-          {finding.foods.map((food) => (
-            <span key={food} className="raised-sm rounded-full px-2.5 py-1">
-              {food}
-            </span>
-          ))}
-        </p>
-      )}
     </li>
   );
 }
 
-function Section({ title, icon, children }: { title: string; icon: IconName; children: ReactNode }) {
+function Section({ title, icon, tint, aside, children }: { title: string; icon: IconName; tint: string; aside?: ReactNode; children: ReactNode }) {
   return (
     <section aria-label={title} className="raised mt-4 rounded-3xl p-4">
       <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
-        <Icon name={icon} size={16} />
+        <Well tint={tint} icon={icon} />
         {title}
+        {aside && <span className="ml-auto normal-case tracking-normal">{aside}</span>}
       </h2>
       {children}
     </section>
   );
 }
 
-function Numbers({ stats }: { stats: InsightStats }) {
+function Tally({ report }: { report: InsightReport }) {
   const t = useT();
-  const fiveADay = (stats.food_groups.vegetables ?? 0) + (stats.food_groups.fruit ?? 0) + Math.min(stats.food_groups.legumes ?? 0, 1);
+  const counts: Record<FindingSeverity, number> = { good: 0, watch: 0, act: 0 };
+  for (const f of [...report.nutrition.findings, ...report.training.findings]) counts[f.severity]++;
+  return (
+    <p className="mt-3 flex flex-wrap gap-1.5">
+      {(["good", "watch", "act"] as const)
+        .filter((level) => counts[level] > 0)
+        .map((level) => (
+          <span key={level} className={`well-tint ${SEVERITY_TINT[level].tint} inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold`}>
+            <Icon name={SEVERITY_TINT[level].icon} size={13} />
+            {t.insights.tally[level](counts[level])}
+          </span>
+        ))}
+    </p>
+  );
+}
+
+function Numbers({ stats, previous }: { stats: InsightStats; previous: WeekPoint | null }) {
+  const t = useT();
   const kcal = stats.nutrients.kcal;
+  const fibre = stats.nutrients.fibre_g;
+  const change = (now: number, before: number | undefined) => (previous && previous.food_days > 0 && stats.food_days > 0 && before !== undefined ? now - before : null);
   return (
     <div className="mt-4 grid grid-cols-2 gap-3">
-      <Tile label={t.insights.calories} value={thousands(kcal.average, t)} note={kcal.target !== null ? t.insights.of(`${thousands(kcal10(kcal.target), t)} ${t.units.kcal}`) : t.insights.perDay} />
-      <Tile label={t.insights.protein} value={stats.protein_g_per_kg.toLocaleString(t.locale)} note={t.insights.perKg} />
       <Tile
-        label={t.insights.fibre}
-        value={`${Math.round(stats.nutrients.fibre_g.average)} ${t.units.g}`}
-        note={stats.nutrients.fibre_g.target !== null ? t.insights.of(`${Math.round(stats.nutrients.fibre_g.target)} ${t.units.g}`) : t.insights.perDay}
+        tint="tint-green"
+        icon="restaurant"
+        label={t.insights.calories}
+        value={thousands(kcal.average, t)}
+        note={kcal.target !== null ? t.insights.of(`${thousands(kcal10(kcal.target), t)} ${t.units.kcal}`) : t.insights.perDay}
+        change={<Delta change={change(kcal.average, previous?.kcal)} />}
       />
-      <Tile label={t.insights.fruitVeg} value={fiveADay.toLocaleString(t.locale, { maximumFractionDigits: 1 })} note={t.insights.aimFive} />
-      <Tile label={t.insights.trainingTile} value={stats.training.sessions_per_week.toLocaleString(t.locale)} note={t.insights.sessionsWeek} />
-      <Tile label={t.insights.activeTile} value={`${thousands(stats.training.active_kcal_per_week, t)} ${t.units.kcal}`} note={t.insights.perWeek} />
-      <div className="col-span-2">
-        <Tile
-          label={t.insights.loadTile}
-          value={loadWord(stats.training.load_ratio, t)}
-          note={stats.training.load_ratio !== null ? `${stats.training.load_ratio.toLocaleString(t.locale)} ×` : "—"}
-        />
-      </div>
+      <Tile
+        tint="tint-blue"
+        icon="fitness_center"
+        label={t.insights.protein}
+        value={stats.protein_g_per_kg.toLocaleString(t.locale)}
+        note={t.insights.perKg}
+        change={<Delta change={change(stats.protein_g_per_kg, previous?.protein_g_per_kg)} digits={1} />}
+      />
+      <Tile
+        tint="tint-teal"
+        icon="nutrition"
+        label={t.insights.fibre}
+        value={`${Math.round(fibre.average)} ${t.units.g}`}
+        note={fibre.target !== null ? t.insights.of(`${Math.round(fibre.target)} ${t.units.g}`) : t.insights.perDay}
+        change={<Delta change={change(fibre.average, previous?.fibre_g)} />}
+      />
+      <Tile
+        tint="tint-orange"
+        icon="directions_run"
+        label={t.insights.trainingTile}
+        value={stats.training.sessions_per_week.toLocaleString(t.locale)}
+        note={t.insights.sessionsWeek}
+        change={<Delta change={previous ? stats.training.sessions_per_week - previous.sessions : null} digits={1} />}
+      />
     </div>
   );
 }
 
-function Report({ report, stats }: { report: InsightReport | null; stats: InsightStats }) {
+/** The week's days, lit where there was training: only for one-week reports, which list their training dates. */
+function TrainingDays({ stats }: { stats: InsightStats }) {
+  const t = useT();
+  const dates = stats.training.dates;
+  if (!dates) return null;
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(`${stats.period_start}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + i);
+    return d.toISOString().slice(0, 10);
+  });
+  if (days[6] !== stats.period_end) return null;
+  const weekday = new Intl.DateTimeFormat(t.locale, { weekday: "narrow", timeZone: "UTC" });
+  const long = new Intl.DateTimeFormat(t.locale, { weekday: "long", timeZone: "UTC" });
+  return (
+    <ul aria-label={t.insights.trainingDays} className="mt-3 flex gap-1.5">
+      {days.map((day) => {
+        const trained = dates.includes(day);
+        const date = new Date(`${day}T00:00:00Z`);
+        return (
+          <li key={day} className="flex-1 text-center text-[10px] text-muted" aria-label={`${long.format(date)}${trained ? " ✓" : ""}`}>
+            <span aria-hidden="true" className={`mb-1 block h-4 rounded-md ${trained ? "raised-sm" : "pressed"}`} style={trained ? { backgroundColor: "#f08a4b" } : undefined} />
+            <span aria-hidden="true">{weekday.format(date)}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function FiveADay({ stats }: { stats: InsightStats }) {
+  const t = useT();
+  const portions = (stats.food_groups.vegetables ?? 0) + (stats.food_groups.fruit ?? 0) + Math.min(stats.food_groups.legumes ?? 0, 1);
+  const shown = portions.toLocaleString(t.locale, { maximumFractionDigits: 1 });
+  return (
+    <div className="mt-3 flex items-center justify-between gap-2 text-sm" aria-label={`${t.insights.fruitVeg}: ${shown}, ${t.insights.aimFive}`} role="group">
+      <span className="flex items-center gap-1.5">
+        <span aria-hidden="true" className="h-2 w-2 rounded-full bg-fibre" />
+        {t.insights.fruitVeg}
+      </span>
+      <span className="flex items-center gap-1" aria-hidden="true">
+        {Array.from({ length: 5 }, (_, i) => {
+          const fill = Math.max(0, Math.min(1, portions - i));
+          return (
+            <span key={i} className="pressed relative h-3 w-3 overflow-hidden rounded-full">
+              <span className="absolute inset-y-0 left-0 bg-fibre" style={{ width: `${fill * 100}%` }} />
+            </span>
+          );
+        })}
+        <span className="ml-1 text-xs text-muted">{shown} / 5</span>
+      </span>
+    </div>
+  );
+}
+
+function Report({ report, stats, previous }: { report: InsightReport | null; stats: InsightStats; previous: WeekPoint | null }) {
   const t = useT();
   return (
     <>
       {report && (
-        <section className="raised mt-4 rounded-3xl p-4">
-          <p className="text-lg font-semibold leading-snug">{report.headline}</p>
+        <section className="raised-tint tint-custard mt-4 rounded-3xl p-4">
+          <div className="flex items-start gap-3">
+            <Well tint="tint-custard" icon="lightbulb" size={38} iconSize={22} />
+            <p className="text-lg font-semibold leading-snug">{report.headline}</p>
+          </div>
+          <Tally report={report} />
         </section>
       )}
-      <Numbers stats={stats} />
-      <Section title={t.insights.nutrition} icon="restaurant">
-        {report && <p className="mt-2 text-sm">{report.nutrition.summary}</p>}
+      <Numbers stats={stats} previous={previous} />
+      <Section title={t.insights.nutrition} icon="restaurant" tint="tint-amber">
+        {report && <p className="mt-3 text-sm">{report.nutrition.summary}</p>}
         <div className="mt-3 grid gap-2.5">
-          {NUTRIENTS.filter(({ key }) => stats.nutrients[key].target !== null).map(({ key, unit, judge }) => {
+          {NUTRIENTS.filter(({ key }) => stats.nutrients[key].target !== null).map(({ key, unit, judge, dot }) => {
             const stat = stats.nutrients[key];
             const name = judge === "limit" ? t.insights.limit(t.insights.nutrients[key]) : t.insights.nutrients[key];
-            return <Meter key={key} name={name} stat={stat} unit={unit === "kcal" ? t.units.kcal : unit === "g" ? t.units.g : "ml"} level={nutrientLevel(stat, judge)} />;
+            return <Meter key={key} name={name} dot={dot} stat={stat} unit={unit === "kcal" ? t.units.kcal : unit === "g" ? t.units.g : "ml"} level={nutrientLevel(stat, judge)} />;
           })}
         </div>
+        <FiveADay stats={stats} />
         {report && (
           <ul className="mt-4 flex flex-col gap-2.5">
             {report.nutrition.findings.map((finding) => (
@@ -199,8 +347,19 @@ function Report({ report, stats }: { report: InsightReport | null; stats: Insigh
           </ul>
         )}
       </Section>
-      <Section title={t.insights.training} icon="fitness_center">
-        {report && <p className="mt-2 text-sm">{report.training.summary}</p>}
+      <Section
+        title={t.insights.training}
+        icon="fitness_center"
+        tint="tint-orange"
+        aside={
+          <span className="text-xs font-medium text-muted">
+            {t.insights.loadTile}: {loadWord(stats.training.load_ratio, t)}
+            {stats.training.load_ratio !== null && ` · ${stats.training.load_ratio.toLocaleString(t.locale)}×`}
+          </span>
+        }
+      >
+        {report && <p className="mt-3 text-sm">{report.training.summary}</p>}
+        <TrainingDays stats={stats} />
         {stats.training.by_activity.length > 0 && (
           <ul aria-label={t.insights.byActivity} className="mt-3 flex flex-wrap gap-3">
             {stats.training.by_activity.map((a) => (
@@ -214,6 +373,13 @@ function Report({ report, stats }: { report: InsightReport | null; stats: Insigh
                 </span>
               </li>
             ))}
+            <li className="flex items-center gap-2 text-sm">
+              <Well tint="tint-amber" icon="sunny" size={30} iconSize={17} />
+              <span>
+                {thousands(stats.training.active_kcal_per_week, t)} {t.units.kcal}
+                <span className="block text-xs text-muted">{t.insights.activeTile}</span>
+              </span>
+            </li>
           </ul>
         )}
         {report && (
@@ -226,19 +392,23 @@ function Report({ report, stats }: { report: InsightReport | null; stats: Insigh
       </Section>
       {report && (
         <>
-          <Section title={t.insights.recovery} icon="bedtime">
-            <div className="mt-2">
-              <span className="inline-flex items-center gap-1.5 text-base font-semibold">
-                <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-full ${SEVERITY_FILL[RECOVERY_LEVEL[report.recovery.status]]}`} />
+          <Section title={t.insights.recovery} icon="bedtime" tint="tint-violet">
+            <div className="mt-3">
+              <span className={`well-tint ${SEVERITY_TINT[RECOVERY_LEVEL[report.recovery.status]].tint} inline-flex rounded-full px-3 py-1 text-sm font-semibold`}>
                 {t.insights.status[report.recovery.status]}
               </span>
-              <p className="mt-1 text-sm">{report.recovery.detail}</p>
+              <p className="mt-2 text-sm">{report.recovery.detail}</p>
             </div>
           </Section>
-          <Section title={t.insights.focus} icon="lightbulb">
-            <ol className="mt-2 flex list-decimal flex-col gap-1.5 pl-5 text-sm">
-              {report.focus.map((item) => (
-                <li key={item}>{item}</li>
+          <Section title={t.insights.focus} icon="lightbulb" tint="tint-custard">
+            <ol className="mt-3 flex flex-col gap-2 text-sm">
+              {report.focus.map((item, i) => (
+                <li key={item} className="flex items-start gap-2.5">
+                  <span aria-hidden="true" className="well-tint tint-custard flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold">
+                    {i + 1}
+                  </span>
+                  <span>{item}</span>
+                </li>
               ))}
             </ol>
           </Section>
@@ -249,14 +419,84 @@ function Report({ report, stats }: { report: InsightReport | null; stats: Insigh
   );
 }
 
+function RoundButton({ icon, label, onClick, disabled }: { icon: IconName; label: string; onClick: () => void; disabled: boolean }) {
+  return (
+    <button type="button" aria-label={label} onClick={onClick} disabled={disabled} className="raised-sm tap flex h-7 w-7 items-center justify-center rounded-full disabled:opacity-35">
+      <Icon name={icon} size={18} />
+    </button>
+  );
+}
+
+/** The report's week, and arrows to step through the stored ones. */
+function WeekStepper({ payload, weeks, onPick, nextUpdate }: { payload: InsightPayload; weeks: string[]; onPick: (week: string) => void; nextUpdate: string | null }) {
+  const t = useT();
+  const at = weeks.indexOf(payload.week_start);
+  const earlier = at >= 0 && at + 1 < weeks.length ? weeks[at + 1] : null;
+  const later = at > 0 ? weeks[at - 1] : null;
+  return (
+    <div className="mt-3 flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2">
+        <RoundButton icon="chevron_left" label={t.insights.earlier} onClick={() => earlier && onPick(earlier)} disabled={!earlier} />
+        <span className="text-sm font-semibold">
+          {shortDate(payload.stats.period_start, t)} – {shortDate(payload.stats.period_end, t)}
+        </span>
+        <RoundButton icon="chevron_right" label={t.insights.later} onClick={() => later && onPick(later)} disabled={!later} />
+      </div>
+      {nextUpdate && <span className="text-xs text-muted">{t.insights.nextReport(dayAndMonth(nextUpdate, t))}</span>}
+    </div>
+  );
+}
+
+function Tabs({ tab, onTab }: { tab: "week" | "trends"; onTab: (tab: "week" | "trends") => void }) {
+  const t = useT();
+  const item = (id: "week" | "trends", icon: IconName, label: string) => (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={tab === id}
+      onClick={() => onTab(id)}
+      className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold ${tab === id ? "well-tint tint-green" : "text-muted"}`}
+    >
+      <Icon name={icon} size={15} />
+      {label}
+    </button>
+  );
+  return (
+    <div role="tablist" aria-label={t.insights.tabs.label} className="pressed flex gap-1 rounded-full p-1">
+      {item("week", "calendar_month", t.insights.tabs.week)}
+      {item("trends", "monitoring", t.insights.tabs.trends)}
+    </div>
+  );
+}
+
 export function InsightsPage() {
   const t = useT();
   const insights = useInsights();
-  if (insights.error instanceof ApiError && insights.error.code === "no_profile") return <SetupPrompt />;
+  const [tab, setTab] = useState<"week" | "trends">("week");
+  const [picked, setPicked] = useState<string | null>(null);
   const view = insights.data;
+  const latest = view?.insight ?? null;
+  const hasReports = view !== undefined && view.status !== "collecting" && latest !== null;
+  const history = useInsightsHistory(hasReports ? (latest?.generated_at ?? null) : null);
+  const past = useInsightReport(picked !== null && picked !== latest?.week_start ? picked : null);
+  if (insights.error instanceof ApiError && insights.error.code === "no_profile") return <SetupPrompt />;
+
+  const reportWeeks = history.data?.reports.map((r) => r.week_start) ?? [];
+  // Older reports come from the list; the newest is the one the tab already has (it may be the numbers alone).
+  const shown: InsightPayload | null = picked !== null && picked !== latest?.week_start ? (past.data ?? null) : latest;
+  const isPast = picked !== null && picked !== latest?.week_start;
+  const open = (week: string) => {
+    setPicked(week === latest?.week_start ? null : week);
+    setTab("week");
+    window.scrollTo?.({ top: 0 });
+  };
+
   return (
     <main className="mx-auto max-w-xl px-4 pb-28 pt-[calc(env(safe-area-inset-top)_+_1rem)]">
-      <h1 className="text-xl font-semibold">{t.insights.title}</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold">{t.insights.title}</h1>
+        {hasReports && <Tabs tab={tab} onTab={setTab} />}
+      </div>
       {!view ? (
         <p className={`mt-4 text-sm ${insights.isError ? "text-danger" : "text-muted"}`} role={insights.isError ? "alert" : undefined}>
           {insights.isError ? t.insights.loadFailed : t.common.loading}
@@ -264,26 +504,34 @@ export function InsightsPage() {
       ) : view.status === "collecting" ? (
         <section className="raised mt-4 rounded-3xl p-4">
           <p className="flex items-center gap-2 font-medium">
-            <Icon name="monitoring" size={20} className="text-accent-ink" />
+            <Well tint="tint-green" icon="monitoring" />
             {t.insights.collectingTitle}
           </p>
           <p className="mt-1 text-sm text-muted">{t.insights.collecting(view.required_days)}</p>
           <Progress value={view.data_days} max={view.required_days} />
         </section>
+      ) : tab === "trends" && history.data ? (
+        <InsightsTrends history={history.data} current={shown?.week_start ?? null} onOpen={open} />
       ) : (
         <>
-          <p className="mt-1 text-xs text-muted">
-            {view.insight && `${t.insights.week(dayAndMonth(view.insight.week_start, t))} · `}
-            {t.insights.nextUpdate(dayAndMonth(view.next_update, t))}
-          </p>
-          {view.status === "pending" && (
+          {view.status === "pending" && !isPast && (
             <p role="status" className="raised-sm mt-3 flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm">
               <span aria-hidden="true" className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-accent border-t-transparent motion-reduce:animate-none" />
-              {view.insight ? t.insights.updating : t.insights.pendingFirst}
+              {latest ? t.insights.updating : t.insights.pendingFirst}
             </p>
           )}
-          {view.status === "off" && <p className="raised-sm mt-3 rounded-2xl px-3 py-2.5 text-sm">{t.insights.off}</p>}
-          {view.insight && <Report report={view.insight.report} stats={view.insight.stats} />}
+          {view.status === "off" && !isPast && <p className="raised-sm mt-3 rounded-2xl px-3 py-2.5 text-sm">{t.insights.off}</p>}
+          {shown && <WeekStepper payload={shown} weeks={reportWeeks} onPick={open} nextUpdate={isPast ? null : view.next_update} />}
+          {isPast && (
+            <p className="mt-3 flex items-center justify-between gap-2">
+              <span className="well-tint tint-slate rounded-full px-2.5 py-1 text-xs font-semibold">{t.insights.pastReport}</span>
+              <button type="button" onClick={() => setPicked(null)} className="text-xs font-semibold text-accent-ink">
+                {t.insights.backToLatest}
+              </button>
+            </p>
+          )}
+          {isPast && !past.data && <p className="mt-4 text-sm text-muted">{past.isError ? t.insights.loadFailed : t.common.loading}</p>}
+          {shown && <Report report={shown.report} stats={shown.stats} previous={shown.previous} />}
         </>
       )}
     </main>

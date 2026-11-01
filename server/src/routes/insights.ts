@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { forRequest } from "../deps.ts";
 import type { AppDeps } from "../deps.ts";
-import { ensureWeeklyInsight, insightsView } from "../insights/insights.ts";
+import { ensureWeeklyInsight, insightPayload, insightsHistory, insightsView } from "../insights/insights.ts";
 import { getProfile } from "../profile/profile.ts";
 
 export function registerInsightRoutes(app: FastifyInstance, appDeps: AppDeps): void {
@@ -15,5 +15,23 @@ export function registerInsightRoutes(app: FastifyInstance, appDeps: AppDeps): v
     return insightsView({ sql: deps.db, health: deps.health, profile, ai: deps.ai, now: deps.now(), dailyCallCap }, (insightDeps) => {
       ensureWeeklyInsight(insightDeps).catch((err: unknown) => req.log.error({ err }, "weekly insight failed"));
     });
+  });
+
+  // Past reports and weekly averages (2026-11-01 insights history design): read from what is stored and logged, no model call.
+  app.get("/api/insights/history", async (req, reply) => {
+    const deps = forRequest(appDeps, req);
+    const profile = getProfile(deps.db);
+    if (!profile) return reply.code(409).send({ error: "no_profile" });
+    return insightsHistory(deps.db, profile, deps.now());
+  });
+
+  app.get<{ Params: { week: string } }>("/api/insights/:week", async (req, reply) => {
+    const deps = forRequest(appDeps, req);
+    const profile = getProfile(deps.db);
+    if (!profile) return reply.code(409).send({ error: "no_profile" });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(req.params.week)) return reply.code(400).send({ error: "invalid_week" });
+    const found = insightPayload(deps.db, profile, req.params.week, deps.now());
+    if (!found) return reply.code(404).send({ error: "not_found" });
+    return found;
   });
 }

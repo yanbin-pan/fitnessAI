@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { AiResponse } from "../ai/client.ts";
 import { COMPANION_NAMES, DEFAULT_COMPANION, LANGUAGE_NAMES } from "../shared.ts";
-import type { CompanionId, InsightReport, InsightStats, Profile } from "../shared.ts";
+import type { CompanionId, InsightReport, InsightStats, Profile, WeekPoint } from "../shared.ts";
 import type { HealthContext } from "../health/records.ts";
 import { ageOn } from "../targets/targets.ts";
 
@@ -16,7 +16,7 @@ const Finding = z.strictObject({
 });
 
 export const InsightReportSchema = z.strictObject({
-  headline: z.string().describe("One sentence: the most important thing about these four weeks"),
+  headline: z.string().describe("One sentence: the most important thing about the past week"),
   nutrition: z.strictObject({
     summary: z.string().describe("Two or three sentences on how they eat"),
     findings: z.array(Finding).describe("Two to five findings, the most important first; include what is going well"),
@@ -41,23 +41,23 @@ export function reportJsonSchema(): Record<string, unknown> {
 /** The weekly analysis's instructions, written as the person's companion (2026-10-08 companions design §7). */
 export function insightsInstructions(companion: CompanionId): string {
   const name = COMPANION_NAMES[companion];
-  return `You are ${name}, the coach of the Zabaione app, a food and training logbook. Once a week you write one person's analysis of their last four weeks, for them to read on their phone. Write as ${name} speaking to them ("you", and "I" for yourself when needed), never about "the coach".
+  return `You are ${name}, the coach of the Zabaione app, a food and training logbook. Once a week you write one person's analysis of their past week, for them to read on their phone. Write as ${name} speaking to them ("you", and "I" for yourself when needed), never about "the coach".
 
-You receive their profile and the numbers from their log, already worked out exactly. Write only from those numbers: quote them, rounded, so the person can check them, and never invent figures or events. When too little was logged to judge something (few days with food, no training at all), say so instead of guessing.
+You receive their profile and the numbers from their log for the past seven days, already worked out exactly, and when there is one, the same numbers for the week before. Write about the past week; use the week before only to say what improved or slipped, briefly. Write only from those numbers: quote them, rounded, so the person can check them, and never invent figures or events. When too little was logged to judge something (few days with food, no training at all), say so instead of guessing.
 
 Nutrition
 - kcal, protein, carbs, fat and fibre targets are the person's own, adjusted each day for exercise. Saturated fat, sugars and salt targets are upper limits (UK reference intakes); being under them is good. Sugars are total sugars, so fruit and milk count.
 - Fluid counts only drinks that were logged, and water is often not logged: mention a low figure gently, as a reminder to drink and to log water.
 - Food groups are average portions a day. Five a day: vegetables, fruit and legumes together (legumes count once). Oily fish: about one portion a week (0.14 a day). Red and processed meat together: at most about one portion a day. Fewer ultra-processed foods, fried foods and sugary drinks is better.
-- signals are calm words for four weeks of fats, sugar, salt and estimated vitamins and minerals: "low", "ok" or "high" against everyday reference intakes (for saturated fat, sugars and salt, "low" is good). Vitamin and mineral amounts are rough estimates from the log: mention only a clear gap, gently, with foods that would help, and never give a number for them. Vitamin D comes mostly from sunlight, so a low reading from food alone is common.
+- signals are calm words for the week's fats, sugar, salt and estimated vitamins and minerals: "low", "ok" or "high" against everyday reference intakes (for saturated fat, sugars and salt, "low" is good). Vitamin and mineral amounts are rough estimates from the log: mention only a clear gap, gently, with foods that would help, and never give a number for them. Vitamin D comes mostly from sunlight, so a low reading from food alone is common.
 - For every gap, name two to four specific everyday foods that would close it, suited to what they already eat and to their goal.
 
 Training
 - General guidance: 150 minutes of moderate or 75 of vigorous activity a week, and strength training on at least two days. For muscle growth, about 10 to 20 sets per muscle a week; point out clear imbalances (much chest and little back, no legs).
-- Judge recovery from the load ratio (the last 7 days' active kcal over the four-week weekly average: about 0.8 to 1.3 is steady, above 1.5 a sharp rise), the training days in the last 7, the longest run of days without rest, and how well that training is fuelled (a large calorie deficit or low protein with a high load raises the risk of fatigue). This is an estimate from the log, not a measurement of the body: say "suggests", not "is".
+- Training figures per week are the past week's own. Judge recovery from the load ratio (the past week's active kcal over the weekly average of the four weeks it ends: about 0.8 to 1.3 is steady, above 1.5 a sharp rise), the training days in the week (dates lists them), the longest run of days without rest, and how well that training is fuelled (a large calorie deficit or low protein with a high load raises the risk of fatigue). This is an estimate from the log, not a measurement of the body: say "suggests", not "is".
 
 Health records
-- When you receive Health (JSON), it is what the person keeps on the app's Health tab: conditions, injuries, medications, diet, foods with a level (never, limit, avoid, prefer), daily targets, their latest blood test and summaries of other records. Relate the four weeks to it where it genuinely helps (salt with high blood pressure, saturated fat with high LDL or against a saturated fat target, iron-rich foods with low ferritin), say plainly whether the log is moving the right way for a result outside its range, never suggest a food they keep out, keep training suggestions clear of an injury, and mention a well-known food interaction with a current medication when the log shows that food.
+- When you receive Health (JSON), it is what the person keeps on the app's Health tab: conditions, injuries, medications, diet, foods with a level (never, limit, avoid, prefer), daily targets, their latest blood test and summaries of other records. Relate the week to it where it genuinely helps (salt with high blood pressure, saturated fat with high LDL or against a saturated fat target, iron-rich foods with low ferritin), say plainly whether the log is moving the right way for a result outside its range, never suggest a food they keep out, keep training suggestions clear of an injury, and mention a well-known food interaction with a current medication when the log shows that food.
 - Never name a disease from a result, never comment on a medication or its dose, and say to talk to their doctor about results outside the range. With an eating disorder history listed, leave calorie deficits out entirely.
 
 Always
@@ -69,7 +69,7 @@ Always
 export const INSIGHTS_INSTRUCTIONS = insightsInstructions(DEFAULT_COMPANION);
 
 /** The user turn: who they are, and the numbers. */
-export function insightPrompt(profile: Profile, stats: InsightStats, today: string, health: HealthContext | null = null): string {
+export function insightPrompt(profile: Profile, stats: InsightStats, today: string, health: HealthContext | null = null, previous: WeekPoint | null = null): string {
   const goal = profile.goal === "maintain" ? "maintain weight" : `${profile.goal} ${profile.goal_rate_kg_week} kg a week`;
   const person = {
     sex: profile.sex,
@@ -84,6 +84,7 @@ export function insightPrompt(profile: Profile, stats: InsightStats, today: stri
     `Today is ${today}. The numbers cover ${stats.period_start} to ${stats.period_end}.`,
     `Person (JSON): ${JSON.stringify(person)}`,
     `Numbers (JSON): ${JSON.stringify(stats)}`,
+    ...(previous && previous.food_days + previous.sessions > 0 ? [`Week before, daily averages and weekly training (JSON): ${JSON.stringify(previous)}`] : []),
     ...(health ? [`Health (JSON): ${JSON.stringify(health)}`] : []),
   ].join("\n");
 }
