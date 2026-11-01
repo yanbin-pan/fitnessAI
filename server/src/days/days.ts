@@ -7,7 +7,7 @@ import { COMPANION_LOOKBACK_DAYS, addDays, alcoholWeek, companionStatus, daysBet
 import type { Activity, DaySummary, DayView, Entry, MacroTargets, Profile, Totals } from "../shared.ts";
 import { adjustTargets, baselineTargets } from "../targets/targets.ts";
 import type { WorkoutSummary } from "../targets/targets.ts";
-import { analyseRegulars, suggestRegulars } from "../regulars/regulars.ts";
+import { quickItems } from "../regulars/frequent.ts";
 import { localTime } from "../time.ts";
 import { featuredActivities } from "./featured.ts";
 import { signalsFor } from "./signals.ts";
@@ -120,7 +120,7 @@ export function buildDayView(sql: Sql, profile: Profile, date: string, today: st
     linked_entries: linked,
     messages,
     featured: featuredActivities(sql, date, starter),
-    suggestions: date === today ? suggestionsNow(sql, today, profile.timezone, nowIso) : [],
+    quick: date === today ? quickNow(sql, today, profile.timezone, nowIso) : [],
     nutrients: signalsFor(sql, profile, date, today),
     // As of today whichever day is open: the companion shows how the person is doing now, the week's drinks included.
     companion: companionStatus(
@@ -132,10 +132,10 @@ export function buildDayView(sql: Sql, profile: Profile, date: string, today: st
   };
 }
 
-/** Today's tap-to-log regulars (2026-10-06 design §2.2), for the minute the view is built. */
-function suggestionsNow(sql: Sql, today: string, timeZone: string, nowIso: string) {
+/** The quick button's items (2026-11-01 frequent items), for the minute the view is built. */
+function quickNow(sql: Sql, today: string, timeZone: string, nowIso: string) {
   const [h, m] = localTime(new Date(nowIso), timeZone).split(":").map(Number);
-  return suggestRegulars(analyseRegulars(sql, today, timeZone), h * 60 + m);
+  return quickItems(sql, today, timeZone, h * 60 + m);
 }
 
 /** A day's adjusted targets (spec §7): its frozen snapshot, or today's profile for a day never opened, plus its workouts. */

@@ -243,6 +243,18 @@ export const regularOverrides = sqliteTable("regular_overrides", {
   updated_at: text().notNull(),
 });
 
+/** What the person pinned to log with a tap (2026-11-01 frequent items): a name, the items a tap logs, a part of the day. */
+export const frequentItems = sqliteTable("frequent_items", {
+  id: text().primaryKey(),
+  name: text().notNull(),
+  foods: text({ mode: "json" }).$type<unknown[]>().notNull(),
+  exercises: text({ mode: "json" }).$type<unknown[]>().notNull(),
+  slot: text().notNull(),
+  source_key: text(),
+  created_at: text().notNull(),
+  updated_at: text().notNull(),
+});
+
 /** One coach analysis per local week, written on its Monday (2026-10-06 design §3). Kept: it holds no conversation. */
 export const insights = sqliteTable("insights", {
   week_start: text().primaryKey(),

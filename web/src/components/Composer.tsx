@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent, ClipboardEvent, FormEvent } from "react";
 import { ApiError, api } from "../api.ts";
@@ -11,9 +11,10 @@ import { Icon } from "../icons/Icon.tsx";
 import { preparePhoto } from "../photos/prepare.ts";
 import { storeDay } from "../queries.ts";
 import { MAX_PHOTOS_PER_MESSAGE } from "../shared.ts";
-import type { EntryResult, MessageInput, PhotoUpload, Regular } from "../shared.ts";
+import type { Activity, MessageInput, PhotoUpload, QuickItem } from "../shared.ts";
 import { COMPOSER_TEXT_ID, preparing, removed, useDraft } from "./drafts.ts";
-import { sportOf } from "./SportBadge.tsx";
+import { FrequentSheet } from "./FrequentSheet.tsx";
+import { QuickButton, QuickCard, TypeAhead, UndoToast, matchQuick, useQuickLog } from "./QuickLog.tsx";
 
 interface Attachment {
   key: string;
@@ -61,65 +62,22 @@ export async function clipboardImages(): Promise<File[]> {
   return files;
 }
 
-/** Today's regulars, due around now (2026-10-06 design §2.2): one tap logs one, without a word to the coach. */
-function RegularChips({ suggestions }: { suggestions: Regular[] }) {
-  const client = useQueryClient();
-  const t = useT();
-  // The id belongs to the tap, not the request: if the answer is lost, tapping again sends the same id and logs it once.
-  const ids = useRef(new Map<string, string>());
-  const log = useMutation({
-    mutationFn: (regular: Regular) => {
-      const id = ids.current.get(regular.key) ?? crypto.randomUUID();
-      ids.current.set(regular.key, id);
-      return api<EntryResult>(`/api/regulars/${regular.key}/log`, { json: { id } });
-    },
-    onSuccess: (result, regular) => {
-      ids.current.delete(regular.key);
-      storeDay(client, result.day);
-      void client.invalidateQueries({ queryKey: ["regulars"] });
-    },
-  });
-  if (suggestions.length === 0) return null;
-  return (
-    <div className="mb-1">
-      <ul aria-label={t.regulars.chips} className="flex gap-2 overflow-x-auto px-1 pt-1 pb-2">
-        {suggestions.map((regular) => {
-          const kcal = `${Math.round(regular.kcal)} ${t.units.kcal}`;
-          const icon = regular.kind === "meal" ? "restaurant" : sportOf(regular.exercises[0]?.activity ?? "other").icon;
-          return (
-            <li key={regular.key} className="shrink-0">
-              <button
-                type="button"
-                disabled={log.isPending}
-                aria-label={t.regulars.log(regular.name, kcal)}
-                onClick={() => {
-                  log.reset();
-                  log.mutate(regular);
-                }}
-                className="tap raised-sm flex max-w-64 items-center gap-1.5 rounded-full py-2 pl-2.5 pr-3 text-sm disabled:opacity-50"
-              >
-                <Icon name={icon} size={16} className="shrink-0 text-accent-ink" />
-                <span className="truncate">{regular.name}</span>
-                <span className="shrink-0 text-xs text-muted">{kcal}</span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      {log.isError && (
-        <p role="alert" className="px-2 pb-1 text-sm text-danger">
-          {t.regulars.logFailed}
-        </p>
-      )}
-    </div>
-  );
-}
-
 /** Talks to the coach about today: text — voice works through the keyboard's microphone — and up to four photos. */
 /** The chat for the day open in the app (`date`): today, or one of the days before it it can still fill in (spec §6.6). */
-export function Composer({ date, suggestions = [] }: { date: string; suggestions?: Regular[] }) {
+export function Composer({
+  date, quick = [], quickOn = false, featured = [],
+}: {
+  date: string;
+  /** The quick button's items (2026-11-01 frequent items); quickOn shows the button, which logs to today, so only on today. */
+  quick?: QuickItem[];
+  quickOn?: boolean;
+  featured?: readonly Activity[];
+}) {
   const client = useQueryClient();
   const t = useT();
+  const quickLog = useQuickLog();
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [managing, setManaging] = useState(false);
   // Kept outside the composer, so a draft is still here after a look at another day or tab.
   const { text, attachments, setText, setAttachments } = useDraft<Attachment>(date);
   const [notice, setNotice] = useState<string | null>(null);
@@ -256,6 +214,8 @@ export function Composer({ date, suggestions = [] }: { date: string; suggestions
   }
 
   const trimmed = text.trim();
+  // Typing brings up the frequent items it matches, while there are no photos to send with it.
+  const matches = quickOn && attachments.length === 0 ? matchQuick(quick, trimmed) : [];
   const busy = attachments.some((a) => a.status === "preparing" || a.status === "uploading");
   const failed = attachments.some((a) => a.status === "failed");
   const full = attachments.length >= MAX_PHOTOS_PER_MESSAGE;
@@ -319,8 +279,21 @@ export function Composer({ date, suggestions = [] }: { date: string; suggestions
   // The band behind the card is the page colour, so the feed scrolling under it never shows between the card and the tab bar.
   return (
     <form ref={form} onSubmit={(event) => void submit(event)} className="fixed inset-x-0 bottom-[calc(var(--tabbar-h)_+_env(safe-area-inset-bottom))] z-10 bg-base px-3 pt-2 pb-2">
-      <div className="raised mx-auto max-w-xl rounded-3xl p-2">
-        <RegularChips suggestions={suggestions} />
+      <div className="raised relative mx-auto max-w-xl rounded-3xl p-2">
+        {quickOpen ? (
+          <QuickCard
+            items={quick}
+            quick={quickLog}
+            onClose={() => setQuickOpen(false)}
+            onManage={() => {
+              setQuickOpen(false);
+              setManaging(true);
+            }}
+          />
+        ) : (
+          <UndoToast quick={quickLog} />
+        )}
+        <TypeAhead matches={matches} typed={trimmed} quick={quickLog} onLogged={() => setText("")} />
         {attachments.length > 0 && (
           <ul aria-label={t.composer.attached} className="mb-2 flex gap-2 px-1 pt-1.5">
             {attachments.map((a, index) => (
@@ -361,6 +334,7 @@ export function Composer({ date, suggestions = [] }: { date: string; suggestions
             <Icon name="add_a_photo" size={22} />
             <input type="file" accept="image/*" multiple aria-label={t.composer.addPhotos} disabled={full || phase === "storing"} onChange={onFiles} className="sr-only" />
           </label>
+          {quickOn && <QuickButton open={quickOpen} due={quick.some((item) => item.due)} onToggle={() => setQuickOpen((open) => !open)} />}
           <textarea
             id={COMPOSER_TEXT_ID}
             aria-label={t.composer.message}
@@ -371,7 +345,7 @@ export function Composer({ date, suggestions = [] }: { date: string; suggestions
             onChange={(event) => setText(event.target.value)}
             onPaste={onPaste}
             placeholder={attachments.length > 0 ? t.composer.placeholderPhotos : t.composer.placeholder}
-            className="pressed field-sizing-content max-h-36 min-h-11 flex-1 resize-none rounded-2xl px-3 py-2.5 text-base text-ink placeholder:text-muted"
+            className="pressed field-sizing-content max-h-36 min-h-11 flex-1 resize-none rounded-2xl px-3 py-2.5 text-base text-ink placeholder:text-muted placeholder:text-sm"
           />
           <button
             type="submit"
@@ -398,6 +372,7 @@ export function Composer({ date, suggestions = [] }: { date: string; suggestions
           </p>
         )}
       </div>
+      {managing && <FrequentSheet featured={featured} onClose={() => setManaging(false)} />}
     </form>
   );
 }

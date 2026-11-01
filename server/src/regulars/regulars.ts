@@ -36,6 +36,14 @@ function itemKey(item: FoodItem | ExerciseItem, food: boolean): string {
   return activity === "other" ? `x:other:${normalizeName(item.name)}` : `x:${activity}`;
 }
 
+/** The item keys of a set of items, as regulars compare them. */
+export function itemKeys(foods: { name: string }[], exercises: { name: string; activity: ExerciseItem["activity"] }[]): Set<string> {
+  return new Set([...foods.map((f) => itemKey(f as FoodItem, true)), ...exercises.map((x) => itemKey(x as ExerciseItem, false))]);
+}
+
+/** Entries logged from a pinned frequent item carry this prefix on their regular_key (2026-11-01). */
+export const FREQUENT_KEY_PREFIX = "fav:";
+
 export function regularKey(signature: string): string {
   return createHash("sha256").update(signature).digest("hex").slice(0, 16);
 }
@@ -55,7 +63,7 @@ interface Cluster {
   members: Occurrence[];
 }
 
-function jaccard(a: Set<string>, b: Set<string>): number {
+export function jaccard(a: Set<string>, b: Set<string>): number {
   let shared = 0;
   for (const key of a) if (b.has(key)) shared += 1;
   return shared / (a.size + b.size - shared);
@@ -122,7 +130,8 @@ export function analyseRegulars(sql: Sql, today: string, timeZone: string): Regu
 
   const overrides = new Map(sql.select().from(regularOverrides).all().map((row) => [row.key, row]));
   const occurrences: Occurrence[] = rows
-    .filter(({ entry }) => entry.foods.length + entry.exercises.length > 0)
+    // Entries logged from a pinned item belong to that item, not to a pattern that could be suggested.
+    .filter(({ entry, regular_key }) => entry.foods.length + entry.exercises.length > 0 && !regular_key?.startsWith(FREQUENT_KEY_PREFIX))
     .map(({ entry, regular_key }) => {
       const keys = new Set([...entry.foods.map((f) => itemKey(f, true)), ...entry.exercises.map((x) => itemKey(x, false))]);
       const [h, m] = localTime(new Date(entry.logged_at), timeZone).split(":").map(Number);

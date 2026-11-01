@@ -239,8 +239,10 @@ export function TodayPage() {
           <PasteChip date={view.date} />
         </div>
       )}
-      {/* Each day open to chat gets its own composer, so a draft never moves to another day. An older server sends no suggestions. */}
-      {chatOpen(view.date, view.today) && <Composer key={view.date} date={view.date} suggestions={view.suggestions ?? []} />}
+      {/* Each day open to chat gets its own composer, so a draft never moves to another day. An older server sends no quick items. */}
+      {chatOpen(view.date, view.today) && (
+        <Composer key={view.date} date={view.date} quick={view.quick ?? []} quickOn={view.date === view.today} featured={view.featured ?? []} />
+      )}
       {editing?.date === view.date && (
         <EntryEditor
           date={view.date}

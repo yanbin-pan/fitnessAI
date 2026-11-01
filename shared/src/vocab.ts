@@ -155,6 +155,29 @@ export const REGULARS_MIN_DATA_DAYS = 5;
 /** A meal or activity becomes a regular once it is seen on this many different days in the window. */
 export const REGULAR_MIN_DAYS_SEEN = 3;
 
+/**
+ * Frequent items (2026-11-01): what someone pins to log with a tap, each shown around a part of the day. The parts are
+ * [start, end) in minutes after local midnight; "any" has no part of its own and follows when the item is logged.
+ */
+export const FREQUENT_SLOTS = ["any", "morning", "midday", "evening"] as const;
+export type FrequentSlot = (typeof FREQUENT_SLOTS)[number];
+export const SLOT_MINUTES: Record<Exclude<FrequentSlot, "any">, readonly [number, number]> = {
+  morning: [300, 660],
+  midday: [660, 960],
+  evening: [960, 1380],
+};
+
+/** The part of the day a time (HH:MM) falls in; night hours count as "any". */
+export function slotOf(hhmm: string): FrequentSlot {
+  const [h, m] = hhmm.split(":").map(Number);
+  const minutes = h * 60 + m;
+  for (const slot of ["morning", "midday", "evening"] as const) {
+    const [start, end] = SLOT_MINUTES[slot];
+    if (minutes >= start && minutes < end) return slot;
+  }
+  return "any";
+}
+
 /** Insights (2026-10-06 design §3): written weekly, once there are seven days of data. */
 export const INSIGHTS_MIN_DATA_DAYS = 7;
 export const INSIGHTS_WINDOW_DAYS = 28;

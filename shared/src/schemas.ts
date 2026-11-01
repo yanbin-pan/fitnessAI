@@ -8,7 +8,7 @@ import {
   ALCOHOL_HABITS, COACH_TONES, COFFEE_HABITS, COOKING, EXPERIENCES, FOCUSES, HEARD_FROM, MAX_SESSIONS_WEEK, MEAL_PATTERNS, SKIN_GOALS, SKIN_TRIGGERS, SKIN_TYPES, SPORTS,
 } from "./about.ts";
 import {
-  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, COMPANION_INTERACTIONS, DEFAULT_COMPANION, DRINKS, EXERCISE_CATEGORIES, FOOD_GROUPS, LANGUAGES, MAX_COPIES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, PROFILE_RANGES, SEXES,
+  ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, COMPANION_INTERACTIONS, DEFAULT_COMPANION, DRINKS, EXERCISE_CATEGORIES, FREQUENT_SLOTS, FOOD_GROUPS, LANGUAGES, MAX_COPIES, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, MICROS, MUSCLES, MUSCLE_ROLES, PROFILE_RANGES, SEXES,
 } from "./vocab.ts";
 import { MAX_TIP_NUTRIENTS, TIP_IDS } from "./tips.ts";
 
@@ -197,6 +197,20 @@ export const RegularEdit = z
   .object({ name: z.string().trim().min(1).max(100), ...items })
   .refine(hasItems, NEEDS_ITEMS);
 export type RegularEdit = z.infer<typeof RegularEdit>;
+
+/**
+ * A frequent item as saved (2026-11-01): made or changed in one call, with an id made on the phone, so autosave and a
+ * lost reply are harmless. source_key is the regular it was pinned from, which then stops being suggested.
+ */
+export const FrequentInput = z
+  .object({
+    name: z.string().trim().min(1).max(100),
+    ...items,
+    slot: z.enum(FREQUENT_SLOTS).default("any"),
+    source_key: z.string().regex(/^[0-9a-f]{16}$/).nullable().default(null),
+  })
+  .refine(hasItems, NEEDS_ITEMS);
+export type FrequentInput = z.infer<typeof FrequentInput>;
 
 /** Logging a regular with a tap: the id is made on the phone, so a repeated tap logs it once. */
 export const RegularLogInput = z.object({ id: z.uuid() });
