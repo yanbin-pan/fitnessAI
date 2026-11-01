@@ -547,6 +547,7 @@ export const en = {
       loadFailed: "Couldn't load your past weeks.",
       tapChart: "Tap a chart to see a week's numbers",
       tapBar: "Tap a bar for that week's breakdown",
+      move: (name: string) => `Move ${name}`,
       weekOf: (date: string) => `Week of ${date}`,
       breakdown: {
         title: "Training", sessions: "Sessions", time: "Time",

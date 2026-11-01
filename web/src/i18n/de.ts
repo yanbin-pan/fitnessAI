@@ -511,6 +511,7 @@ export const de: Messages = {
       loadFailed: "Deine früheren Wochen konnten nicht geladen werden.",
       tapChart: "Tippe auf ein Diagramm, um die Werte einer Woche zu sehen",
       tapBar: "Tippe auf einen Balken für die Aufschlüsselung der Woche",
+      move: (name: string) => `${name} verschieben`,
       weekOf: (date: string) => `Woche vom ${date}`,
       breakdown: {
         title: "Training", sessions: "Einheiten", time: "Zeit",

@@ -5,6 +5,8 @@ import { useT } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
 import type { IconName } from "../icons/paths.ts";
+import { Reorderable } from "../components/Reorderable.tsx";
+import type { Grip } from "../components/Reorderable.tsx";
 import { SportBadge, sportName } from "../components/SportBadge.tsx";
 import type { InsightsHistory, InsightSummary, WeekPoint } from "../shared.ts";
 import { Well, shortDate } from "./InsightsPage.tsx";
@@ -49,6 +51,45 @@ const MORE: Metric[] = [
   { id: "minutes", name: (t) => t.insights.trends.minutes, unit: (t) => t.insights.trends.minWeek, value: (w) => w.minutes, food: false, colour: "#f08a4b", tint: "tint-orange", icon: "directions_run", digits: 0 },
 ];
 
+const ORDER_KEY = "trends-order";
+
+/** The person's own order of the main charts, kept on this device; any chart it does not name goes at the end. */
+function savedOrder(): string[] {
+  const ids = MAIN.map((m) => m.id);
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(ORDER_KEY) ?? "null");
+    if (!Array.isArray(parsed)) return ids;
+    const known = parsed.filter((id): id is string => typeof id === "string" && ids.includes(id));
+    return [...new Set([...known, ...ids])];
+  } catch {
+    return ids;
+  }
+}
+
+function saveOrder(ids: string[]) {
+  try {
+    localStorage.setItem(ORDER_KEY, JSON.stringify(ids));
+  } catch {
+    // Private mode: the order lasts until the page closes.
+  }
+}
+
+/** Six dots: the handle a chart is dragged by. */
+function GripButton({ grip, label }: { grip: Grip; label: string }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      {...grip.props}
+      className={`-mr-1 flex h-8 w-6 shrink-0 select-none items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent ${grip.held ? "text-ink" : "text-muted"}`}
+    >
+      <svg viewBox="0 0 10 16" width={10} height={16} aria-hidden="true" fill="currentColor">
+        {[2, 8, 14].flatMap((cy) => [<circle key={`a${cy}`} cx={2.5} cy={cy} r={1.5} />, <circle key={`b${cy}`} cx={7.5} cy={cy} r={1.5} />])}
+      </svg>
+    </button>
+  );
+}
+
 const W = 320;
 const H = 96;
 const PAD = { l: 4, r: 4, t: 14, b: 18 };
@@ -58,7 +99,7 @@ function format(n: number, digits: number, t: Messages): string {
 }
 
 /** One measure over the weeks: a line (or bars), the person's own target dashed behind it. Tap (or arrow keys) to read a week. */
-function Chart({ metric, weeks, t, details, hint }: { metric: Metric; weeks: WeekPoint[]; t: Messages; details?: (week: WeekPoint) => ReactNode; hint?: string }) {
+function Chart({ metric, weeks, t, details, hint, grip }: { metric: Metric; weeks: WeekPoint[]; t: Messages; details?: (week: WeekPoint) => ReactNode; hint?: string; grip?: Grip }) {
   const [selected, setSelected] = useState<number | null>(null);
   const points = weeks.map((w, i) => ({ i, w, v: metric.food && w.food_days === 0 ? null : metric.value(w), target: metric.target?.(w) ?? null }));
   const values = points.flatMap((p) => (p.v === null ? [] : [p.v]));
@@ -96,7 +137,7 @@ function Chart({ metric, weeks, t, details, hint }: { metric: Metric; weeks: Wee
   };
 
   return (
-    <section aria-label={metric.name(t)} className="raised mt-4 rounded-3xl px-3 pb-2 pt-3">
+    <section aria-label={metric.name(t)} className={`raised rounded-3xl px-3 pb-2 pt-3 ${grip ? "" : "mt-4"}`}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Well tint={metric.tint} icon={metric.icon} />
@@ -105,7 +146,10 @@ function Chart({ metric, weeks, t, details, hint }: { metric: Metric; weeks: Wee
             <p className="text-xs text-muted">{metric.unit(t)}</p>
           </div>
         </div>
-        <p className="text-lg font-semibold">{format(last.v, metric.digits, t)}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-lg font-semibold">{format(last.v, metric.digits, t)}</p>
+          {grip && <GripButton grip={grip} label={t.insights.trends.move(metric.name(t))} />}
+        </div>
       </div>
       <div className="relative">
         {picked && !(metric.bars && details) && (
@@ -294,6 +338,7 @@ export function InsightsTrends({ history, current, onOpen }: { history: Insights
   const t = useT();
   const [range, setRange] = useState<Range>("8");
   const [extra, setExtra] = useState<string | null>(null);
+  const [order, setOrder] = useState<string[]>(savedOrder);
   const weeks = range === "all" ? history.weeks : history.weeks.slice(-Number(range));
   const glance = history.reports.slice(0, 8).reverse();
   const latest = history.reports[0]?.week_start;
@@ -348,16 +393,27 @@ export function InsightsTrends({ history, current, onOpen }: { history: Insights
       ) : (
         <>
           <p className="mt-3 px-1 text-xs text-muted">{t.insights.trends.tapChart}</p>
-          {MAIN.map((metric) => (
-            <Chart
-              key={metric.id}
-              metric={metric}
-              weeks={weeks}
-              t={t}
-              details={metric.bars ? (week) => <TrainingTable week={week} /> : undefined}
-              hint={metric.bars ? t.insights.trends.tapBar : undefined}
-            />
-          ))}
+          <Reorderable
+            ids={order}
+            onReorder={(next) => {
+              setOrder(next);
+              saveOrder(next);
+            }}
+          >
+            {(id, grip) => {
+              const metric = MAIN.find((m) => m.id === id) as Metric;
+              return (
+                <Chart
+                  metric={metric}
+                  weeks={weeks}
+                  t={t}
+                  grip={grip}
+                  details={metric.bars ? (week) => <TrainingTable week={week} /> : undefined}
+                  hint={metric.bars ? t.insights.trends.tapBar : undefined}
+                />
+              );
+            }}
+          </Reorderable>
           {more && <Chart metric={more} weeks={weeks} t={t} />}
           <div className="mt-4 flex flex-wrap items-center gap-1.5">
             <span className="mr-1 text-xs text-muted">{t.insights.trends.more}</span>

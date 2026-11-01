@@ -511,6 +511,7 @@ export const es: Messages = {
       loadFailed: "No se pudieron cargar tus semanas pasadas.",
       tapChart: "Toca un gráfico para ver los números de una semana",
       tapBar: "Toca una barra para ver el desglose de esa semana",
+      move: (name: string) => `Mover ${name}`,
       weekOf: (date: string) => `Semana del ${date}`,
       breakdown: {
         title: "Entrenamiento", sessions: "Sesiones", time: "Tiempo",

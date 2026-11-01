@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router";
+import { useLayoutEffect } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router";
 import { ApiError } from "./api.ts";
 import { SignedOutBanner } from "./components/SignedOutBanner.tsx";
 import { TabBar } from "./components/TabBar.tsx";
@@ -21,12 +22,25 @@ const queryClient = new QueryClient({
   },
 });
 
+/**
+ * The page scrolls as a whole, so a new tab would open wherever the last one was left (the day sits at its end, by the
+ * composer). Every page but the day, which places itself, opens at its top.
+ */
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useLayoutEffect(() => {
+    if (!pathname.startsWith("/day/")) document.scrollingElement?.scrollTo?.({ top: 0, behavior: "instant" });
+  }, [pathname]);
+  return null;
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <SessionProvider>
           <BrowserRouter>
+            <ScrollToTop />
             <div className="min-h-dvh bg-base text-ink">
               <SignedOutBanner />
               <Routes>
