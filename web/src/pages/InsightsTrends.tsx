@@ -6,7 +6,7 @@ import type { Messages } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
 import type { IconName } from "../icons/paths.ts";
 import { SportBadge, sportName } from "../components/SportBadge.tsx";
-import type { InsightsHistory, InsightSummary, Muscle, WeekPoint } from "../shared.ts";
+import type { InsightsHistory, InsightSummary, WeekPoint } from "../shared.ts";
 import { SEVERITY_FILL, Well, shortDate } from "./InsightsPage.tsx";
 
 // Trends (2026-11-01 insights history design): each finished week's averages over time, worked out from the log, and
@@ -197,13 +197,11 @@ function Chart({ metric, weeks, t, onBar, hint }: { metric: Metric; weeks: WeekP
   );
 }
 
-/** The training behind one week's bar: energy, time and sessions, each activity's share, and sets per muscle. */
+/** The training behind one week's bar: energy, time and sessions, and each activity's share of the calories. */
 function TrainingSheet({ week, onClose }: { week: WeekPoint; onClose: () => void }) {
   const t = useT();
   const b = t.insights.trends.breakdown;
   const top = Math.max(1, ...week.by_activity.map((a) => a.kcal));
-  const muscles = (Object.entries(week.sets_per_muscle) as [Muscle, number][]).filter(([, sets]) => sets > 0).sort((p, q) => q[1] - p[1]);
-  const mostSets = Math.max(1, ...muscles.map(([, sets]) => sets));
   const hours = (min: number) => (min >= 60 ? `${Math.floor(min / 60)} h ${min % 60 ? `${min % 60} min` : ""}`.trim() : `${min} min`);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
@@ -266,24 +264,6 @@ function TrainingSheet({ week, onClose }: { week: WeekPoint; onClose: () => void
                   </li>
                 ))}
               </ul>
-              <h3 className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted">{b.effort}</h3>
-              {muscles.length === 0 ? (
-                <p className="mt-2 text-sm text-muted">{b.noSets}</p>
-              ) : (
-                <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2">
-                  {muscles.map(([muscle, sets]) => (
-                    <li key={muscle} className="text-sm">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span>{t.insights.trends.muscles[muscle]}</span>
-                        <span className="text-xs text-muted">{sets.toLocaleString(t.locale, { maximumFractionDigits: 1 })}</span>
-                      </div>
-                      <div className="pressed mt-1 h-1.5 rounded-full">
-                        <div className="h-1.5 rounded-full bg-protein" style={{ width: `${(sets / mostSets) * 100}%` }} />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </>
           )}
         </div>

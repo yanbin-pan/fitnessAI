@@ -478,9 +478,8 @@ export const zh: Messages = {
       weekOf: (date: string) => `周起始 ${date}`,
       breakdown: {
         title: "训练", close: "关闭", sessions: "次数", time: "时长", active: "活动消耗",
-        byActivity: "按运动", effort: "训练量：每块肌肉的组数", noSets: "那一周没有记录力量训练组数。", none: "那一周没有记录训练。",
+        byActivity: "按运动", none: "那一周没有记录训练。",
       },
-      muscles: { chest: "胸", upper_back: "上背", lats: "背阔肌", shoulders: "肩", biceps: "二头肌", triceps: "三头肌", forearms: "前臂", core: "核心", glutes: "臀", quads: "股四头肌", hamstrings: "腘绳肌", calves: "小腿" },
     },
   },
   settings: {
