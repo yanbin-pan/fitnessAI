@@ -1,0 +1,39 @@
+{
+ "base_url": "https://raw.githubusercontent.com/yanbin-pan/fitnessAI/claude/project-thread-kbxaz3/marketing/campaign/stills/",
+ "style_note": "Soft 3D animated film look. Camera almost still with only a slight drift, keep full framing, no cuts inside a shot, no text, no logos. Characters keep their faces and outfits.",
+ "voices": {
+  "narrator": "warm, thoughtful man in his thirties, calm British-neutral English, close-mic, like telling a friend a true story",
+  "giulia": "young woman about 30, bright, warm, slightly teasing",
+  "luca": "young man late 20s, easy-going, playful",
+  "mum": "woman in her 50s, gentle, a little worried then relieved",
+  "dad": "man in his 50s, warm, low voice"
+ },
+ "reels": {
+  "dinner": {"length_s": 12, "shots": [
+   {"id":"s1_pileup","still":"dinner_s1_pileup.png","seconds":4,"motion":"The father and daughter laugh and pile more food onto their plates, a hand passes another pizza across the table. The Shiba's eyes follow each plate as it moves, unimpressed.","audio":"clatter of plates, laughter","caption":"We loved dinner."},
+   {"id":"s2_aftermath","still":"dinner_s2_aftermath.png","seconds":3,"motion":"The family sink deeper into the sofa, the father puffs out his cheeks, the mother rubs her stomach, the daughter groans. The Shiba lets out a slow sigh and lowers its chin onto its paws.","audio":"a long collective groan","caption":"Our bodies didn't."},
+   {"id":"s3_balanced","still":"dinner_s3_balanced.png","seconds":5,"motion":"Calm, happy dinner with balanced plates. The daughter serves herself a sensible portion, laughs and says her line. The Shiba gives a small satisfied nod.","dialogue":{"giulia":"Blame Zabaione!"},"pronunciation":"Zabaione is Italian: dza-ba-YO-neh","caption":"Same table. Just the right amount."}]},
+  "gym": {"length_s": 14, "shots": [
+   {"id":"s1_mirror","still":"gym_s1_mirror.png","seconds":4,"motion":"Giulia flexes in the mirror, looks closer, frowns and lets her arm drop. The Shiba on the gym bag tilts its head.","audio":"gym ambience, frustrated exhale","caption":"Six months. Same arms."},
+   {"id":"s2_latenight","still":"gym_s2_latenight.png","seconds":4,"motion":"Giulia eats a cracker standing in the fridge light, tired, scrolling her phone. The Shiba in the doorway watches and blinks slowly.","dialogue":{"giulia":"I train like an athlete. I eat like I forgot."}},
+   {"id":"s3_confident","still":"gym_s3_confident.png","seconds":6,"motion":"Giulia completes a strong, controlled curl with a small proud smile. The Shiba watches approvingly, tail swishing.","voiceover":{"giulia":"Now it knows what I lifted and what I ate. Finally, it adds up."}}]},
+  "tennis": {"length_s": 13, "shots": [
+   {"id":"s1_tired","still":"tennis_s1_tired.png","seconds":4,"motion":"Luca, exhausted, straightens up slowly and lunges for a ball too late, it bounces past him. The Shiba behind the fence winces.","audio":"ball thuds, heavy breathing","caption":"Third set. Nothing left."},
+   {"id":"s2_car","still":"tennis_s2_car.png","seconds":3,"motion":"Luca gulps from the can and bites the pastry in a hurry, checks the time. The Shiba in the back seat stares at the pastry, then at him.","audio":"can hiss, rushed chewing","caption":"Lunch, apparently."},
+   {"id":"s3_winner","still":"tennis_s3_winner.png","seconds":6,"motion":"Luca celebrates the winning shot, grinning, and points his racket at the Shiba, who wags its tail.","dialogue":{"luca":"Turns out the problem wasn't my backhand."}}]},
+  "parents": {"length_s": 15, "shots": [
+   {"id":"s1_letter","still":"parents_s1_letter.png","seconds":5,"motion":"The mother lowers the letter, worried; the father puts a hand on her shoulder. The Shiba looks up at them softly.","dialogue":{"mum":"Cholesterol again. What are we supposed to eat?"}},
+   {"id":"s2_cooking","still":"parents_s2_cooking.png","seconds":5,"motion":"The parents cook together, the father tastes from the spoon and nods, surprised it is good; the mother smiles at the phone. The Shiba sniffs the air.","audio":"sizzling pan, light music"},
+   {"id":"s3_walk","still":"parents_s3_walk.png","seconds":5,"motion":"The parents walk briskly through the sunny park laughing, the Shiba trotting ahead on the lead.","voiceover":{"mum":"We're not dieting. We just finally know what our results mean on a plate."},"caption":"Prevention is better than cure."}]},
+  "long": {"length_s": 75, "narrator": "narrator", "shots": [
+   {"id":"l1_house","still":"long_l1_house.png","seconds":9,"motion":"Very slow push-in towards the house at dusk; the Shiba at the window turns its head towards the family.","voiceover":{"narrator":"I'm in my thirties. I play too many sports. And somewhere after thirty, I learned that muscle doesn't stay on its own."}},
+   {"id":"l2a_reuse_gym_mirror","reuse":"gym/s1_mirror","seconds":4},
+   {"id":"l2b_reuse_tennis_tired","reuse":"tennis/s1_tired","seconds":4,"voiceover":{"narrator":"I trained hard. But what I ate was guesswork. Everyone guesses. And almost everyone guesses wrong."}},
+   {"id":"l3_reuse_aftermath","reuse":"dinner/s2_aftermath","seconds":7,"voiceover":{"narrator":"We weren't unhealthy people. We just never connected what was on the plate with how we felt the next day."}},
+   {"id":"l4_reuse_letter","reuse":"parents/s1_letter","seconds":8,"voiceover":{"narrator":"Then my parents got their blood results. Numbers on a page. Nobody told them which foods those numbers were about."}},
+   {"id":"l5_laptop","still":"long_l5_laptop.png","seconds":8,"motion":"Luca types, stops, rubs his eyes and sighs at the long message. The Shiba on the bed opens one eye.","voiceover":{"narrator":"I tried asking an AI. Every single morning I explained my life again, from zero. As if yesterday never happened."}},
+   {"id":"l6_shiba","still":"long_l6_shiba.png","seconds":9,"motion":"The Shiba's eyes follow a fork from plate to mouth, then it gives a small knowing tilt of the head.","voiceover":{"narrator":"So I built a coach that remembers. It knows what you ate, how you trained and what your bloods say, and it connects the dots nobody connects."}},
+   {"id":"l7_montage","reuse":["dinner/s3_balanced","gym/s3_confident","tennis/s3_winner","parents/s3_walk"],"seconds":12,"voiceover":{"narrator":"We called him Zabaione. He notices everything. He never judges. He just helps you get it a little more right, every day."}},
+   {"id":"l8_sunset","still":"long_l8_sunset.png","seconds":9,"motion":"The family walk slowly into the sunset, the Shiba looks back at them and trots on.","voiceover":{"narrator":"Because the best time to look after your health is before you have to."},"end_card":"Zabaione. The coach that remembers."}]}
+ }
+}
