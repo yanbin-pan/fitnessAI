@@ -305,9 +305,8 @@ export interface WeekPoint {
   sessions: number;
   minutes: number;
   active_kcal: number;
-  /** The week's training by activity, most sessions first, and weekly sets per muscle: Trends' training breakdown. */
+  /** The week's training by activity, most sessions first: Trends' training breakdown. */
   by_activity: { activity: Activity; sessions: number; minutes: number; kcal: number }[];
-  sets_per_muscle: Partial<Record<Muscle, number>>;
 }
 
 /** A stored report, as a stored report is shown: its numbers, the coach's text, and the week before for comparison. */

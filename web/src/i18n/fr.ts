@@ -480,9 +480,8 @@ export const fr: Messages = {
       weekOf: (date: string) => `Semaine du ${date}`,
       breakdown: {
         title: "Entraînement", close: "Fermer", sessions: "Séances", time: "Durée", active: "Énergie active",
-        byActivity: "Par activité", effort: "Effort : séries par muscle", noSets: "Aucune série de force enregistrée cette semaine-là.", none: "Aucun entraînement enregistré cette semaine-là.",
+        byActivity: "Par activité", none: "Aucun entraînement enregistré cette semaine-là.",
       },
-      muscles: { chest: "Pectoraux", upper_back: "Haut du dos", lats: "Dorsaux", shoulders: "Épaules", biceps: "Biceps", triceps: "Triceps", forearms: "Avant-bras", core: "Gainage", glutes: "Fessiers", quads: "Quadriceps", hamstrings: "Ischio-jambiers", calves: "Mollets" },
     },
   },
   settings: {

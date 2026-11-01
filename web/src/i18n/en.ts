@@ -514,9 +514,8 @@ export const en = {
       weekOf: (date: string) => `Week of ${date}`,
       breakdown: {
         title: "Training", close: "Close", sessions: "Sessions", time: "Time", active: "Active energy",
-        byActivity: "By activity", effort: "Effort: sets per muscle", noSets: "No strength sets logged that week.", none: "No training logged that week.",
+        byActivity: "By activity", none: "No training logged that week.",
       },
-      muscles: { chest: "Chest", upper_back: "Upper back", lats: "Lats", shoulders: "Shoulders", biceps: "Biceps", triceps: "Triceps", forearms: "Forearms", core: "Core", glutes: "Glutes", quads: "Quads", hamstrings: "Hamstrings", calves: "Calves" },
     },
   },
   settings: {

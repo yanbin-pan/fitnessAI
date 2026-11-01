@@ -31,7 +31,6 @@ const point = (week_start: string, kcal: number, sessions: number): WeekPoint =>
   week_start, food_days: 6, kcal, kcal_target: 2100, protein_g: 140, protein_target: 144, protein_g_per_kg: 1.7, carbs_g: 210, fat_g: 70,
   fibre_g: 20, fibre_target: 30, sugars_g: 60, salt_g: 6, fluid_ml: 900, alcohol_units: 2, sessions, minutes: 200, active_kcal: 1400,
   by_activity: sessions > 0 ? [{ activity: "tennis", sessions: 2, minutes: 120, kcal: 900 }, { activity: "gym", sessions: sessions - 2, minutes: 80, kcal: 500 }] : [],
-  sets_per_muscle: { chest: 12, upper_back: 8 },
 });
 const PREVIOUS = point("2026-09-21", 2100, 2);
 const ready = {
@@ -138,7 +137,7 @@ describe("reading the charts", () => {
     const sheet = screen.getByRole("dialog", { name: "Training · Week of 28 Sept" });
     expect(sheet).toHaveTextContent("1,400 kcal");
     expect(sheet).toHaveTextContent("Tennis");
-    expect(sheet).toHaveTextContent("Upper back");
+    expect(sheet).not.toHaveTextContent("sets");
     fireEvent.click(within(sheet).getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("dialog")).toBeNull();
   });

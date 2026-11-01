@@ -162,7 +162,6 @@ export function weekPoint(stats: InsightStats): WeekPoint {
     minutes: stats.training.minutes_per_week,
     active_kcal: stats.training.active_kcal_per_week,
     by_activity: stats.training.by_activity.map((a) => ({ ...a, kcal: a.kcal ?? 0 })),
-    sets_per_muscle: stats.training.sets_per_muscle,
   };
 }
 

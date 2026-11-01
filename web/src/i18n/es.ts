@@ -478,9 +478,8 @@ export const es: Messages = {
       weekOf: (date: string) => `Semana del ${date}`,
       breakdown: {
         title: "Entrenamiento", close: "Cerrar", sessions: "Sesiones", time: "Tiempo", active: "Energía activa",
-        byActivity: "Por actividad", effort: "Esfuerzo: series por músculo", noSets: "Sin series de fuerza registradas esa semana.", none: "Sin entrenamiento registrado esa semana.",
+        byActivity: "Por actividad", none: "Sin entrenamiento registrado esa semana.",
       },
-      muscles: { chest: "Pecho", upper_back: "Espalda alta", lats: "Dorsales", shoulders: "Hombros", biceps: "Bíceps", triceps: "Tríceps", forearms: "Antebrazos", core: "Core", glutes: "Glúteos", quads: "Cuádriceps", hamstrings: "Isquiotibiales", calves: "Gemelos" },
     },
   },
   settings: {
