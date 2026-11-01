@@ -226,6 +226,9 @@ export const lt: Messages = {
     saturatedByFood: "Sočiųjų riebalų pagal produktą",
   },
   quick: {
+    unpin: "Pašalinti",
+    hide: "Slėpti",
+    swipeHint: "Braukite kairėn, kad pašalintumėte",
     open: "Greitas įrašas",
     due: "Tai, ką paprastai įrašote šiuo metu",
     items: "Mėgstami",
@@ -241,6 +244,8 @@ export const lt: Messages = {
     undoFailed: "Nepavyko atšaukti. Atidarykite įrašą ir jį ištrinkite.",
   },
   frequent: {
+    starOn: "Mėgstamuose: palieskite, kad pašalintumėte",
+    starOff: "Išsaugoti mėgstamuose",
     title: "Mėgstami",
     close: "Uždaryti",
     meals: "Valgiai",
@@ -251,7 +256,7 @@ export const lt: Messages = {
     pin: "Prisegti",
     dismiss: (name) => `Nebesiūlyti: ${name}`,
     add: "Pridėti",
-    tip: "Patarimas: atidarykite įrašytą valgį ir palieskite ☆, kad išsaugotumėte jį čia.",
+    tip: "Patarimas: palieskite ☆ ant įrašyto valgio, kad išsaugotumėte jį čia.",
     loadFailed: "Nepavyko įkelti mėgstamų.",
     back: "Mėgstami",
     name: "Pavadinimas",
@@ -264,8 +269,6 @@ export const lt: Messages = {
     remove: "Pašalinti",
     confirmRemove: "Pašalinti iš mėgstamų?",
     timesLogged: (n) => `Įrašyta ${n} k. per 4 savaites`,
-    saveEntry: "Išsaugoti mėgstamuose",
-    savedEntry: "Išsaugota mėgstamuose",
   },
   health: {
     title: "Sveikata",

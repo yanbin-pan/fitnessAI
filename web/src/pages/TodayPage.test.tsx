@@ -225,7 +225,8 @@ describe("TodayPage", () => {
     let removed = false;
     mockFetch((url, init) => {
       const method = init?.method ?? "GET";
-      calls.push(`${method} ${url}`);
+      // The cards ask for the frequent items once, for their stars: not part of what these tests follow.
+      if (url !== "/api/frequent") calls.push(`${method} ${url}`);
       if (method === "DELETE") {
         removed = true;
         // The DELETE answers with the day the entry was on (yesterday), not the day on screen.
@@ -261,7 +262,8 @@ describe("TodayPage", () => {
     let saved = backDated;
     mockFetch((url, init) => {
       const method = init?.method ?? "GET";
-      calls.push(`${method} ${url}`);
+      // The cards ask for the frequent items once, for their stars: not part of what these tests follow.
+      if (url !== "/api/frequent") calls.push(`${method} ${url}`);
       if (method === "PATCH") {
         const { foods } = JSON.parse(String(init?.body)) as { foods: { name: string; kcal: number }[] };
         saved = { ...backDated, edited: true, foods: foods.map((f, i) => foodItem({ id: `f-back-${i}`, name: f.name, kcal: f.kcal })) };
@@ -290,7 +292,8 @@ describe("TodayPage", () => {
     let removed = false;
     mockFetch((url, init) => {
       const method = init?.method ?? "GET";
-      calls.push(`${method} ${url}`);
+      // The cards ask for the frequent items once, for their stars: not part of what these tests follow.
+      if (url !== "/api/frequent") calls.push(`${method} ${url}`);
       if (method === "DELETE") {
         removed = true;
         // The DELETE answers with the day the entry was on (yesterday), not the day on screen.
@@ -384,7 +387,8 @@ describe("TodayPage", () => {
     let restarted = false;
     mockFetch((url, init) => {
       const method = init?.method ?? "GET";
-      calls.push(`${method} ${url}`);
+      // The cards ask for the frequent items once, for their stars: not part of what these tests follow.
+      if (url !== "/api/frequent") calls.push(`${method} ${url}`);
       if (method === "POST") {
         if (!restarted) {
           // The first tap: the retry ran on the server, but the connection dropped before the reply came back.

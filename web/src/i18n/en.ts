@@ -250,6 +250,9 @@ export const en = {
     saturatedByFood: "Saturated fat, by food",
   },
   quick: {
+    unpin: "Remove",
+    hide: "Hide",
+    swipeHint: "Swipe left to remove",
     open: "Quick log",
     due: "Something you usually log now",
     items: "Frequent items",
@@ -265,6 +268,8 @@ export const en = {
     undoFailed: "Couldn't undo that. Open the entry to delete it.",
   },
   frequent: {
+    starOn: "Saved to Frequent: tap to remove",
+    starOff: "Save to Frequent",
     title: "Frequent",
     close: "Close",
     meals: "Meals",
@@ -275,7 +280,7 @@ export const en = {
     pin: "Pin",
     dismiss: (name: string) => `Don't suggest ${name}`,
     add: "Add",
-    tip: "Tip: open any logged meal and tap ☆ to save it here.",
+    tip: "Tip: tap ☆ on any logged meal to save it here.",
     loadFailed: "Couldn't load your frequent items.",
     back: "Frequent",
     name: "Name",
@@ -288,8 +293,6 @@ export const en = {
     remove: "Remove",
     confirmRemove: "Remove this from your frequent items?",
     timesLogged: (n: number) => (n === 1 ? "Logged once in 4 weeks" : `Logged ${n} times in 4 weeks`),
-    saveEntry: "Save to Frequent",
-    savedEntry: "Saved to Frequent",
   },
   health: {
     title: "Health",

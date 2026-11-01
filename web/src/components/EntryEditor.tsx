@@ -4,10 +4,8 @@ import type { FormEvent } from "react";
 import { ApiError, api } from "../api.ts";
 import { useT } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
-import { entryNames } from "../copied.ts";
-import { Icon } from "../icons/Icon.tsx";
 import { storeDay } from "../queries.ts";
-import { EXERCISE_CATEGORIES, MAX_BACKDATE_DAYS, slotOf } from "../shared.ts";
+import { EXERCISE_CATEGORIES, MAX_BACKDATE_DAYS } from "../shared.ts";
 import type {
   Activity, DeleteResult, Entry, EntryResult, ExerciseCategory, ExerciseItem, ExerciseItemInput, FoodItem, FoodItemInput,
 } from "../shared.ts";
@@ -259,36 +257,6 @@ function failureText(error: unknown, deleting: boolean, t: Messages): string {
   return deleting ? t.editor.deleteFailed : t.editor.saveFailed;
 }
 
-/** ☆ Save to Frequent (2026-11-01): pins a logged entry as it is, around the part of the day it was had. No tokens. */
-function SaveToFrequent({ entry }: { entry: Entry }) {
-  const t = useT();
-  const client = useQueryClient();
-  const save = useMutation({
-    mutationFn: () => {
-      const foods = entry.foods.map(toFoodInput);
-      const exercises = entry.exercises.map(toExerciseInput);
-      const at = new Date(entry.logged_at);
-      const hhmm = `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`;
-      return api<unknown>(`/api/frequent/${crypto.randomUUID()}`, { method: "PUT", json: { name: entryNames(entry), foods, exercises, slot: slotOf(hhmm), source_key: null } });
-    },
-    onSuccess: () => {
-      void client.invalidateQueries({ queryKey: ["frequent"] });
-      void client.invalidateQueries({ queryKey: ["day"] });
-    },
-  });
-  return (
-    <button
-      type="button"
-      disabled={save.isPending || save.isSuccess}
-      onClick={() => save.mutate()}
-      className={`tap raised-sm flex items-center gap-1 rounded-full px-3 py-1.5 text-sm ${save.isSuccess ? "text-accent-ink" : save.isError ? "text-danger" : "text-muted"}`}
-    >
-      <Icon name="star" size={16} className={save.isSuccess ? "" : "opacity-70"} />
-      {save.isSuccess ? t.frequent.savedEntry : t.frequent.saveEntry}
-    </button>
-  );
-}
-
 export function EntryEditor({ date, entry, featured, onClose }: { date: string; entry: Entry | null; featured: readonly Activity[]; onClose: () => void }) {
   const client = useQueryClient();
   const t = useT();
@@ -336,10 +304,7 @@ export function EntryEditor({ date, entry, featured, onClose }: { date: string; 
         onSubmit={submit}
         className="raised max-h-[90dvh] w-full overflow-y-auto rounded-t-3xl p-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)] sm:mx-auto sm:max-w-xl sm:rounded-3xl"
       >
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold">{entry ? t.editor.edit : t.editor.add}</h2>
-          {entry && <SaveToFrequent entry={entry} />}
-        </div>
+        <h2 className="text-lg font-semibold">{entry ? t.editor.edit : t.editor.add}</h2>
         <ItemsEditor foods={foods} exercises={exercises} featured={featured} onFoods={setFoods} onExercises={setExercises} />
         {(save.isError || remove.isError) && (
           <p role="alert" className="mt-2 text-sm text-danger">

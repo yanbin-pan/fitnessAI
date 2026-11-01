@@ -79,6 +79,17 @@ export function useQuickLog() {
       void client.invalidateQueries({ queryKey: ["frequent"] });
     },
   });
+  // Unpins a pinned item, or stops suggesting a regular (a swipe in the quick card).
+  const remove = useMutation({
+    mutationFn: (item: QuickItem) =>
+      item.ref.startsWith("f:")
+        ? api<void>(`/api/frequent/${item.ref.slice(2)}`, { method: "DELETE" })
+        : api<void>(`/api/regulars/${item.ref.slice(2)}`, { method: "DELETE" }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["day"] });
+      void client.invalidateQueries({ queryKey: ["frequent"] });
+    },
+  });
   // The undo is offered for a few seconds, then the toast goes.
   useEffect(() => {
     if (!last) return;
@@ -95,7 +106,7 @@ export function useQuickLog() {
     }, 5000);
     return () => clearTimeout(timer);
   }, [failed]);
-  return { log, undo, pin, last, dismiss: () => setLast(null) };
+  return { log, undo, pin, remove, last, dismiss: () => setLast(null) };
 }
 
 export type QuickLog = ReturnType<typeof useQuickLog>;
@@ -162,27 +173,128 @@ export function QuickButton({ open, due, onToggle, disabled }: { open: boolean; 
   );
 }
 
-/** The card above the chat bar: every quick item, wrapping, and ⋯ to manage them. */
+/** How far a row slides to show its remove button, and how far a swipe must go to leave it open. */
+const SWIPE_OPEN = 88;
+const SWIPE_MIN = 40;
+
+/**
+ * One item in the quick card: a tap logs it; a swipe to the left shows a button that unpins it (a pinned item) or stops
+ * suggesting it (a regular). Vertical drags stay with the list, so it still scrolls.
+ */
+function SwipeRow({ item, quick, onLogged }: { item: QuickItem; quick: QuickLog; onLogged: () => void }) {
+  const t = useT();
+  const [offset, setOffset] = useState(0);
+  const drag = useRef<{ x: number; y: number; from: number; moved: boolean; horizontal: boolean | null } | null>(null);
+  const kcal = `${Math.round(item.kcal)} ${t.units.kcal}`;
+  const icon = item.kind === "meal" ? "restaurant" : sportOf(item.activity ?? "other").icon;
+  const busy = quick.log.isPending || quick.pin.isPending || quick.remove.isPending;
+  const open = offset <= -SWIPE_MIN;
+  return (
+    <li className="relative overflow-hidden rounded-2xl">
+      <button
+        type="button"
+        tabIndex={open ? 0 : -1}
+        disabled={busy}
+        onClick={() => quick.remove.mutate(item)}
+        className="absolute inset-y-0 right-0 flex items-center gap-1 rounded-2xl bg-danger px-3 text-sm font-semibold text-white"
+        style={{ width: SWIPE_OPEN - 6 }}
+      >
+        <Icon name={item.pinned ? "delete" : "close"} size={16} />
+        {item.pinned ? t.quick.unpin : t.quick.hide}
+      </button>
+      <div
+        className="relative flex touch-pan-y items-center gap-2 bg-base py-1 pr-1 transition-transform duration-150"
+        style={{ transform: `translateX(${offset}px)`, transitionDuration: drag.current?.moved ? "0ms" : undefined }}
+        onPointerDown={(e) => {
+          drag.current = { x: e.clientX, y: e.clientY, from: offset, moved: false, horizontal: null };
+        }}
+        onPointerMove={(e) => {
+          const d = drag.current;
+          if (!d) return;
+          const dx = e.clientX - d.x;
+          const dy = e.clientY - d.y;
+          if (d.horizontal === null && Math.abs(dx) + Math.abs(dy) > 6) d.horizontal = Math.abs(dx) > Math.abs(dy);
+          if (!d.horizontal) return;
+          d.moved = true;
+          setOffset(Math.max(-SWIPE_OPEN, Math.min(0, d.from + dx)));
+        }}
+        onPointerUp={() => {
+          const d = drag.current;
+          if (d?.moved) setOffset((o) => (o <= -SWIPE_MIN ? -SWIPE_OPEN : 0));
+        }}
+        onPointerCancel={() => {
+          drag.current = null;
+          setOffset((o) => (o <= -SWIPE_MIN ? -SWIPE_OPEN : 0));
+        }}
+      >
+        <button
+          type="button"
+          disabled={busy}
+          aria-label={t.quick.log(item.name, kcal) + (item.logged_today ? ` (${t.quick.loggedToday})` : "")}
+          onClick={() => {
+            const d = drag.current;
+            drag.current = null;
+            if (d?.moved) return;
+            // A tap on an open row closes it rather than logging.
+            if (offset !== 0) {
+              setOffset(0);
+              return;
+            }
+            quick.log.reset();
+            quick.log.mutate(item, { onSuccess: onLogged });
+          }}
+          className="tap flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-1.5 pl-1.5 pr-2 text-left disabled:opacity-50"
+        >
+          {item.pinned ? (
+            <span className={`well-tint ${item.kind === "meal" ? "tint-amber" : "tint-orange"} flex h-8 w-8 shrink-0 items-center justify-center rounded-xl`}>
+              <Icon name={icon} size={17} />
+            </span>
+          ) : (
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border-[1.5px] border-dashed border-muted/50 text-muted">
+              <Icon name={icon} size={17} />
+            </span>
+          )}
+          <span className={`min-w-0 flex-1 truncate text-sm ${item.pinned ? "font-medium" : "text-muted"}`}>{item.name}</span>
+          {item.logged_today && <Icon name="check" size={15} className="shrink-0 text-accent-ink" />}
+          <span className="shrink-0 text-xs text-muted">{kcal}</span>
+        </button>
+        {!item.pinned && (
+          <button
+            type="button"
+            disabled={busy}
+            aria-label={t.quick.pin(item.name)}
+            onClick={() => quick.pin.mutate(item)}
+            className="tap raised-sm flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-accent-ink disabled:opacity-50"
+          >
+            <Icon name="add" size={15} />
+          </button>
+        )}
+      </div>
+    </li>
+  );
+}
+
+/** The card above the chat bar: every quick item in a list that scrolls, and ⋯ to manage them. */
 export function QuickCard({ items, quick, onClose, onManage }: { items: QuickItem[]; quick: QuickLog; onClose: () => void; onManage: () => void }) {
   const t = useT();
   return (
     <>
       {/* A tap anywhere else closes the card. */}
       <div aria-hidden="true" className="fixed inset-0 z-0" onClick={onClose} />
-      <div className="raised absolute inset-x-0 bottom-full z-10 mb-2 max-h-[45dvh] overflow-y-auto rounded-3xl p-2.5">
-        {items.length === 0 && <p className="px-1.5 pb-2 text-sm text-muted">{t.quick.empty}</p>}
-        <ul aria-label={t.quick.items} className="flex flex-wrap gap-2">
+      <div className="raised absolute inset-x-0 bottom-full z-10 mb-2 flex max-h-[50dvh] flex-col rounded-3xl p-2">
+        <div className="flex items-center justify-between pb-1 pl-2.5">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted">{t.quick.items}</span>
+          <button type="button" aria-label={t.quick.manage} onClick={onManage} className="tap raised-sm flex h-8 w-10 items-center justify-center rounded-full text-muted">
+            <Icon name="more_horiz" size={20} />
+          </button>
+        </div>
+        {items.length === 0 && <p className="px-2.5 pb-2 text-sm text-muted">{t.quick.empty}</p>}
+        <ul aria-label={t.quick.items} className="flex min-h-0 flex-col gap-0.5 overflow-y-auto overscroll-contain">
           {items.map((item) => (
-            <li key={item.ref}>
-              <QuickChip item={item} quick={quick} onLogged={onClose} />
-            </li>
+            <SwipeRow key={item.ref} item={item} quick={quick} onLogged={onClose} />
           ))}
-          <li>
-            <button type="button" aria-label={t.quick.manage} onClick={onManage} className="tap raised-sm flex h-8 w-10 items-center justify-center rounded-full text-muted">
-              <Icon name="more_horiz" size={20} />
-            </button>
-          </li>
         </ul>
+        {items.length > 0 && <p className="px-2.5 pt-1 text-[11px] text-muted">{t.quick.swipeHint}</p>}
       </div>
     </>
   );

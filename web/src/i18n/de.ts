@@ -226,6 +226,9 @@ export const de: Messages = {
     saturatedByFood: "Gesättigte Fette nach Lebensmittel",
   },
   quick: {
+    unpin: "Entfernen",
+    hide: "Ausblenden",
+    swipeHint: "Nach links wischen zum Entfernen",
     open: "Schnell eintragen",
     due: "Etwas, das du um diese Zeit meist einträgst",
     items: "Favoriten",
@@ -241,6 +244,8 @@ export const de: Messages = {
     undoFailed: "Rückgängig machen fehlgeschlagen. Öffne den Eintrag, um ihn zu löschen.",
   },
   frequent: {
+    starOn: "In Favoriten: tippen zum Entfernen",
+    starOff: "Zu Favoriten",
     title: "Favoriten",
     close: "Schließen",
     meals: "Mahlzeiten",
@@ -251,7 +256,7 @@ export const de: Messages = {
     pin: "Anheften",
     dismiss: (name) => `${name} nicht mehr vorschlagen`,
     add: "Hinzufügen",
-    tip: "Tipp: Öffne eine eingetragene Mahlzeit und tippe auf ☆, um sie hier zu speichern.",
+    tip: "Tipp: Tippe bei einer eingetragenen Mahlzeit auf ☆, um sie hier zu speichern.",
     loadFailed: "Favoriten konnten nicht geladen werden.",
     back: "Favoriten",
     name: "Name",
@@ -264,8 +269,6 @@ export const de: Messages = {
     remove: "Entfernen",
     confirmRemove: "Aus deinen Favoriten entfernen?",
     timesLogged: (n) => (n === 1 ? "Einmal in 4 Wochen eingetragen" : `${n}-mal in 4 Wochen eingetragen`),
-    saveEntry: "Zu Favoriten",
-    savedEntry: "In Favoriten gespeichert",
   },
   health: {
     title: "Gesundheit",

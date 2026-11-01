@@ -226,6 +226,9 @@ export const es: Messages = {
     saturatedByFood: "Grasas saturadas, por alimento",
   },
   quick: {
+    unpin: "Quitar",
+    hide: "Ocultar",
+    swipeHint: "Desliza a la izquierda para quitar",
     open: "Registro rápido",
     due: "Algo que sueles registrar a esta hora",
     items: "Favoritos",
@@ -241,6 +244,8 @@ export const es: Messages = {
     undoFailed: "No se ha podido deshacer. Abre la entrada para borrarla.",
   },
   frequent: {
+    starOn: "En favoritos: toca para quitar",
+    starOff: "Guardar en favoritos",
     title: "Favoritos",
     close: "Cerrar",
     meals: "Comidas",
@@ -251,7 +256,7 @@ export const es: Messages = {
     pin: "Fijar",
     dismiss: (name) => `No sugerir ${name}`,
     add: "Añadir",
-    tip: "Consejo: abre una comida registrada y toca ☆ para guardarla aquí.",
+    tip: "Consejo: toca ☆ en una comida registrada para guardarla aquí.",
     loadFailed: "No se han podido cargar tus favoritos.",
     back: "Favoritos",
     name: "Nombre",
@@ -264,8 +269,6 @@ export const es: Messages = {
     remove: "Quitar",
     confirmRemove: "¿Quitar de tus favoritos?",
     timesLogged: (n) => (n === 1 ? "Registrado una vez en 4 semanas" : `Registrado ${n} veces en 4 semanas`),
-    saveEntry: "Guardar en favoritos",
-    savedEntry: "Guardado en favoritos",
   },
   health: {
     title: "Salud",

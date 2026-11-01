@@ -86,6 +86,21 @@ describe("Composer: quick log", () => {
     expect(screen.queryByRole("list", { name: "Matching frequent items" })).toBeNull();
   });
 
+  it("lists the items in the card; the button a swipe shows unpins a pinned item and hides a suggestion", async () => {
+    const fetch = mockFetch(() => new Response(null, { status: 204 }));
+    renderWithProviders(<Composer date="2026-10-03" quick={ITEMS} quickOn />);
+    await userEvent.click(screen.getByRole("button", { name: "Quick log" }));
+    const list = screen.getByRole("list", { name: "Frequent items" });
+    expect([...list.querySelectorAll("li")].map((li) => li.textContent)).toEqual([
+      "RemovePorridge420 kcal", "RemoveChicken rice bowl640 kcal", "HideFlat white90 kcal",
+    ]);
+    await userEvent.click(screen.getAllByRole("button", { name: "Remove" })[0]);
+    await waitFor(() => expect(fetch.mock.calls[0][0]).toBe("/api/frequent/11111111-1111-4111-8111-111111111111"));
+    expect(fetch.mock.calls[0][1]?.method).toBe("DELETE");
+    await userEvent.click(screen.getByRole("button", { name: "Hide" }));
+    await waitFor(() => expect(fetch.mock.calls.some(([u, init]) => u === "/api/regulars/0123456789abcdef" && init?.method === "DELETE")).toBe(true));
+  });
+
   it("opens the Frequent sheet from ⋯, with pinned items and suggestions to pin", async () => {
     mockFetch(() => jsonResponse({
       items: [{ id: "11111111-1111-4111-8111-111111111111", kind: "meal", name: "Porridge", foods: regular().foods, exercises: [], kcal: 300, slot: "morning", source_key: null, times_logged: 2, logged_today: false }],

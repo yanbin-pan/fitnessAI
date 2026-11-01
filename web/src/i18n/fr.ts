@@ -228,6 +228,9 @@ export const fr: Messages = {
     saturatedByFood: "Graisses saturées, par aliment",
   },
   quick: {
+    unpin: "Retirer",
+    hide: "Masquer",
+    swipeHint: "Glissez vers la gauche pour retirer",
     open: "Saisie rapide",
     due: "Quelque chose que vous notez d’habitude maintenant",
     items: "Favoris",
@@ -243,6 +246,8 @@ export const fr: Messages = {
     undoFailed: "Impossible d’annuler. Ouvrez l’entrée pour la supprimer.",
   },
   frequent: {
+    starOn: "Dans les favoris : touchez pour retirer",
+    starOff: "Ajouter aux favoris",
     title: "Favoris",
     close: "Fermer",
     meals: "Repas",
@@ -253,7 +258,7 @@ export const fr: Messages = {
     pin: "Épingler",
     dismiss: (name) => `Ne plus suggérer ${name}`,
     add: "Ajouter",
-    tip: "Astuce : ouvrez un repas noté et touchez ☆ pour l’enregistrer ici.",
+    tip: "Astuce : touchez ☆ sur un repas noté pour l’enregistrer ici.",
     loadFailed: "Impossible de charger vos favoris.",
     back: "Favoris",
     name: "Nom",
@@ -266,8 +271,6 @@ export const fr: Messages = {
     remove: "Retirer",
     confirmRemove: "Retirer de vos favoris ?",
     timesLogged: (n) => (n === 1 ? "Noté une fois en 4 semaines" : `Noté ${n} fois en 4 semaines`),
-    saveEntry: "Ajouter aux favoris",
-    savedEntry: "Ajouté aux favoris",
   },
   health: {
     title: "Santé",

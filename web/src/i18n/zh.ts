@@ -226,6 +226,9 @@ export const zh: Messages = {
     saturatedByFood: "饱和脂肪（按食物）",
   },
   quick: {
+    unpin: "移除",
+    hide: "隐藏",
+    swipeHint: "向左滑动即可移除",
     open: "快速记录",
     due: "你通常在这个时候记录的内容",
     items: "常用项",
@@ -241,6 +244,8 @@ export const zh: Messages = {
     undoFailed: "撤销失败。请打开该条目将其删除。",
   },
   frequent: {
+    starOn: "已在常用中：点按移除",
+    starOff: "保存到常用",
     title: "常用",
     close: "关闭",
     meals: "饮食",
@@ -251,7 +256,7 @@ export const zh: Messages = {
     pin: "置顶",
     dismiss: (name) => `不再推荐${name}`,
     add: "添加",
-    tip: "提示：打开任意已记录的餐食，点 ☆ 即可保存到这里。",
+    tip: "提示：点已记录餐食上的 ☆ 即可保存到这里。",
     loadFailed: "无法加载常用项。",
     back: "常用",
     name: "名称",
@@ -264,8 +269,6 @@ export const zh: Messages = {
     remove: "移除",
     confirmRemove: "从常用项中移除？",
     timesLogged: (n) => `4 周内记录 ${n} 次`,
-    saveEntry: "保存到常用",
-    savedEntry: "已保存到常用",
   },
   health: {
     title: "健康",
