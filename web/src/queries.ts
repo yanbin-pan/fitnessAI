@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "./api.ts";
 import { isLive } from "./coach/live.ts";
-import type { DaySummaries, DayView, HealthChatView, HealthView, InsightsView, MarkerFoodView, ProfileView } from "./shared.ts";
+import type { DaySummaries, DayView, HealthChatView, HealthView, InsightPayload, InsightsHistory, InsightsView, MarkerFoodView, ProfileView } from "./shared.ts";
 
 export const dayKey = (date: string) => ["day", date] as const;
 
@@ -77,5 +77,21 @@ export function useInsights() {
     queryKey: ["insights"],
     queryFn: () => api<InsightsView>("/api/insights"),
     refetchInterval: (query) => (query.state.data?.status === "pending" ? 10_000 : false),
+  });
+}
+
+/** Every stored report and the weekly averages (2026-11-01 insights history design): read from the server, no model call. */
+export function useInsightsHistory(version: string | null) {
+  // Keyed by when the newest report was written, so a new week's report brings a fresh list.
+  return useQuery({ queryKey: ["insights", "history", version], queryFn: () => api<InsightsHistory>("/api/insights/history"), enabled: version !== null });
+}
+
+/** A past week's report; stored reports never change, so it is fetched once. */
+export function useInsightReport(week: string | null) {
+  return useQuery({
+    queryKey: ["insights", "week", week],
+    queryFn: () => api<InsightPayload>(`/api/insights/${week}`),
+    enabled: week !== null,
+    staleTime: Infinity,
   });
 }

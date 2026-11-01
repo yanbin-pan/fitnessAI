@@ -162,6 +162,7 @@ body {
 .tint-amber { --tint: #f2a93b; --tint-ink: #9a5d00; }
 .tint-custard { --tint: #ffc94a; --tint-ink: #95600a; }
 .tint-slate { --tint: #8a97ab; --tint-ink: #4a576c; }
+.tint-orange { --tint: #f08a4b; --tint-ink: #a8481a; }
 [data-theme="dark"] .tint-green { --tint: #34d399; --tint-ink: #6ee0b4; }
 [data-theme="dark"] .tint-teal { --tint: #3cc4cc; --tint-ink: #7fdde2; }
 [data-theme="dark"] .tint-blue { --tint: #6f9cf2; --tint-ink: #a3c0f7; }
@@ -170,6 +171,7 @@ body {
 [data-theme="dark"] .tint-amber { --tint: #f2a93b; --tint-ink: #f6c57a; }
 [data-theme="dark"] .tint-custard { --tint: #ffc94a; --tint-ink: #f6cd7e; }
 [data-theme="dark"] .tint-slate { --tint: #8a97ab; --tint-ink: #b8c2d1; }
+[data-theme="dark"] .tint-orange { --tint: #f39a63; --tint-ink: #f7bc94; }
 
 .stripes {
   background: repeating-linear-gradient(135deg, var(--s-fg) 0 2px, var(--s-bg) 2px 5px);

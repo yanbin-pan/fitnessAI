@@ -275,9 +275,64 @@ export interface InsightStats {
     longest_streak: number;
     /** Active kcal of the last 7 days over the weekly average of the 28: about 0.8 to 1.3 is steady. */
     load_ratio: number | null;
+    /** The days with training in the period; missing from reports written before 2026-11-01. */
+    dates?: string[];
   };
   /** The same calm signals as the day view, over the four weeks. */
   signals: NutrientSignals;
+}
+
+/** One week's averages, worked out from the log (2026-11-01 insights history design): what Trends plots and what each
+ *  report's numbers are compared with. No model call is involved. */
+export interface WeekPoint {
+  /** The Monday that starts the week (or the first day of a report's 7-day period). */
+  week_start: string;
+  food_days: number;
+  kcal: number;
+  kcal_target: number | null;
+  protein_g: number;
+  protein_target: number | null;
+  protein_g_per_kg: number;
+  carbs_g: number;
+  fat_g: number;
+  fibre_g: number;
+  fibre_target: number | null;
+  sugars_g: number;
+  salt_g: number;
+  fluid_ml: number;
+  alcohol_units: number;
+  sessions: number;
+  minutes: number;
+  active_kcal: number;
+}
+
+/** A stored report, as a stored report is shown: its numbers, the coach's text, and the week before for comparison. */
+export interface InsightPayload {
+  week_start: string;
+  generated_at: string;
+  stats: InsightStats;
+  /** Null when the coach is off: the numbers alone. */
+  report: InsightReport | null;
+  /** The 7 days before the report's period; null for older four-week reports. */
+  previous: WeekPoint | null;
+}
+
+/** A past report in the list. */
+export interface InsightSummary {
+  week_start: string;
+  period_start: string;
+  period_end: string;
+  headline: string;
+  /** How many findings were going well, to watch and to change. */
+  tally: Record<FindingSeverity, number>;
+  /** The worst finding in each area, and recovery as a level: the dots in Trends' week strip. */
+  areas: { nutrition: FindingSeverity; training: FindingSeverity; recovery: FindingSeverity };
+}
+
+/** What GET /api/insights/history returns: every stored report, newest first, and the weekly averages, oldest first. */
+export interface InsightsHistory {
+  reports: InsightSummary[];
+  weeks: WeekPoint[];
 }
 
 /** What GET /api/insights returns. */
@@ -288,11 +343,5 @@ export interface InsightsView {
   required_days: number;
   /** The Monday the next report is due. */
   next_update: string;
-  insight: {
-    week_start: string;
-    generated_at: string;
-    stats: InsightStats;
-    /** Null when the coach is off: the numbers alone. */
-    report: InsightReport | null;
-  } | null;
+  insight: InsightPayload | null;
 }
