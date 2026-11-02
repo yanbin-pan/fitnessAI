@@ -9,7 +9,7 @@ import type { Messages } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
 import type { IconName } from "../icons/paths.ts";
 import { useInsightReport, useInsights, useInsightsHistory } from "../queries.ts";
-import type { FindingSeverity, InsightFinding, InsightPayload, InsightReport, InsightStats, NutrientStat, RecoveryStatus, WeekPoint } from "../shared.ts";
+import type { FindingSeverity, InsightFinding, InsightGoal, InsightGoalKind, InsightPayload, InsightReport, InsightStats, NutrientStat, RecoveryStatus, WeekPoint } from "../shared.ts";
 import { InsightsTrends } from "./InsightsTrends.tsx";
 
 // The weekly analysis (2026-10-06 design §3.4), with colour and icons and every past week kept (2026-11-01 insights
@@ -187,6 +187,46 @@ function Finding({ finding }: { finding: InsightFinding }) {
   );
 }
 
+/** Each goal's icon: what it is about, while its well's hue says how the week went. */
+const GOAL_ICON: Record<InsightGoalKind, IconName> = {
+  lose_fat: "monitoring", build_muscle: "fitness_center", stay_in_shape: "directions_run", skin: "sunny", bloods: "bloodtype",
+  energy: "bolt", gut: "nutrition", event: "calendar_month", body_goal: "ecg_heart", health: "medical_information",
+};
+
+function Chips({ label, items, tint }: { label: string; items: string[]; tint: string }) {
+  if (items.length === 0) return null;
+  return (
+    <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+      <span className="text-muted">{label}</span>
+      {items.map((item) => (
+        <span key={item} className={`well-tint ${tint} rounded-full px-2.5 py-1`}>
+          {item}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+/** How the week went for each of the person's goals (2026-11-02 goals section): what helped, and what to do next. */
+function Goal({ goal }: { goal: InsightGoal }) {
+  const t = useT();
+  const { tint } = SEVERITY_TINT[goal.status];
+  return (
+    <li className="pressed flex gap-2.5 rounded-2xl p-3">
+      <Well tint={tint} icon={GOAL_ICON[goal.kind] ?? "star"} size={26} iconSize={15} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="font-medium">{goal.title}</p>
+          <SeverityLabel level={goal.status} />
+        </div>
+        <p className="mt-1 text-sm">{goal.detail}</p>
+        <Chips label={t.insights.helped} items={goal.helped} tint="tint-green" />
+        <Chips label={t.insights.nextWeek} items={goal.next} tint="tint-custard" />
+      </div>
+    </li>
+  );
+}
+
 function Section({ title, icon, tint, aside, children }: { title: string; icon: IconName; tint: string; aside?: ReactNode; children: ReactNode }) {
   return (
     <section aria-label={title} className="raised mt-4 rounded-3xl p-4">
@@ -329,6 +369,15 @@ function Report({ report, stats, previous }: { report: InsightReport | null; sta
         </section>
       )}
       <Numbers stats={stats} previous={previous} />
+      {report?.goals && report.goals.length > 0 && (
+        <Section title={t.insights.goals} icon="star" tint="tint-custard">
+          <ul className="mt-3 flex flex-col gap-2.5">
+            {report.goals.map((goal) => (
+              <Goal key={`${goal.kind}-${goal.title}`} goal={goal} />
+            ))}
+          </ul>
+        </Section>
+      )}
       <Section title={t.insights.nutrition} icon="restaurant" tint="tint-amber">
         {report && <p className="mt-3 text-sm">{report.nutrition.summary}</p>}
         <div className="mt-3 grid gap-2.5">

@@ -3,6 +3,7 @@ import type { AiClient, AiUsage } from "../ai/client.ts";
 import { AiError } from "../ai/client.ts";
 import { callsOn, recordRun } from "../coach/usage.ts";
 import { insights } from "../db/schema.ts";
+import { foodsOfPeriod } from "../days/history.ts";
 import { healthContext } from "../health/records.ts";
 import type { Sql } from "../db/types.ts";
 import { INSIGHTS_MIN_DATA_DAYS, INSIGHTS_TREND_WEEKS, INSIGHTS_WINDOW_DAYS, addDays, daysBetween } from "../shared.ts";
@@ -77,7 +78,8 @@ export function insightsHistory(sql: Sql, profile: Profile, now: Date): Insights
 }
 
 function isCurrent(stored: StoredInsight | null, week: string, profile: Profile): boolean {
-  return stored !== null && stored.week_start === week && stored.language === profile.language;
+  // A report from before the goals section (2026-11-02) is written again once, so this week's has one.
+  return stored !== null && stored.week_start === week && stored.language === profile.language && (stored.report === null || stored.report.goals !== undefined);
 }
 
 export interface InsightDeps {
@@ -129,7 +131,7 @@ async function write(deps: InsightDeps): Promise<InsightOutcome> {
   let outcome: InsightOutcome = "failed";
   try {
     const response = await ai.structured(
-      { system: insightsInstructions(profile.companion), prompt: insightPrompt(profile, stats, today, deps.health ? healthContext(deps.health) : null, previous), schema: reportJsonSchema() },
+      { system: insightsInstructions(profile.companion), prompt: insightPrompt(profile, stats, today, deps.health ? healthContext(deps.health) : null, previous, foodsOfPeriod(sql, stats.period_start, stats.period_end)), schema: reportJsonSchema() },
       controller.signal,
     );
     usage = response.usage;

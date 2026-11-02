@@ -26,6 +26,9 @@ const REPORT: InsightReport = {
   training: { summary: "Tennis twice a week.", findings: [{ title: "No strength work", detail: "No sets logged.", severity: "watch", foods: [] }] },
   recovery: { status: "balanced", detail: "Load is steady." },
   focus: ["Add a pear to lunch."],
+  goals: [
+    { kind: "skin", title: "Skin glow", status: "watch", detail: "Oily fish once, added sugar 40 g a day.", helped: ["Salmon", "Blueberries"], next: ["Walnuts", "Less juice"] },
+  ],
 };
 const point = (week_start: string, kcal: number, sessions: number): WeekPoint => ({
   week_start, food_days: 6, kcal, kcal_target: 2100, protein_g: 140, protein_target: 144, protein_g_per_kg: 1.7, carbs_g: 210, carbs_target: 230, fat_g: 70, fat_target: 70,
@@ -83,6 +86,18 @@ describe("InsightsPage", () => {
     expect(within(nutrition).getByText("Lentils")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Recovery" })).toHaveTextContent("Balanced");
     expect(screen.getByRole("region", { name: "This week" })).toHaveTextContent("Add a pear to lunch.");
+    const goals = screen.getByRole("region", { name: "Your goals" });
+    expect(within(goals).getByText("Skin glow").closest("li")).toHaveTextContent("Keep an eye on");
+    expect(within(goals).getByText("Helped").parentElement).toHaveTextContent("HelpedSalmonBlueberries");
+    expect(within(goals).getByText("Next week").parentElement).toHaveTextContent("Next weekWalnutsLess juice");
+  });
+
+  it("leaves the goals out of a report written before them", async () => {
+    const { goals: _goals, ...old } = REPORT;
+    serve({ ...ready, insight: { ...ready.insight, report: old } });
+    renderWithProviders(<InsightsPage />);
+    expect(await screen.findByText(REPORT.headline)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Your goals" })).toBeNull();
   });
 
   it("shows the numbers alone when the coach is off", async () => {

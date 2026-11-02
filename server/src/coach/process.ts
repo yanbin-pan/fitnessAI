@@ -3,6 +3,7 @@ import type { AiClient, AiMessage, AiUsage } from "../ai/client.ts";
 import { buildDayView, getDay, recentDays, snapshotValues } from "../days/days.ts";
 import type { Sql } from "../db/types.ts";
 import type { EntryBefore } from "../log/entries.ts";
+import { earlierDays } from "../days/history.ts";
 import { healthContext } from "../health/records.ts";
 import { getMessage, insertReply, listMessages, setMessageReaction, setMessageStatus } from "../messages/messages.ts";
 import { photoData } from "../photos/photos.ts";
@@ -82,7 +83,7 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
   const today = todayIn(profile.timezone, now);
   // Checked before the first call: a run that starts under the cap may end a few calls over it (2.2 §6).
   if (callsOn(deps.db, today) >= deps.dailyCallCap) return fail(deps.db, messageId, "ai_cap");
-  const system = getOrCreateThread(deps.db, message.date, () => buildSystemPrompt(profile, message.date), nowIso);
+  const system = getOrCreateThread(deps.db, message.date, () => buildSystemPrompt(profile, message.date, earlierDays(deps.db, message.date)), nowIso);
   const load = (id: string) => photoData(deps.db, deps.photoDir, id);
   const history = hydrateTurns(loadTurns(deps.db, message.date), load);
   // The coach's context never shows the featured row.

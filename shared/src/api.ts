@@ -1,3 +1,4 @@
+import type { Focus } from "./about.ts";
 import type { AlcoholWeek } from "./alcohol.ts";
 import type { Activity, BodyGoal, Drink, ExerciseCategory, EntrySource, FoodGroup, FrequentSlot, Muscle, MuscleRole } from "./vocab.ts";
 import type { CompanionStatus } from "./companions.ts";
@@ -279,9 +280,26 @@ export interface InsightFinding {
   foods: string[];
 }
 
+/** What a goal on the Insights tab is about (2026-11-02 goals section): a focus picked in onboarding, the body goal, or health. */
+export type InsightGoalKind = Focus | "body_goal" | "health";
+
+/** How the week went for one of the person's goals, the foods that helped it and what else would. */
+export interface InsightGoal {
+  kind: InsightGoalKind;
+  title: string;
+  status: FindingSeverity;
+  detail: string;
+  /** Foods they ate in the week that helped this goal. */
+  helped: string[];
+  /** Foods or habits to add next week. */
+  next: string[];
+}
+
 /** The coach's weekly analysis (2026-10-06 design §3.3), written in the person's language. */
 export interface InsightReport {
   headline: string;
+  /** Missing from reports written before 2026-11-02. */
+  goals?: InsightGoal[];
   nutrition: { summary: string; findings: InsightFinding[] };
   training: { summary: string; findings: InsightFinding[] };
   recovery: { status: RecoveryStatus; detail: string };
