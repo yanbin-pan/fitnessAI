@@ -27,6 +27,9 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("at most 7 days back");
     expect(prompt).toContain("You cannot delete entries");
     expect(prompt).toContain("Weight, body measurements and check-ins cannot be logged yet");
+    // Photo portions are sized against something of known size, the smaller size when in doubt.
+    expect(prompt).toContain("a dinner fork (about 19 cm");
+    expect(prompt).toContain("take the smaller unless the plate is clearly heaped");
   });
 
   it("tells the coach what onboarding learnt and the tone asked for, leaving out what was not answered", () => {

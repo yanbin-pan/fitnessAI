@@ -82,7 +82,7 @@ describe("POST /api/messages", () => {
     expect(body.day.entries[0]).toMatchObject({ source: "coach", message_id: body.user.id });
     expect(body.reply.cards).toEqual([{ type: "entry", id: body.day.entries[0].id }]);
     expect(body.day.totals.kcal).toBe(180);
-    expect(ai?.requests[0].tools.map((t) => t.name)).toEqual(["log_items", "update_entry"]);
+    expect(ai?.requests[0].tools.map((t) => t.name)).toEqual(["log_items", "update_entry", "remember", "forget"]);
     expect(JSON.stringify(ai?.requests[0].messages[0])).toContain("Context for this message");
   });
 

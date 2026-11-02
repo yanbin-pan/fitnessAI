@@ -38,6 +38,8 @@ export const profile = sqliteTable("profile", {
   /** Onboarding's answers beyond the body numbers, as JSON (2026-10-20 onboarding and settings design). */
   about: text({ mode: "json" }).notNull().default({}),
   coach_tone: text().notNull().default("balanced"),
+  /** Whether the coach keeps memories across days (2026-11-02 memories design). */
+  memories: text().notNull().default("on"),
   onboarding: text().notNull().default("show"),
   /** The person's local date of the last change of companion: it can change again 3 months on. */
   companion_changed_at: text(),
@@ -291,4 +293,21 @@ export const tipsSeen = sqliteTable("tips_seen", {
   date: text().notNull(),
   seen_at: text().notNull(),
   vars: text({ mode: "json" }).$type<unknown>().notNull(),
+});
+
+/**
+ * What the coach remembers about the person across days (2026-11-02 memories design): one short sentence each, saved
+ * silently by the coach or added by hand in Settings, and listed there to edit or delete. A plan can end on a date.
+ */
+export const memories = sqliteTable("memories", {
+  id: text().primaryKey(),
+  kind: text().notNull(),
+  text: text().notNull(),
+  /** The last day it holds, for a plan or a trip; null for as long as it is true. */
+  expires_on: text(),
+  /** Who wrote it: the coach, from a message, or the person. */
+  source: text().notNull(),
+  message_id: text(),
+  created_at: text().notNull(),
+  updated_at: text().notNull(),
 });

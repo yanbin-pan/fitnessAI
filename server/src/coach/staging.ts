@@ -7,7 +7,9 @@ import { MAX_BACKDATE_DAYS, TIME_HHMM, daysBetween, isIsoDate } from "../shared.
 import type { EntrySource, Profile } from "../shared.ts";
 import { exerciseKcal } from "../targets/targets.ts";
 import { localDate, zonedTimeToInstant } from "../time.ts";
-import { LogItemsInput, UpdateEntryInput, amountIssues } from "./tools.ts";
+import { MEMORY_ID, deleteMemory, getMemory, newMemoryId, saveMemory } from "../memories/memories.ts";
+import type { MemoryInput } from "../shared.ts";
+import { ForgetInput, LogItemsInput, RememberInput, UpdateEntryInput, amountIssues } from "./tools.ts";
 import type { ExerciseToolItem, FoodToolItem } from "./tools.ts";
 
 // Tool calls are validated and STAGED here; nothing touches the database until
@@ -16,10 +18,13 @@ import type { ExerciseToolItem, FoodToolItem } from "./tools.ts";
 export interface Staging {
   creates: NewEntry[];
   updates: Map<string, { foods: FoodItemData[]; exercises: ExerciseItemData[] }>;
+  /** Memories to save, by id (2026-11-02 memories design), and the ids to forget. */
+  remember: Map<string, MemoryInput>;
+  forget: Set<string>;
 }
 
 export function newStaging(): Staging {
-  return { creates: [], updates: new Map() };
+  return { creates: [], updates: new Map(), remember: new Map(), forget: new Set() };
 }
 
 export interface ToolContext {
@@ -146,9 +151,41 @@ function updateEntry(raw: unknown, ctx: ToolContext): ToolOutcome {
   return ok(summary(existing.id, existing.date, foods, exercises));
 }
 
+function remember(raw: unknown, ctx: ToolContext): ToolOutcome {
+  if (ctx.profile.memories !== "on") return fail("memories are switched off in Settings");
+  const parsed = RememberInput.safeParse(raw);
+  if (!parsed.success) return zodFailure(parsed.error);
+  const { kind, text, until, replaces } = parsed.data;
+  if (!text.trim()) return fail("text must not be empty");
+  if (until !== null && !isIsoDate(until)) return fail(`until must be YYYY-MM-DD, got "${until}"`);
+  if (replaces !== null && !ctx.staging.remember.has(replaces) && !(MEMORY_ID.test(replaces) && getMemory(ctx.sql, replaces))) {
+    return fail(`there is no memory with id ${replaces}`);
+  }
+  const id = replaces ?? newMemoryId();
+  ctx.staging.forget.delete(id);
+  ctx.staging.remember.set(id, { kind, text: text.trim(), expires_on: until });
+  return ok({ id });
+}
+
+function forget(raw: unknown, ctx: ToolContext): ToolOutcome {
+  const parsed = ForgetInput.safeParse(raw);
+  if (!parsed.success) return zodFailure(parsed.error);
+  const { id } = parsed.data;
+  if (ctx.staging.remember.delete(id)) {
+    // Saved earlier in this same reply: dropping it is enough, unless it updated a stored one.
+    if (!getMemory(ctx.sql, id)) return ok({ id });
+  } else if (!MEMORY_ID.test(id) || !getMemory(ctx.sql, id)) {
+    return fail(`there is no memory with id ${id}`);
+  }
+  ctx.staging.forget.add(id);
+  return ok({ id });
+}
+
 export function executeTool(name: string, input: unknown, ctx: ToolContext): ToolOutcome {
   if (name === "log_items") return logItems(input, ctx);
   if (name === "update_entry") return updateEntry(input, ctx);
+  if (name === "remember") return remember(input, ctx);
+  if (name === "forget") return forget(input, ctx);
   return fail(`unknown tool ${name}`);
 }
 
@@ -156,7 +193,14 @@ export function executeTool(name: string, input: unknown, ctx: ToolContext): Too
  * Writes everything staged. Run inside the message's final transaction. Each stored entry it changes is added to
  * `befores` as it was, so the reply's Undo can put it back.
  */
-export function applyStaging(sql: Sql, staging: Staging, profile: Profile, nowIso: string, befores: EntryBefore[] = []): string[] {
+export function applyStaging(
+  sql: Sql,
+  staging: Staging,
+  profile: Profile,
+  nowIso: string,
+  befores: EntryBefore[] = [],
+  messageId: string | null = null,
+): string[] {
   const changed: string[] = [];
   for (const entry of staging.creates) {
     ensureDay(sql, profile, entry.date, nowIso);
@@ -170,5 +214,7 @@ export function applyStaging(sql: Sql, staging: Staging, profile: Profile, nowIs
     changed.push(id);
     befores.push({ entry_id: id, ...itemsOf(before), edited: before.edited, changed_at: nowIso });
   }
+  for (const [id, memory] of staging.remember) saveMemory(sql, id, memory, "coach", nowIso, messageId);
+  for (const id of staging.forget) deleteMemory(sql, id);
   return changed;
 }

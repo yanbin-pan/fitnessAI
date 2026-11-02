@@ -5,6 +5,7 @@ import type { Sql } from "../db/types.ts";
 import type { EntryBefore } from "../log/entries.ts";
 import { earlierDays } from "../days/history.ts";
 import { healthContext } from "../health/records.ts";
+import { memoriesForCoach } from "../memories/memories.ts";
 import { getMessage, insertReply, listMessages, setMessageReaction, setMessageStatus } from "../messages/messages.ts";
 import { photoData } from "../photos/photos.ts";
 import { getProfile } from "../profile/profile.ts";
@@ -17,7 +18,7 @@ import { applyStaging, executeTool, fillsInPastDay, newStaging } from "./staging
 import type { ToolContext } from "./staging.ts";
 import { stepText } from "./steps.ts";
 import { appendTurns, getOrCreateThread, loadTurns } from "./thread.ts";
-import { COACH_TOOLS } from "./tools.ts";
+import { COACH_TOOLS, MEMORY_TOOLS } from "./tools.ts";
 import { callsOn, recordRun } from "./usage.ts";
 
 export const MAX_MODEL_CALLS = 5;
@@ -83,7 +84,8 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
   const today = todayIn(profile.timezone, now);
   // Checked before the first call: a run that starts under the cap may end a few calls over it (2.2 §6).
   if (callsOn(deps.db, today) >= deps.dailyCallCap) return fail(deps.db, messageId, "ai_cap");
-  const system = getOrCreateThread(deps.db, message.date, () => buildSystemPrompt(profile, message.date, earlierDays(deps.db, message.date)), nowIso);
+  const system = getOrCreateThread(deps.db, message.date, () =>
+    buildSystemPrompt(profile, message.date, earlierDays(deps.db, message.date), profile.memories === "on" ? memoriesForCoach(deps.db, message.date) : null), nowIso);
   const load = (id: string) => photoData(deps.db, deps.photoDir, id);
   const history = hydrateTurns(loadTurns(deps.db, message.date), load);
   // The coach's context never shows the featured row.
@@ -141,7 +143,7 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
     runCoachLoop({
       ai,
       system,
-      tools: COACH_TOOLS,
+      tools: profile.memories === "on" ? [...COACH_TOOLS, ...MEMORY_TOOLS] : COACH_TOOLS,
       history,
       userTurn,
       execute: (name, input) => executeTool(name, input, context),
@@ -163,7 +165,7 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
   const doneIso = deps.now().toISOString();
   deps.db.transaction((tx) => {
     const befores: EntryBefore[] = [];
-    const changed = applyStaging(tx, staging, profile, doneIso, befores);
+    const changed = applyStaging(tx, staging, profile, doneIso, befores, messageId);
     appendTurns(tx, message.date, messageId, [storedTurn, ...result.turns.slice(1)], doneIso);
     insertReply(tx, {
       id: randomUUID(),

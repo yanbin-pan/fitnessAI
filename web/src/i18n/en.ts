@@ -899,6 +899,27 @@ export const en = {
       "menu-photo": "Which dish fits my day best?",
     },
   },
+  /** What the coach remembers across days (2026-11-02 memories design), listed under Settings › Coach. */
+  memories: {
+    row: "What Zabaione remembers",
+    intro: "Zabaione keeps short notes from your chats, like a food you dislike, your training days or a race coming up, and uses them on later days. Health details stay on the Health tab.",
+    switch: "Remember things from our chats",
+    empty: "Nothing yet. Zabaione adds things as you chat, or you can add one yourself.",
+    kinds: { preference: "Likes and dislikes", routine: "Routine", plan: "Plans", training: "Training", commitment: "Commitments" },
+    add: "Add a memory",
+    placeholder: "e.g. I don't eat pork",
+    kind: "Kind",
+    until: "Until (optional)",
+    save: "Save",
+    cancel: "Cancel",
+    delete: "Delete",
+    untilDate: (date: string) => `until ${date}`,
+    byYou: "added by you",
+    forgetAll: "Forget everything",
+    confirm: "Delete everything Zabaione remembers? This can't be undone.",
+    count: (n: number) => (n === 1 ? "1 memory" : `${n} memories`),
+    off: "Off",
+  },
 };
 
 export type Messages = typeof en;

@@ -195,3 +195,10 @@ export const MICROS = [
   "calcium_mg", "iron_mg", "magnesium_mg", "potassium_mg", "zinc_mg",
 ] as const;
 export type Micro = (typeof MICROS)[number];
+
+/** What a memory of the coach is about (2026-11-02 memories design). */
+export const MEMORY_KINDS = ["preference", "routine", "plan", "training", "commitment"] as const;
+export type MemoryKind = (typeof MEMORY_KINDS)[number];
+
+/** One memory is one short sentence. */
+export const MAX_MEMORY_LENGTH = 200;

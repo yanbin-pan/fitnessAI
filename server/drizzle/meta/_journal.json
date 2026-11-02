@@ -134,6 +134,13 @@
       "when": 1793616416260,
       "tag": "0018_message_undo",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1793620061289,
+      "tag": "0019_memories",
+      "breakpoints": true
     }
   ]
 }

@@ -5,6 +5,7 @@ import { registerDayRoutes } from "./days.ts";
 import { registerEntryRoutes } from "./entries.ts";
 import { registerHealth } from "./health.ts";
 import { registerInsightRoutes } from "./insights.ts";
+import { registerMemoryRoutes } from "./memories.ts";
 import { registerMessageRoutes } from "./messages.ts";
 import { registerPhotoRoutes } from "./photos.ts";
 import { registerProfileRoutes } from "./profile.ts";
@@ -26,4 +27,5 @@ export function registerRoutes(app: FastifyInstance, deps: AppDeps): void {
   registerCompanionRoutes(app, deps);
   registerRecordRoutes(app, deps);
   registerTipRoutes(app, deps);
+  registerMemoryRoutes(app, deps);
 }

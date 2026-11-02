@@ -5,9 +5,10 @@ export type { CalorieStatus } from "../../shared/src/calendar.ts";
 export { addDays, chatOpen, daysBetween, isIsoDate, isTimeZone } from "../../shared/src/dates.ts";
 export {
   ACTIVITIES, ACTIVITY_LEVEL_KEYS, BODY_GOALS, COMPANIONS, COMPANION_CHANGE_MONTHS, COMPANION_NAMES, DEFAULT_COMPANION, DRINKS, EXERCISE_CATEGORIES, FREQUENT_SLOTS,
-  LANGUAGES, MAX_BACKDATE_DAYS, MAX_COPIES, MICROS, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, PROFILE_RANGES, SEXES, slotOf,
+  LANGUAGES, MAX_BACKDATE_DAYS, MAX_COPIES, MAX_MEMORY_LENGTH, MEMORY_KINDS, MICROS, MAX_NAME_LENGTH, MAX_PHOTOS_PER_MESSAGE, PROFILE_RANGES, SEXES, slotOf,
 } from "../../shared/src/vocab.ts";
-export type { Activity, ActivityLevel, BodyGoal, CompanionId, Drink, ExerciseCategory, FrequentSlot, Language, Micro, Sex } from "../../shared/src/vocab.ts";
+export type { Activity, ActivityLevel, BodyGoal, CompanionId, Drink, ExerciseCategory, FrequentSlot, Language, MemoryKind, Micro, Sex } from "../../shared/src/vocab.ts";
+export type { Memory, MemoriesView, MemorySource } from "../../shared/src/memories.ts";
 export type { Reaction } from "../../shared/src/reactions.ts";
 export { DOUBT_REACTIONS } from "../../shared/src/reactions.ts";
 export { COMPANION_THRIVE_DAYS } from "../../shared/src/companions.ts";

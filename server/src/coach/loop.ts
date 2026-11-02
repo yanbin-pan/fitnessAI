@@ -4,6 +4,7 @@ import type { AiClient, AiMessage, AiResponse, AiTool, AiUsage } from "../ai/cli
 import { splitReaction } from "../shared.ts";
 import type { Reaction } from "../shared.ts";
 import type { ToolOutcome } from "./staging.ts";
+import { SILENT_TOOLS } from "./tools.ts";
 
 export type CoachFailure = "timeout" | "ai_error" | "ai_rate_limited" | "refused" | "max_tokens" | "tool_loop_limit";
 
@@ -34,6 +35,21 @@ function failureFor(err: AiError): CoachFailure {
   return "ai_error";
 }
 
+/**
+ * Joins turns of the same role that follow each other. A reply that ended on a memory tool leaves its tool results as the
+ * last turn of the history, so the next message's turn follows another user turn; the results stay first, as required.
+ */
+export function mergeSameRole(messages: AiMessage[]): AiMessage[] {
+  const blocks = (m: AiMessage) => (typeof m.content === "string" ? [{ type: "text" as const, text: m.content }] : m.content);
+  const out: AiMessage[] = [];
+  for (const message of messages) {
+    const last = out.at(-1);
+    if (last && last.role === message.role) out[out.length - 1] = { role: last.role, content: [...blocks(last), ...blocks(message)] as AiMessage["content"] };
+    else out.push(message);
+  }
+  return out;
+}
+
 export async function runCoachLoop(input: LoopInput): Promise<LoopResult> {
   const turns: AiMessage[] = [input.userTurn];
   const usage: AiUsage = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
@@ -48,7 +64,7 @@ export async function runCoachLoop(input: LoopInput): Promise<LoopResult> {
     let response: AiResponse;
     try {
       response = await input.ai.complete(
-        { system: input.system, tools: input.tools, messages: [...input.history, ...turns] },
+        { system: input.system, tools: input.tools, messages: mergeSameRole([...input.history, ...turns]) },
         input.signal,
       );
     } catch (err) {
@@ -88,6 +104,10 @@ export async function runCoachLoop(input: LoopInput): Promise<LoopResult> {
       return { type: "tool_result", tool_use_id: use.id, content: outcome.content, is_error: outcome.isError };
     });
     turns.push({ role: "user", content: results });
+    // Saving or forgetting a memory needs no answer: a reply that already has its words ends here, without a second call.
+    if (replyTexts.length > 0 && toolUses.every((use) => SILENT_TOOLS.has(use.name) && !results.find((r) => r.tool_use_id === use.id)?.is_error)) {
+      return { ok: true, turns, replyText: texts.join("\n\n"), reaction, calls, usage, model };
+    }
   }
   return { ok: false, failure: "tool_loop_limit", calls, usage, model };
 }
