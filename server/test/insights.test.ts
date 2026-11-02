@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AiError } from "../src/ai/client.ts";
+import { insights } from "../src/db/schema.ts";
 import { callsOn, recordRun } from "../src/coach/usage.ts";
 import { ensureWeeklyInsight, insightsHistory, latestInsight, weekStartOf } from "../src/insights/insights.ts";
 import { INSIGHTS_INSTRUCTIONS, InsightReportSchema, insightsInstructions, reportJsonSchema } from "../src/insights/report.ts";
@@ -21,6 +22,9 @@ const TODAY = "2026-10-05";
 
 const REPORT: InsightReport = {
   headline: "Steady weeks: protein is on target, fibre is short.",
+  goals: [
+    { kind: "build_muscle", title: "Build muscle", status: "good", detail: "Protein at 1.8 g per kg on 3 strength days.", helped: ["Eggs"], next: ["Add a leg day"] },
+  ],
   nutrition: {
     summary: "You eat close to your calories.",
     findings: [
@@ -171,6 +175,29 @@ describe("ensureWeeklyInsight", () => {
     expect(request.schema).toEqual(reportJsonSchema());
     expect(latestInsight(db)).toMatchObject({ week_start: TODAY, language: "it", report: REPORT });
     expect(callsOn(db, TODAY)).toBe(1);
+  });
+
+  it("gives the person's goals and the week's foods, each food once with how often it was logged", async () => {
+    days(db, 14);
+    saveProfile(db, makeProfile({ about: { focus: ["skin", "build_muscle"], skin_goals: ["glow"], sports: ["gym"], sessions_week: 3 } }), MONDAY.toISOString());
+    log(db, "2026-10-03", { foods: [sampleFood({ name: "Salmon" }), sampleFood({ name: "salmon" })] });
+    const ai = fakeAi([], [jsonReply(REPORT)]);
+    expect(await ensureWeeklyInsight(deps(ai))).toBe("written");
+    const { prompt } = ai.structuredRequests[0];
+    expect(prompt).toContain('Goals (JSON): {"body_goal":"lose 0.5 kg a week","focus":["skin","build_muscle"],"skin":{"goals":["glow"],"type":null,"triggers":[]},"sports":["gym"],"sessions_week":3}');
+    expect(prompt).toMatch(/Foods eaten \(JSON\): \[\{"name":"Eggs","times":\d+\},\{"name":"Salmon","times":2\}\]/);
+    expect(latestInsight(db)?.report.goals?.[0]).toMatchObject({ kind: "build_muscle", helped: ["Eggs"] });
+  });
+
+  it("writes this week's report again, once, when it was written before the goals section", async () => {
+    days(db, 14);
+    const ai = fakeAi([], [jsonReply(REPORT), jsonReply(REPORT)]);
+    expect(await ensureWeeklyInsight(deps(ai))).toBe("written");
+    const { goals: _goals, ...old } = REPORT;
+    db.update(insights).set({ report: old }).run();
+    expect(await ensureWeeklyInsight(deps(ai))).toBe("written");
+    expect(await ensureWeeklyInsight(deps(ai))).toBe("current");
+    expect(ai.structuredRequests).toHaveLength(2);
   });
 
   it("writes once a week, again when the language changes, and anew the next Monday", async () => {

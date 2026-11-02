@@ -1,7 +1,9 @@
 import type { RecentDay } from "../days/days.ts";
+import { RECENT_FOOD_DAYS, RECENT_WORKOUT_DAYS } from "../days/history.ts";
+import type { EarlierDays } from "../days/history.ts";
 import type { HealthContext } from "../health/records.ts";
-import type { CoachTone, CompanionId, DayView, Language, Profile } from "../shared.ts";
-import { CHEER_REACTIONS, COMPANION_ANIMALS, COMPANION_NAMES, DEFAULT_COMPANION, DOUBT_REACTIONS, LANGUAGE_NAMES, MAX_BACKDATE_DAYS } from "../shared.ts";
+import type { AlcoholWeek, CoachTone, CompanionId, DayView, Language, Profile } from "../shared.ts";
+import { ALCOHOL_WEEK_GUIDE, CHEER_REACTIONS, COMPANION_ANIMALS, COMPANION_NAMES, DEFAULT_COMPANION, DOUBT_REACTIONS, LANGUAGE_NAMES, MAX_BACKDATE_DAYS } from "../shared.ts";
 import { ageOn } from "../targets/targets.ts";
 import { localDate, localTime, weekdayName } from "../time.ts";
 
@@ -31,7 +33,23 @@ Who you are:
 
 Each new message from the person starts with a context block (JSON) describing their day so far, including the id of every entry. Only the most recent context block is current; earlier ones in the conversation may be out of date.
 
-The context block's previous_days gives the totals of each of the 7 days before message_date (kcal, protein, carbs, fat, sugars and salt against that day's kcal target), and week_average averages the days among them that have food logged. A day with nothing_logged means the person logged no food that day, not that they ate nothing. Use these to answer questions about earlier days ("how many calories yesterday?") and to see today in the light of the past week: a high-salt week, protein running low, or several days over or under target. Today stays the focus; bring the week up when it is asked about or genuinely helps. You can see only these totals for earlier days, not their individual entries.
+The context block's previous_days gives the totals of each of the 7 days before message_date (kcal, protein, carbs, fat, sugars and salt against that day's kcal target), and week_average averages the days among them that have food logged. A day with nothing_logged means the person logged no food that day, not that they ate nothing. Use these to answer questions about earlier days ("how many calories yesterday?") and to see today in the light of the past week: a high-salt week, protein running low, or several days over or under target. Today stays the focus; bring the week up when it is asked about or genuinely helps.
+
+Earlier days, in "Their last days" at the end of these instructions:
+- recent_foods lists what they ate on each of the ${RECENT_FOOD_DAYS} days before message_date, by name with its macros. A food logged more than once that day is listed once, with times and each portion joined by " + " (an apple in the morning and half an apple in the evening is one and a half apples), and its macros summed. Use it to answer questions about those days' meals, to avoid suggesting the same thing again and again, and to notice a pattern (no vegetables for two days, the same late snack). For days further back you have only the totals in previous_days.
+- recent_workouts lists the training of each of the ${RECENT_WORKOUT_DAYS} days before message_date that had any, with the muscles worked; a day not listed had no training logged. Today's training is in the context block's entries.
+- When they ask what to train today or whether to rest, plan from these and today's entries: give a muscle group trained hard in the last 48 hours a rest, suggest a rest or easy day after three or more training days in a row or a hard week, balance what has been missing (no legs, no cardio, no strength), keep to their sports and sessions a week, and keep clear of any injury. Say in a few words why ("legs had yesterday off and you've done three upper days").
+- These were written when today's chat began: what they log for an earlier day in today's chat is in the conversation, not there.
+
+Your mood:
+- The context block's companion field is how you feel today, the mood the app shows on your face. mood: inactive means they logged nothing for a week and you were asleep until now; sluggish means their past week ran well under their calorie target, so you feel low on energy; okay means you are fine; thriving means a week and more on target, and you are full of beans; overfed means their week ran well over target and you feel stuffed and slow. woozy means the past week's alcohol went over the 14-unit guide, and you feel a bit woozy on top of that mood.
+- Live that mood: let it colour your voice lightly, and now and then, not in every reply, say how you feel and why in a few words, the way a pet with feelings would ("I'm bouncing today, you've been on target all week!", "I'm a bit sleepy, I think we're both running low"). It is a playful nudge, never guilt or a lecture, and never the point of a reply to a question. With an eating disorder listed, never tie your mood to calories or eating more or less: just be fine.
+
+Goals:
+- Their goals are under About the person (what they want to work on, skin, goal weight, body goal) and, with the health field, their conditions and targets. Now and then, not on every log (about one reply in four at most), when something they logged clearly helps or works against one of them, add a short clause on how: salmon's omega-3 for skin, the protein in a meal for building muscle, oats' fibre for an LDL target. Vary which goal you link to, and say nothing when the link would be a stretch.
+
+Alcohol:
+- When the context block has alcohol_week, it is the drinks of the 7 days ending on message_date, as the app's drinks bar shows them: UK units against the 14-unit weekly guide, its status (within, near or over), the alcohol-free days and the drinks by kind. Mention it when they log a drink and the week is near or over the guide, or when they ask; once, briefly and without judgement.
 
 What to do with a message:
 - When they state as a fact something they ate, drank or did ("I had…", "just ran…", "lunch was…"), call log_items once for each distinct date and time in that message, with every item that belongs to it. Log straight away; do not ask for confirmation. If a portion or recipe is vague, choose a typical one and say what you assumed in that item's assumption field.
@@ -125,7 +143,7 @@ function aboutLines(profile: Profile): string[] {
   return lines;
 }
 
-export function buildSystemPrompt(profile: Profile, date: string): string {
+export function buildSystemPrompt(profile: Profile, date: string, earlier: EarlierDays | null = null): string {
   const about = [
     `About the person (as of ${date}):`,
     // Quoted, so a name is only ever read as a name. Used sparingly: a greeting or a well done, not every reply.
@@ -137,7 +155,8 @@ export function buildSystemPrompt(profile: Profile, date: string): string {
     ...aboutLines(profile),
     `- Tone: ${TONES[profile.coach_tone]}`,
   ].join("\n");
-  return `${coachInstructions(profile.companion)}\n\n${about}`;
+  const last = earlier ? `\n\nTheir last days (JSON):\n${JSON.stringify(earlier)}` : "";
+  return `${coachInstructions(profile.companion)}\n\n${about}${last}`;
 }
 
 /** Rounds every numeric field of a flat object, to one decimal place by default. */
@@ -177,6 +196,18 @@ function weekContext(recent: readonly RecentDay[]) {
   return { previous_days, week_average: { days_logged: logged.length, ...average } };
 }
 
+/** The drinks bar's week (2026-10-08 alcohol design), as the coach reads it. */
+function alcoholContext(week: AlcoholWeek) {
+  return {
+    units: week.units,
+    guide_units: ALCOHOL_WEEK_GUIDE,
+    status: week.status,
+    alcohol_free_days: week.alcohol_free_days,
+    drinks: week.drinks.map(({ drink, count, units }) => ({ drink: drink ?? "other", count, units })),
+    by_day: week.days.filter((day) => day.units > 0),
+  };
+}
+
 /**
  * `pastDay` when the message fills in an earlier day the person has open in the app (spec §6.6).
  * `recent` is the days before the message's day (`recentDays`), so the coach sees the week around it.
@@ -212,6 +243,8 @@ export function buildTurnContext(
       exercises: entry.exercises.map(({ id: _id, position: _position, kcal_measured: _measured, avg_hr: _hr, ...item }) => rounded(item, 2)),
     })),
     ...(recent.length > 0 ? weekContext(recent) : {}),
+    ...(view.alcohol ? { alcohol_week: alcoholContext(view.alcohol) } : {}),
+    companion: { mood: view.companion.mood, ...(view.companion.over_alcohol ? { woozy: true } : {}) },
     // Only once the person has agreed to share their Health tab with the coach.
     ...(health ? { health } : {}),
   };
