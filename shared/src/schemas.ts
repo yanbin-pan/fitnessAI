@@ -168,6 +168,8 @@ export const ProfileInput = z.object({
   /** The answers onboarding collects beyond the body numbers. */
   about: AboutInput.prefault({}),
   coach_tone: z.enum(COACH_TONES).default("balanced"),
+  /** Whether the coach keeps memories across days (2026-11-02 memories design). */
+  memories: z.enum(["on", "off"]).default("on"),
   /** Whether Today still offers onboarding's questions: `show` until they are finished or declined, then `done`. */
   onboarding: z.enum(["show", "done"]).default("show"),
 });

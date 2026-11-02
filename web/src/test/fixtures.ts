@@ -67,7 +67,7 @@ export function storedProfile(overrides: Partial<Profile> = {}): Profile {
       focus: ["lose_fat", "skin"], target_weight_kg: 76, sports: ["gym"], sessions_week: 4, experience: null,
       meals: null, cooking: null, alcohol: null, coffee: null, skin_goals: ["glow"], skin_triggers: [], skin_type: null, heard_from: null,
     },
-    coach_tone: "balanced", onboarding: "done",
+    coach_tone: "balanced", memories: "on", onboarding: "done",
     ...overrides,
   };
 }

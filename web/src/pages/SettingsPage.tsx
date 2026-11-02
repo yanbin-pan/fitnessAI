@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "../api.ts";
 import type { ReactNode } from "react";
 import { Link, Navigate, Route, Routes } from "react-router";
 import { CompanionBadge, useCompanionStills } from "../companions/CompanionView.tsx";
 import { CompanionPicker } from "../components/CompanionPicker.tsx";
-import { fieldClass, quietButton } from "../components/ui.tsx";
+import { Toggle, fieldClass, quietButton } from "../components/ui.tsx";
 import { HealthDataSettings } from "../health/CoachView.tsx";
 import { WithHealth } from "../health/common.tsx";
 import { dayAndMonth, thousands } from "../format.ts";
@@ -18,8 +20,8 @@ import { BodyFields, GoalFields, bodyFormFrom, bodyPatch, parseNumber, validateB
 import type { BodyErrors, BodyForm } from "../onboarding/body.tsx";
 import { effectiveTargets } from "../onboarding/plan.ts";
 import { useHealth, useProfile } from "../queries.ts";
-import { COMPANION_NAMES, FOCUSES, LANGUAGES, MAX_NAME_LENGTH, PROFILE_RANGES, isTimeZone } from "../shared.ts";
-import type { About, MacroTargets, ProfileInput, ProfileView } from "../shared.ts";
+import { COMPANION_NAMES, FOCUSES, LANGUAGES, MAX_MEMORY_LENGTH, MAX_NAME_LENGTH, MEMORY_KINDS, PROFILE_RANGES, isTimeZone } from "../shared.ts";
+import type { About, MacroTargets, Memory, MemoryKind, MemoriesView, ProfileInput, ProfileView } from "../shared.ts";
 import { THEMES, useTheme } from "../theme.ts";
 import { timeZoneGroups } from "../timezones.ts";
 
@@ -50,6 +52,7 @@ export function SettingsPage() {
       <Route path="food" element={<FoodPage view={view} />} />
       <Route path="skin" element={<SkinPage view={view} />} />
       <Route path="coach" element={<CoachPage view={view} />} />
+      <Route path="memories" element={<MemoriesPage view={view} />} />
       <Route path="region" element={<RegionPage />} />
       <Route path="data" element={<DataPage />} />
       <Route path="*" element={<Navigate to="/settings" replace />} />
@@ -128,6 +131,7 @@ function Home({ view }: { view: ProfileView }) {
       </Group>
       <Group label={t.prefs.groups.app}>
         <Row to="coach" icon="chat" tint="custard" label={t.prefs.rows.coach} value={`${COMPANION_NAMES[profile.companion]}, ${t.onboarding.coach.tones[profile.coach_tone]}`} />
+        <Row to="memories" icon="star" tint="amber" label={t.memories.row} value={profile.memories === "on" ? undefined : t.memories.off} />
         <Row to="region" icon="translate" tint="violet" label={t.prefs.rows.region} value={LANGUAGE_NAMES[language]} />
         <div className="flex min-h-12 items-center gap-3 text-[15px]">
           <span className="well-tint tint-amber flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"><Icon name="sunny" size={16} /></span>
@@ -377,6 +381,115 @@ function CoachPage({ view }: { view: ProfileView }) {
         <AnswerLabel>{t.onboarding.coach.tone}</AnswerLabel>
         <ToneChoice value={profile.coach_tone} onChange={(coach_tone) => save.mutate({ coach_tone })} />
       </div>
+    </Page>
+  );
+}
+
+/** A memory being written: its words, its kind and, for a plan, its last day. */
+function MemoryEditor({ memory, onSave, onCancel, onDelete }: {
+  memory: Memory | null;
+  onSave: (input: { kind: MemoryKind; text: string; expires_on: string | null }) => void;
+  onCancel: () => void;
+  onDelete?: () => void;
+}) {
+  const t = useT();
+  const [text, setText] = useState(memory?.text ?? "");
+  const [kind, setKind] = useState<MemoryKind>(memory?.kind ?? "preference");
+  const [until, setUntil] = useState(memory?.expires_on ?? "");
+  return (
+    <form className="pressed flex flex-col gap-3 rounded-2xl p-3" onSubmit={(event) => {
+      event.preventDefault();
+      if (text.trim()) onSave({ kind, text: text.trim(), expires_on: until || null });
+    }}>
+      <textarea value={text} onChange={(event) => setText(event.target.value)} maxLength={MAX_MEMORY_LENGTH} rows={2} autoFocus
+        aria-label={t.memories.add} placeholder={t.memories.placeholder} className={`${fieldClass} mt-0 resize-none`} />
+      <div className="flex gap-2">
+        <label className="flex-1 text-xs text-muted">
+          {t.memories.kind}
+          <select value={kind} onChange={(event) => setKind(event.target.value as MemoryKind)} className={`${fieldClass} text-sm`}>
+            {MEMORY_KINDS.map((value) => <option key={value} value={value}>{t.memories.kinds[value]}</option>)}
+          </select>
+        </label>
+        <label className="flex-1 text-xs text-muted">
+          {t.memories.until}
+          <input type="date" value={until} onChange={(event) => setUntil(event.target.value)} className={`${fieldClass} text-sm`} />
+        </label>
+      </div>
+      <div className="flex items-center gap-2">
+        {onDelete && <button type="button" onClick={onDelete} className="min-h-11 px-1 text-sm font-medium text-danger">{t.memories.delete}</button>}
+        <button type="button" onClick={onCancel} className={`${quietButton} ml-auto text-sm`}>{t.memories.cancel}</button>
+        <button type="submit" disabled={!text.trim()} className={`${quietButton} text-sm text-accent-ink`}>{t.memories.save}</button>
+      </div>
+    </form>
+  );
+}
+
+/** A memory id as the server takes it: 8 hex digits, made here so a repeated save makes one memory. */
+function newMemoryId(): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** What Zabaione remembers (2026-11-02 memories design): saved silently from chats, listed here to edit, delete or add. */
+function MemoriesPage({ view }: { view: ProfileView }) {
+  const t = useT();
+  const save = useProfileSave();
+  const client = useQueryClient();
+  const memories = useQuery({ queryKey: ["memories"], queryFn: () => api<MemoriesView>("/api/memories") });
+  const refresh = () => void client.invalidateQueries({ queryKey: ["memories"] });
+  const put = useMutation({ mutationFn: ({ id, input }: { id: string; input: unknown }) => api<Memory>(`/api/memories/${id}`, { method: "PUT", json: input }), onSuccess: refresh });
+  const remove = useMutation({ mutationFn: (id: string) => api<void>(`/api/memories/${id}`, { method: "DELETE" }), onSuccess: refresh });
+  const forgetAll = useMutation({ mutationFn: () => api<void>("/api/memories", { method: "DELETE" }), onSuccess: refresh });
+  const [editing, setEditing] = useState<string | null>(null);
+  const enabled = view.profile.memories === "on";
+  const list = memories.data?.memories ?? [];
+  const status = { isPending: save.isPending || put.isPending || remove.isPending, isSuccess: save.isSuccess || put.isSuccess || remove.isSuccess, isError: save.isError || put.isError || remove.isError };
+  return (
+    <Page title={t.memories.row} save={status}>
+      <p className="-mt-2 ml-1 text-sm leading-snug text-muted">{t.memories.intro}</p>
+      <div className="raised flex items-center justify-between gap-3 rounded-3xl py-1 pl-4 pr-2">
+        <span className="text-[15px]">{t.memories.switch}</span>
+        <Toggle label={t.memories.switch} hideLabel checked={enabled} onChange={(on) => save.mutate({ memories: on ? "on" : "off" })} />
+      </div>
+      {editing === "new" ? (
+        <MemoryEditor memory={null} onCancel={() => setEditing(null)} onSave={(input) => { put.mutate({ id: newMemoryId(), input }); setEditing(null); }} />
+      ) : (
+        <button type="button" onClick={() => setEditing("new")} className="-mb-2 ml-1 flex min-h-11 items-center gap-1.5 self-start text-[15px] font-medium text-accent-ink">
+          <Icon name="add" size={18} />
+          {t.memories.add}
+        </button>
+      )}
+      {memories.isSuccess && list.length === 0 && editing !== "new" && <p className="ml-1 text-sm text-muted">{t.memories.empty}</p>}
+      {MEMORY_KINDS.map((kind) => {
+        const items = list.filter((m) => m.kind === kind);
+        if (items.length === 0) return null;
+        return (
+          <Group key={kind} label={t.memories.kinds[kind]}>
+            {items.map((memory) =>
+              editing === memory.id ? (
+                <div key={memory.id} className="py-3">
+                  <MemoryEditor memory={memory} onCancel={() => setEditing(null)}
+                    onSave={(input) => { put.mutate({ id: memory.id, input }); setEditing(null); }}
+                    onDelete={() => { remove.mutate(memory.id); setEditing(null); }} />
+                </div>
+              ) : (
+                <button key={memory.id} type="button" onClick={() => setEditing(memory.id)} className="flex min-h-12 w-full flex-col justify-center py-2 text-left">
+                  <span className="text-[15px] leading-snug">{memory.text}</span>
+                  {(memory.expires_on || memory.source === "person") && (
+                    <span className="mt-0.5 text-xs text-muted">
+                      {[memory.expires_on ? t.memories.untilDate(dayAndMonth(memory.expires_on, t)) : null, memory.source === "person" ? t.memories.byYou : null].filter(Boolean).join(" · ")}
+                    </span>
+                  )}
+                </button>
+              ),
+            )}
+          </Group>
+        );
+      })}
+      {list.length > 0 && (
+        <button type="button" onClick={() => window.confirm(t.memories.confirm) && forgetAll.mutate()} className={`${quietButton} self-center text-sm text-danger`}>
+          {t.memories.forgetAll}
+        </button>
+      )}
     </Page>
   );
 }

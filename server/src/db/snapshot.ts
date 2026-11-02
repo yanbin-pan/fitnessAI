@@ -23,6 +23,7 @@ export function stripConversations(file: string): void {
         if (tables.has(table)) copy.prepare(`DELETE FROM ${table}`).run();
       }
       if (tables.has("entries")) copy.prepare("UPDATE entries SET message_id = NULL").run();
+      if (tables.has("memories")) copy.prepare("UPDATE memories SET message_id = NULL").run();
     })();
     copy.exec("VACUUM");
   } finally {

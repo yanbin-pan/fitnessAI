@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AiTool } from "../ai/client.ts";
-import { ACTIVITIES, DRINKS, EXERCISE_CATEGORIES, FOOD_GROUPS, MICROS, MUSCLES, MUSCLE_ROLES } from "../shared.ts";
+import { ACTIVITIES, DRINKS, EXERCISE_CATEGORIES, FOOD_GROUPS, MAX_MEMORY_LENGTH, MEMORY_KINDS, MICROS, MUSCLES, MUSCLE_ROLES } from "../shared.ts";
 
 // The coach's tool inputs (spec §6.1). Strict tool use needs every property
 // required and every object closed, so optional values are nullable instead of
@@ -71,6 +71,21 @@ export const UpdateEntryInput = z.strictObject({
   exercises: z.array(ExerciseToolItem).describe("The entry's complete corrected exercise list, including unchanged items"),
 });
 export type UpdateEntryInput = z.infer<typeof UpdateEntryInput>;
+
+export const RememberInput = z.strictObject({
+  kind: z.enum(MEMORY_KINDS).describe("preference: likes and dislikes; routine: when and how they usually eat or train; plan: something coming up, with until; training: notes on their training, body or progress; commitment: something they decided to do"),
+  text: z.string().max(MAX_MEMORY_LENGTH).describe("One short sentence in the app's language (reply_language), about them in the third person, e.g. 'Half marathon on 12 April'"),
+  until: z.string().nullable().describe("YYYY-MM-DD: the last day it holds, for a plan or a trip; null while it stays true"),
+  replaces: z.string().nullable().describe("The id of a memory this updates or corrects; null for a new one"),
+});
+export type RememberInput = z.infer<typeof RememberInput>;
+
+export const ForgetInput = z.strictObject({
+  id: z.string().describe("The id of the memory that no longer holds"),
+});
+
+/** The tools that only touch memories: a reply that calls only these is done, with no second call to Claude. */
+export const SILENT_TOOLS: ReadonlySet<string> = new Set(["remember", "forget"]);
 
 /** Rewrites `type: [X, "null"]` as anyOf, a form strict tool use documents as supported. */
 function normalize(node: unknown): unknown {
@@ -150,3 +165,19 @@ export function amountIssues(input: { foods: FoodToolItem[]; exercises: Exercise
   });
   return issues;
 }
+
+export const MEMORY_TOOLS: AiTool[] = [
+  {
+    name: "remember",
+    description:
+      "Silently save, or update, one lasting fact about the person for later days: a preference, a routine, a plan coming up, a training note or a commitment. Never a health condition, medication, allergy or test result. Call it in the same turn as your reply.",
+    strict: false,
+    input_schema: strictJsonSchema(RememberInput) as AiTool["input_schema"],
+  },
+  {
+    name: "forget",
+    description: "Silently delete a memory that no longer holds or that they ask you to forget. Call it in the same turn as your reply.",
+    strict: false,
+    input_schema: strictJsonSchema(ForgetInput) as AiTool["input_schema"],
+  },
+];

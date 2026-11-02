@@ -11,3 +11,4 @@ export * from "./fatsugar.ts";
 export * from "./about.ts";
 export * from "./reactions.ts";
 export * from "./tips.ts";
+export * from "./memories.ts";

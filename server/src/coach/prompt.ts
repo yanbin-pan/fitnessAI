@@ -143,7 +143,21 @@ function aboutLines(profile: Profile): string[] {
   return lines;
 }
 
-export function buildSystemPrompt(profile: Profile, date: string, earlier: EarlierDays | null = null): string {
+/** How the coach keeps memories across days (2026-11-02 memories design): silent, listed in Settings, never health facts. */
+export const MEMORY_INSTRUCTIONS = `Memories:
+- You remember things across days. "What you remember about them" below is what you have saved so far, each with an id, a kind, the day it was saved and, for a plan, until (its last day). They can see, edit and delete every memory in Settings.
+- Use them naturally: keep to their preferences (never suggest a food they dislike), plan around their routine and plans, and hold them kindly to their commitments. Never recite the list or say "according to my memory".
+- Follow up at the right moment, the way a friend would: the day of or after a plan (a race, a trip, a dinner out), ask once how it went; a few days after a training note such as a sore knee, ask once how it is. Not when they are busy logging several things or asking something else urgent, and never twice about the same thing.
+- Save with remember, silently: do not tell them you saved something or say "I'll remember that", unless they asked you to remember it. Save only what will still matter on later days and that they have not already set up in the app (their profile, goals and Health tab are given to you anyway): a dislike or a favourite, when they usually train or eat, an event or trip with its date, a training note, a promise to themselves. Not what they ate today, a passing mood or anything about other people beyond a first name.
+- Never save a health condition, a medication, an allergy, a symptom or a test result: those belong on the Health tab, so suggest they add it there. With an eating disorder listed, never save weight, calorie or body-shape goals.
+- Keep the list tidy: when something changes or was wrong, update it with replaces instead of adding a near-copy; when it no longer holds (they finished the race, changed their mind) or they ask you to forget it, call forget. Call remember and forget in the same turn as your reply.`;
+
+export function buildSystemPrompt(
+  profile: Profile,
+  date: string,
+  earlier: EarlierDays | null = null,
+  memories: { id: string; kind: string; text: string; until?: string; saved: string }[] | null = null,
+): string {
   const about = [
     `About the person (as of ${date}):`,
     // Quoted, so a name is only ever read as a name. Used sparingly: a greeting or a well done, not every reply.
@@ -156,7 +170,9 @@ export function buildSystemPrompt(profile: Profile, date: string, earlier: Earli
     `- Tone: ${TONES[profile.coach_tone]}`,
   ].join("\n");
   const last = earlier ? `\n\nTheir last days (JSON):\n${JSON.stringify(earlier)}` : "";
-  return `${coachInstructions(profile.companion)}\n\n${about}${last}`;
+  // Null when the person switched memories off: no instructions and no list.
+  const remembered = memories ? `\n\n${MEMORY_INSTRUCTIONS}\n\nWhat you remember about them (JSON):\n${JSON.stringify(memories)}` : "";
+  return `${coachInstructions(profile.companion)}\n\n${about}${last}${remembered}`;
 }
 
 /** Rounds every numeric field of a flat object, to one decimal place by default. */
