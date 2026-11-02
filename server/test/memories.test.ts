@@ -45,6 +45,7 @@ describe("memories in the store", () => {
     const prompt = buildSystemPrompt(makeProfile(), "2026-10-03", null, [{ id: "abcd0123", kind: "preference", text: "Hates coriander", saved: "2026-10-01" }]);
     expect(prompt).toContain("Save with remember, silently");
     expect(prompt).toContain("Follow up at the right moment");
+    expect(prompt).toContain("save how their portions run as a routine memory");
     expect(prompt).toContain('What you remember about them (JSON):\n[{"id":"abcd0123","kind":"preference","text":"Hates coriander","saved":"2026-10-01"}]');
     expect(buildSystemPrompt(makeProfile(), "2026-10-03")).not.toContain("Memories:");
   });
