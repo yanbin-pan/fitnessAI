@@ -230,7 +230,6 @@ export const lt: Messages = {
     hide: "Slėpti",
     swipeHint: "Braukite kairėn, kad pašalintumėte",
     open: "Greitas įrašas",
-    due: "Tai, ką paprastai įrašote šiuo metu",
     items: "Mėgstami",
     matches: "Atitinkantys mėgstami",
     log: (name, kcal) => `Įrašyti: ${name}, ${kcal}`,

@@ -141,7 +141,7 @@ export function TodayPage() {
     },
   });
   const undo = useMutation({
-    mutationFn: async (ids: string[]) => {
+    mutationFn: async ({ ids, reply }: { ids: string[]; reply?: string }) => {
       let last: DeleteResult | null = null;
       for (const id of ids) {
         try {
@@ -151,6 +151,9 @@ export function TodayPage() {
           if (!(error instanceof ApiError && error.status === 404)) throw error;
         }
       }
+      // The reply also corrected older entries: the server puts them back as they were (and would take back what
+      // the reply logged too, so a deleted entry above is no trouble).
+      if (reply) last = await api<DeleteResult>(`/api/messages/${reply}/undo`, { method: "POST" });
       return last;
     },
     onSuccess: (last) => {
@@ -222,9 +225,9 @@ export function TodayPage() {
           retry.mutate(id);
         }}
         onEdit={(entry) => setEditing({ date: view.date, entry })}
-        onUndo={(ids) => {
+        onUndo={(ids, reply) => {
           retry.reset();
-          undo.mutate(ids);
+          undo.mutate({ ids, reply });
         }}
         greeting={greeting}
         speaker={speaker}

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import type { EntryBefore } from "../log/entries.ts";
 
 // Column names are snake_case and match the spec (§5) and the API, so rows map
 // onto API objects without renaming. Keep this file free of app imports:
@@ -164,6 +165,8 @@ export const messages = sqliteTable(
     reply_to: text().unique(),
     /** User messages only: the companion's emoji reaction to it, set with the reply; null for none. */
     reaction: text(),
+    /** On a reply: the entries it changed as they were before, for Undo (2026-11-02); null when there are none. */
+    undo: text({ mode: "json" }).$type<EntryBefore[]>(),
     sent_at: text(),
     created_at: text().notNull(),
   },

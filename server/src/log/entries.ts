@@ -58,6 +58,16 @@ export interface NewEntry {
   exercises: ExerciseItemData[];
 }
 
+/** An entry as it was before a reply changed it: what Undo puts back, unless it has been changed again since. */
+export interface EntryBefore {
+  entry_id: string;
+  foods: FoodItemData[];
+  exercises: ExerciseItemData[];
+  edited: boolean;
+  /** The entry's updated_at just after the reply changed it. */
+  changed_at: string;
+}
+
 /** An entry's items as they would be stored again: what pasting a copy duplicates, nutrition and all. */
 export function itemsOf(entry: Entry): { foods: FoodItemData[]; exercises: ExerciseItemData[] } {
   return {
@@ -121,6 +131,21 @@ export function replaceEntryItems(
     tx.delete(exerciseItems).where(eq(exerciseItems.entry_id, entryId)).run();
     insertItems(tx, entryId, foods, exercises);
     tx.update(entries).set({ edited: true, updated_at: nowIso }).where(eq(entries.id, entryId)).run();
+    return true;
+  });
+}
+
+/** Puts back an entry as it was before a reply changed it; false when it is gone or has been changed again since. */
+export function restoreEntry(sql: Sql, before: EntryBefore, nowIso: string): boolean {
+  return sql.transaction((tx) => {
+    const row = tx
+      .select({ updated_at: entries.updated_at })
+      .from(entries)
+      .where(and(eq(entries.id, before.entry_id), isNull(entries.deleted_at)))
+      .get();
+    if (!row || row.updated_at !== before.changed_at) return false;
+    replaceEntryItems(tx, before.entry_id, before.foods, before.exercises, nowIso);
+    tx.update(entries).set({ edited: before.edited }).where(eq(entries.id, before.entry_id)).run();
     return true;
   });
 }

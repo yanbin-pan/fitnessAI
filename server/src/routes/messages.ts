@@ -5,12 +5,12 @@ import { buildDayView, ensureDay } from "../days/days.ts";
 import { starterFor } from "../days/featured.ts";
 import { forRequest } from "../deps.ts";
 import type { AppDeps, RequestDeps } from "../deps.ts";
-import { getMessage, getReply, insertUserMessage, setMessageStatus, toChatMessage } from "../messages/messages.ts";
+import { getMessage, getReply, insertUserMessage, setMessageStatus, toChatMessage, undoReply } from "../messages/messages.ts";
 import { personLabels, recordCoach } from "../metrics.ts";
 import { claimPhotos } from "../photos/photos.ts";
 import { getProfile } from "../profile/profile.ts";
 import { MessageInput, chatOpen } from "../shared.ts";
-import type { DayView, MessageResult } from "../shared.ts";
+import type { DayView, DeleteResult, MessageResult } from "../shared.ts";
 import { localDate, todayIn } from "../time.ts";
 import { parseBody } from "./http.ts";
 import { openEventStream } from "./stream.ts";
@@ -146,5 +146,22 @@ export function registerMessageRoutes(app: FastifyInstance, appDeps: AppDeps): v
     if (wantsStream(req)) return streamWork(deps, req, reply, existing.id, existing.date);
     await runSafely(deps, existing.id, req.log);
     return messageResult(deps, existing.id);
+  });
+
+  // Undo on a reply (2026-11-02): removes what its message logged and puts back the older entries it changed.
+  // Doing it twice is harmless: what is gone stays gone, and the earlier items are put back only once.
+  app.post<{ Params: { id: string } }>("/api/messages/:id/undo", async (req, reply) => {
+    const deps = forRequest(appDeps, req);
+    const profile = getProfile(deps.db);
+    if (!profile) return reply.code(409).send({ error: "no_profile" });
+    const existing = getMessage(deps.db, req.params.id);
+    if (!existing || existing.role !== "assistant") return reply.code(404).send({ error: "not_found" });
+    const now = deps.now();
+    const nowIso = now.toISOString();
+    undoReply(deps.db, existing, nowIso);
+    const result: DeleteResult = {
+      day: buildDayView(deps.db, profile, existing.date, todayIn(profile.timezone, now), nowIso, starterFor(deps.person.owner)),
+    };
+    return result;
   });
 }

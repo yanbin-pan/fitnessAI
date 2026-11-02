@@ -230,7 +230,6 @@ export const zh: Messages = {
     hide: "隐藏",
     swipeHint: "向左滑动即可移除",
     open: "快速记录",
-    due: "你通常在这个时候记录的内容",
     items: "常用项",
     matches: "匹配的常用项",
     log: (name, kcal) => `记录${name}，${kcal}`,

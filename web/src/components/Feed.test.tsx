@@ -91,6 +91,26 @@ describe("Feed", () => {
     expect(onUndo).toHaveBeenCalledWith(["new"]);
   });
 
+  it("offers Undo on a card a reply only corrected, while the server keeps what it was before", async () => {
+    const onUndo = vi.fn();
+    const corrected = entry({ id: "old", message_id: "m0", source: "regular", edited: true });
+    const reply = message({ id: "m2", role: "assistant", status: null, reply_to: "m1", cards: [{ type: "entry", id: "old" }], reverts: ["old"] });
+    render(<Feed view={dayView({ entries: [corrected], messages: [message({ id: "m1" }), reply] })} logOnly={false} onRetry={vi.fn()} onUndo={onUndo} />);
+    await userEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(onUndo).toHaveBeenCalledWith([], "m2");
+  });
+
+  it("offers Undo on a card logged from the frequent items, but not on one added by hand", async () => {
+    const onUndo = vi.fn();
+    const tapped = entry({ id: "tap", source: "regular", foods: [foodItem({ id: "f-tap", name: "Porridge" })] });
+    const manual = entry({ id: "hand", source: "manual", foods: [foodItem({ id: "f-hand", name: "Apple" })] });
+    render(<Feed view={dayView({ entries: [tapped, manual] })} logOnly={false} onRetry={vi.fn()} onUndo={onUndo} />);
+    const undos = screen.getAllByRole("button", { name: "Undo" });
+    expect(undos).toHaveLength(1);
+    await userEvent.click(undos[0]);
+    expect(onUndo).toHaveBeenCalledWith(["tap"]);
+  });
+
   it("shows what a reply logged for an earlier day, says which day, and offers Undo for it", async () => {
     const onUndo = vi.fn();
     // "Yesterday I had two eggs": the entry is dated 2 Oct, so it is not in 3 Oct's own entries.

@@ -74,8 +74,11 @@ interface FeedProps {
   logOnly: boolean;
   onRetry: (messageId: string) => void;
   onEdit?: (entry: Entry) => void;
-  /** Deletes what a reply logged (spec §6.1: Undo is a delete). */
-  onUndo?: (entryIds: string[]) => void;
+  /**
+   * Deletes what a reply or a quick tap logged (spec §6.1: Undo is a delete). With `reply`, the reply also changed older
+   * entries, which its own undo puts back as they were (2026-11-02).
+   */
+  onUndo?: (entryIds: string[], reply?: string) => void;
   /** The message whose retry is on its way: its Retry stays disabled until the request ends. */
   retrying?: string | null;
   /** Zabaione's hello at the top of today's chat (the name and greeting design, 3B); never stored, made on the phone. */
@@ -216,12 +219,15 @@ function Bubble({
       </>
     );
   }
-  // Undo removes only what this reply's own message logged; an older entry it
-  // corrected stays (open it to change or delete it).
-  const undoable = message.cards
-    .map((card) => entries.get(card.id))
-    .filter((entry): entry is Entry => entry !== undefined && message.reply_to !== null && entry.message_id === message.reply_to)
+  // Undo removes what this reply's own message logged, and puts back an older entry it corrected as it was before
+  // (2026-11-02), while the server still keeps that (reverts). An older server keeps nothing, and then the entry stays.
+  const reverts = new Set(message.reverts ?? []);
+  const shown = message.cards.map((card) => entries.get(card.id)).filter((entry): entry is Entry => entry !== undefined);
+  const undoable = shown
+    .filter((entry) => message.reply_to !== null && entry.message_id === message.reply_to)
     .map((entry) => entry.id);
+  const reverted = shown.filter((entry) => reverts.has(entry.id)).map((entry) => entry.id);
+  const lastUndoable = shown.filter((entry) => undoable.includes(entry.id) || reverted.includes(entry.id)).at(-1)?.id;
   return (
     <div className="mr-6 flex flex-col gap-2">
       {message.text && (
@@ -241,7 +247,8 @@ function Bubble({
           );
         }
         // Undo is a small icon in the corner of the reply's last undoable card (2026-10-21), and takes back all of them.
-        const undo = onUndo && card.id === undoable.at(-1) ? () => onUndo(undoable) : undefined;
+        const undo =
+          onUndo && card.id === lastUndoable ? () => (reverted.length > 0 ? onUndo(undoable, message.id) : onUndo(undoable)) : undefined;
         if (entry.date === date) return <EntryCard key={card.id} entry={entry} onEdit={onEdit} onUndo={undo} />;
         // Back-dated by the coach ("yesterday I had..."): it belongs to another day, so say which.
         return (
@@ -303,7 +310,12 @@ export function Feed({ view, logOnly, onRetry, onEdit, onUndo, retrying, greetin
             </li>
           ) : item.kind === "entry" ? (
             <li key={`e-${item.entry.id}`}>
-              <EntryCard entry={item.entry} onEdit={onEdit} />
+              {/* A quick tap from the frequent items gets the same Undo as a reply's entry (2026-11-02). */}
+              <EntryCard
+                entry={item.entry}
+                onEdit={onEdit}
+                onUndo={onUndo && item.entry.source === "regular" ? () => onUndo([item.entry.id]) : undefined}
+              />
             </li>
           ) : (
             <li key={`m-${item.message.id}`}>

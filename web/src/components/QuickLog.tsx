@@ -153,8 +153,8 @@ function QuickChip({ item, quick, typed, onLogged }: { item: QuickItem; quick: Q
   );
 }
 
-/** The star button beside the camera, with a dot while something is due. */
-export function QuickButton({ open, due, onToggle, disabled }: { open: boolean; due: boolean; onToggle: () => void; disabled?: boolean }) {
+/** The star button beside the camera. It has no dot for what is due (2026-11-02): it was on nearly all the time. */
+export function QuickButton({ open, onToggle, disabled }: { open: boolean; onToggle: () => void; disabled?: boolean }) {
   const t = useT();
   return (
     <button
@@ -166,9 +166,6 @@ export function QuickButton({ open, due, onToggle, disabled }: { open: boolean; 
       className={`tap relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-accent-ink disabled:opacity-40 ${open ? "pressed" : "raised-sm"}`}
     >
       <Icon name="star" size={22} />
-      {due && !open && (
-        <span role="img" aria-label={t.quick.due} className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-accent shadow-[0_0_0_2px_var(--nm-base)]" />
-      )}
     </button>
   );
 }
