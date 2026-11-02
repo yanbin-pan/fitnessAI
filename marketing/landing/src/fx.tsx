@@ -23,36 +23,37 @@ export function useInView<T extends Element>(threshold = 0.2, once = true) {
   return [ref, seen] as const;
 }
 
-/** BlurText: words arrive one by one out of a soft blur. */
+/** BlurText: words arrive one by one out of a soft blur. Visible by default; the reveal only runs once it is seen. */
 export function BlurText({ text, as: Tag = "h1", className = "", delay = 70 }: { text: string; as?: "h1" | "h2" | "p"; className?: string; delay?: number }) {
   const [ref, seen] = useInView<HTMLHeadingElement>(0.3);
+  const [phase, setPhase] = useState<"static" | "pre" | "in">("static");
+  useEffect(() => {
+    if (!seen || reduceMotion()) return;
+    setPhase("pre");
+    const id = window.setTimeout(() => setPhase("in"), 40);
+    return () => clearTimeout(id);
+  }, [seen]);
   const words = text.split(" ");
   return (
-    <Tag ref={ref as never} className={`blur-text ${seen ? "in" : ""} ${className}`} aria-label={text}>
+    <Tag ref={ref as never} className={`blur-text ${phase} ${className}`} aria-label={text}>
       {words.map((w, i) => (
-        <span key={i} aria-hidden="true" style={{ transitionDelay: `${i * delay}ms` }}>{w}{i < words.length - 1 ? " " : ""}</span>
+        <span key={i} aria-hidden="true" style={{ transitionDelay: phase === "in" ? `${i * delay}ms` : "0ms" }}>{w}{i < words.length - 1 ? "\u00a0" : ""}</span>
       ))}
     </Tag>
   );
 }
 
-/** RotatingText: phrases swap in place, letters rolling up one after another. */
-export function RotatingText({ items, interval = 2600 }: { items: string[]; interval?: number }) {
+/** RotatingText: phrases swap in place with a short rise. */
+export function RotatingText({ items, interval = 2800 }: { items: string[]; interval?: number }) {
   const [i, setI] = useState(0);
   useEffect(() => {
     if (reduceMotion()) return;
     const id = setInterval(() => setI((n) => (n + 1) % items.length), interval);
     return () => clearInterval(id);
   }, [items.length, interval]);
-  const word = items[i];
   return (
     <span className="rotating" aria-live="polite">
-      <span className="sr-only">{word}</span>
-      <span key={i} className="rot-word" aria-hidden="true">
-        {[...word].map((c, k) => (
-          <span key={k} style={{ animationDelay: `${k * 22}ms` }}>{c === " " ? " " : c}</span>
-        ))}
-      </span>
+      <span key={i} className="rot-word">{items[i]}</span>
     </span>
   );
 }
