@@ -100,6 +100,11 @@ export interface ChatMessage {
   reply_to: string | null;
   /** User messages only: the companion's emoji reaction, like a tapback; null for none. */
   reaction: Reaction | null;
+  /**
+   * On a reply: the older entries it changed whose earlier items are kept, so Undo can put them back (2026-11-02).
+   * Empty once undone, and an older server does not send it.
+   */
+  reverts?: string[];
   sent_at: string | null;
   created_at: string;
 }

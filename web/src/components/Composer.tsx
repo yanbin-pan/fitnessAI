@@ -334,7 +334,7 @@ export function Composer({
             <Icon name="add_a_photo" size={22} />
             <input type="file" accept="image/*" multiple aria-label={t.composer.addPhotos} disabled={full || phase === "storing"} onChange={onFiles} className="sr-only" />
           </label>
-          {quickOn && <QuickButton open={quickOpen} due={quick.some((item) => item.due)} onToggle={() => setQuickOpen((open) => !open)} />}
+          {quickOn && <QuickButton open={quickOpen} onToggle={() => setQuickOpen((open) => !open)} />}
           <textarea
             id={COMPOSER_TEXT_ID}
             aria-label={t.composer.message}

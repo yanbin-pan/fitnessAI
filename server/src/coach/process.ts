@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { AiClient, AiMessage, AiUsage } from "../ai/client.ts";
 import { buildDayView, getDay, recentDays, snapshotValues } from "../days/days.ts";
 import type { Sql } from "../db/types.ts";
+import type { EntryBefore } from "../log/entries.ts";
 import { healthContext } from "../health/records.ts";
 import { getMessage, insertReply, listMessages, setMessageReaction, setMessageStatus } from "../messages/messages.ts";
 import { photoData } from "../photos/photos.ts";
@@ -160,7 +161,8 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
 
   const doneIso = deps.now().toISOString();
   deps.db.transaction((tx) => {
-    const changed = applyStaging(tx, staging, profile, doneIso);
+    const befores: EntryBefore[] = [];
+    const changed = applyStaging(tx, staging, profile, doneIso, befores);
     appendTurns(tx, message.date, messageId, [storedTurn, ...result.turns.slice(1)], doneIso);
     insertReply(tx, {
       id: randomUUID(),
@@ -168,6 +170,7 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
       date: message.date,
       text: result.replyText,
       cards: changed.map((id) => ({ type: "entry" as const, id })),
+      undo: befores,
       nowIso: doneIso,
     });
     recordRun(tx, { ...run, nowIso: doneIso });

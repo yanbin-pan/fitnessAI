@@ -254,7 +254,6 @@ export const en = {
     hide: "Hide",
     swipeHint: "Swipe left to remove",
     open: "Quick log",
-    due: "Something you usually log now",
     items: "Frequent items",
     matches: "Matching frequent items",
     log: (name: string, kcal: string) => `Log ${name}, ${kcal}`,

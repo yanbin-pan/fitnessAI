@@ -1,8 +1,8 @@
 import type { z } from "zod";
 import { ensureDay } from "../days/days.ts";
 import type { Sql } from "../db/types.ts";
-import { getEntry, insertEntry, replaceEntryItems } from "../log/entries.ts";
-import type { ExerciseItemData, FoodItemData, NewEntry } from "../log/entries.ts";
+import { getEntry, insertEntry, itemsOf, replaceEntryItems } from "../log/entries.ts";
+import type { EntryBefore, ExerciseItemData, FoodItemData, NewEntry } from "../log/entries.ts";
 import { MAX_BACKDATE_DAYS, TIME_HHMM, daysBetween, isIsoDate } from "../shared.ts";
 import type { EntrySource, Profile } from "../shared.ts";
 import { exerciseKcal } from "../targets/targets.ts";
@@ -152,8 +152,11 @@ export function executeTool(name: string, input: unknown, ctx: ToolContext): Too
   return fail(`unknown tool ${name}`);
 }
 
-/** Writes everything staged. Run inside the message's final transaction. */
-export function applyStaging(sql: Sql, staging: Staging, profile: Profile, nowIso: string): string[] {
+/**
+ * Writes everything staged. Run inside the message's final transaction. Each stored entry it changes is added to
+ * `befores` as it was, so the reply's Undo can put it back.
+ */
+export function applyStaging(sql: Sql, staging: Staging, profile: Profile, nowIso: string, befores: EntryBefore[] = []): string[] {
   const changed: string[] = [];
   for (const entry of staging.creates) {
     ensureDay(sql, profile, entry.date, nowIso);
@@ -162,7 +165,10 @@ export function applyStaging(sql: Sql, staging: Staging, profile: Profile, nowIs
   }
   // An entry deleted while the coach was thinking stays deleted, and gets no card.
   for (const [id, items] of staging.updates) {
-    if (replaceEntryItems(sql, id, items.foods, items.exercises, nowIso)) changed.push(id);
+    const before = getEntry(sql, id);
+    if (!before || !replaceEntryItems(sql, id, items.foods, items.exercises, nowIso)) continue;
+    changed.push(id);
+    befores.push({ entry_id: id, ...itemsOf(before), edited: before.edited, changed_at: nowIso });
   }
   return changed;
 }

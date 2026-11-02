@@ -35,14 +35,13 @@ describe("Composer: quick log", () => {
     unmount();
     renderWithProviders(<Composer date="2026-10-03" quick={ITEMS} quickOn />);
     expect(screen.queryByRole("list", { name: "Frequent items" })).toBeNull();
-    expect(screen.queryByRole("img", { name: "Something you usually log now" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Quick log" }));
     expect(screen.getByRole("list", { name: "Frequent items" })).toBeInTheDocument();
   });
 
-  it("puts a dot on the button while something is due", () => {
+  it("puts no dot on the button, even while something is due", () => {
     renderWithProviders(<Composer date="2026-10-03" quick={[item({ due: true })]} quickOn />);
-    expect(screen.getByRole("img", { name: "Something you usually log now" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Quick log" }).querySelector("span")).toBeNull();
   });
 
   it("logs a pinned item with one tap, without the coach, then offers an undo", async () => {

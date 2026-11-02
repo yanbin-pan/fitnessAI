@@ -179,6 +179,41 @@ describe("POST /api/messages", () => {
     expect(second.json().reply.cards).toEqual([{ type: "entry", id: entryId }]);
   });
 
+  it("Undo on a reply puts back the entry it corrected and takes back what it logged, once", async () => {
+    let entryId = "";
+    const { app } = await appWith([
+      toolCall([{ name: "log_items", input: logItemsInput() }]),
+      textReply("Logged."),
+      () => toolCall([
+        { name: "update_entry", input: { entry_id: entryId, foods: [{ ...TOOL_EGGS, name: "3 scrambled eggs", kcal: 270 }], exercises: [] } },
+        { name: "log_items", input: logItemsInput({ foods: [{ ...TOOL_EGGS, name: "Toast", kcal: 90 }] }) },
+      ]),
+      textReply("Updated to 3 eggs, and logged the toast."),
+    ]);
+    const first = await send(app, "2 scrambled eggs");
+    entryId = first.json().day.entries[0].id;
+    const second = await send(app, "actually 3 eggs, and a toast", randomUUID(), "2026-10-03T11:59:00.000Z");
+    const reply = second.json().reply;
+    expect(reply.reverts).toEqual([entryId]);
+    expect(second.json().day.entries).toHaveLength(2);
+
+    const undo = await app.app.inject({ method: "POST", url: `/api/messages/${reply.id}/undo`, headers: app.headers });
+    expect(undo.statusCode).toBe(200);
+    const day = undo.json().day;
+    expect(day.entries).toHaveLength(1);
+    expect(day.entries[0]).toMatchObject({ id: entryId, edited: false, foods: [{ name: "Scrambled eggs", kcal: 180 }] });
+    expect(day.messages.find((m: { id: string }) => m.id === reply.id).reverts).toEqual([]);
+
+    const again = await app.app.inject({ method: "POST", url: `/api/messages/${reply.id}/undo`, headers: app.headers });
+    expect(again.json().day.entries).toEqual(day.entries);
+  });
+
+  it("Undo answers 404 for an unknown message or a person's own message", async () => {
+    const { app } = await appWith([]);
+    const res = await app.app.inject({ method: "POST", url: `/api/messages/${randomUUID()}/undo`, headers: app.headers });
+    expect(res.statusCode).toBe(404);
+  });
+
   it("refuses messages from the future or from more than a week ago", async () => {
     const { app } = await appWith([]);
     expect((await send(app, "x", randomUUID(), "2026-10-04T12:00:00.000Z")).json()).toEqual({ error: "future_date" });

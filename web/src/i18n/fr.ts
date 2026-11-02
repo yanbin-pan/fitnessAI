@@ -232,7 +232,6 @@ export const fr: Messages = {
     hide: "Masquer",
     swipeHint: "Glissez vers la gauche pour retirer",
     open: "Saisie rapide",
-    due: "Quelque chose que vous notez d’habitude maintenant",
     items: "Favoris",
     matches: "Favoris correspondants",
     log: (name, kcal) => `Enregistrer ${name}, ${kcal}`,

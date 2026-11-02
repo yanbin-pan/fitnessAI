@@ -230,7 +230,6 @@ export const es: Messages = {
     hide: "Ocultar",
     swipeHint: "Desliza a la izquierda para quitar",
     open: "Registro rápido",
-    due: "Algo que sueles registrar a esta hora",
     items: "Favoritos",
     matches: "Favoritos que coinciden",
     log: (name, kcal) => `Registrar ${name}, ${kcal}`,

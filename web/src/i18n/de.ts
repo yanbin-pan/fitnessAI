@@ -230,7 +230,6 @@ export const de: Messages = {
     hide: "Ausblenden",
     swipeHint: "Nach links wischen zum Entfernen",
     open: "Schnell eintragen",
-    due: "Etwas, das du um diese Zeit meist einträgst",
     items: "Favoriten",
     matches: "Passende Favoriten",
     log: (name, kcal) => `${name} eintragen, ${kcal}`,

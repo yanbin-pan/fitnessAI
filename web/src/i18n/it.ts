@@ -230,7 +230,6 @@ export const it: Messages = {
     hide: "Nascondi",
     swipeHint: "Scorri a sinistra per rimuovere",
     open: "Registrazione rapida",
-    due: "Qualcosa che di solito registri adesso",
     items: "Preferiti",
     matches: "Preferiti corrispondenti",
     log: (name, kcal) => `Registra ${name}, ${kcal}`,
