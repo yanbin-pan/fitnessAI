@@ -106,6 +106,7 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
           fillsInPastDay(message.date, sentAt, profile.timezone),
           recentDays(deps.db, profile, message.date, nowIso),
           deps.health ? healthContext(deps.health) : null,
+          profile.sex,
         ),
       },
       ...message.photo_ids.map(photoRef),

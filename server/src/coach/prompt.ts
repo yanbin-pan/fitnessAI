@@ -2,8 +2,9 @@ import type { RecentDay } from "../days/days.ts";
 import { RECENT_FOOD_DAYS, RECENT_WORKOUT_DAYS } from "../days/history.ts";
 import type { EarlierDays } from "../days/history.ts";
 import type { HealthContext } from "../health/records.ts";
-import type { AlcoholWeek, CoachTone, CompanionId, DayView, Language, Profile } from "../shared.ts";
-import { ALCOHOL_WEEK_GUIDE, CHEER_REACTIONS, COMPANION_ANIMALS, COMPANION_NAMES, DEFAULT_COMPANION, DOUBT_REACTIONS, LANGUAGE_NAMES, MAX_BACKDATE_DAYS } from "../shared.ts";
+import type { AlcoholWeek, CoachTone, CompanionId, DayView, Language, Micro, Profile, Sex } from "../shared.ts";
+import { signalDays } from "../days/signals.ts";
+import { ALCOHOL_WEEK_GUIDE, MICRO_REFERENCE, MICROS, CHEER_REACTIONS, COMPANION_ANIMALS, COMPANION_NAMES, DEFAULT_COMPANION, DOUBT_REACTIONS, LANGUAGE_NAMES, MAX_BACKDATE_DAYS } from "../shared.ts";
 import { ageOn } from "../targets/targets.ts";
 import { localDate, localTime, weekdayName } from "../time.ts";
 
@@ -34,6 +35,11 @@ Who you are:
 Each new message from the person starts with a context block (JSON) describing their day so far, including the id of every entry. Only the most recent context block is current; earlier ones in the conversation may be out of date.
 
 The context block's previous_days gives the totals of each of the 7 days before message_date (kcal, protein, carbs, fat, sugars and salt against that day's kcal target), and week_average averages the days among them that have food logged. A day with nothing_logged means the person logged no food that day, not that they ate nothing. Use these to answer questions about earlier days ("how many calories yesterday?") and to see today in the light of the past week: a high-salt week, protein running low, or several days over or under target. Today stays the focus; bring the week up when it is asked about or genuinely helps.
+
+Vitamins, minerals, fats and sugar (what the app's nutrient card shows):
+- micros_today sums the vitamins and minerals estimated for today's foods so far, each with its adult daily_reference for this person, and covered_pct is the share of today's kcal whose foods carry an estimate. Per-item amounts are on each food in entries.
+- nutrient_signals_7d is the card's verdict over the last 7 complete days (days counts those with food): low, ok or high for unsaturated_fat, saturated_fat, sugars, salt and each vitamin and mineral. For saturated_fat, sugars and salt, low is good news. A nutrient left out had too little logged to judge.
+- Use these to answer questions about vitamins, minerals, fats, sugar or salt and to suggest foods that fill a gap ("iron has run low this week: lentils or spinach would help"). They are rough estimates from logged food: talk in tendencies, never present an amount as exact, and don't bring them up unprompted more than now and then. Never say you can't see their micronutrients.
 
 Earlier days, in "Their last days" at the end of these instructions:
 - recent_foods lists what they ate on each of the ${RECENT_FOOD_DAYS} days before message_date, by name with its macros. A food logged more than once that day is listed once, with times and each portion joined by " + " (an apple in the morning and half an apple in the evening is one and a half apples), and its macros summed. Use it to answer questions about those days' meals, to avoid suggesting the same thing again and again, and to notice a pattern (no vegetables for two days, the same late snack). For days further back you have only the totals in previous_days.
@@ -226,6 +232,18 @@ function alcoholContext(week: AlcoholWeek) {
   };
 }
 
+/** Today's vitamins and minerals so far against the daily references, or nothing when no food carries an estimate. */
+function microsToday(view: DayView, sex: Sex): { micros_today?: { covered_pct: number; per_nutrient: Partial<Record<Micro, { amount: number; daily_reference: number }>> } } {
+  const [day] = signalDays(view.entries);
+  if (!day || day.micros_kcal <= 0 || day.kcal <= 0) return {};
+  const per_nutrient: Partial<Record<Micro, { amount: number; daily_reference: number }>> = {};
+  for (const micro of MICROS) {
+    const amount = day.micros[micro] ?? 0;
+    per_nutrient[micro] = { amount: amount >= 10 ? Math.round(amount) : Math.round(amount * 10) / 10, daily_reference: MICRO_REFERENCE[micro][sex] };
+  }
+  return { micros_today: { covered_pct: Math.min(100, Math.round((day.micros_kcal / day.kcal) * 100)), per_nutrient } };
+}
+
 /**
  * `pastDay` when the message fills in an earlier day the person has open in the app (spec §6.6).
  * `recent` is the days before the message's day (`recentDays`), so the coach sees the week around it.
@@ -238,6 +256,7 @@ export function buildTurnContext(
   pastDay = false,
   recent: readonly RecentDay[] = [],
   health: HealthContext | null = null,
+  sex: Sex | null = null,
 ): string {
   const context = {
     reply_language: LANGUAGE_NAMES[language],
@@ -260,6 +279,8 @@ export function buildTurnContext(
       })),
       exercises: entry.exercises.map(({ id: _id, position: _position, kcal_measured: _measured, avg_hr: _hr, ...item }) => rounded(item, 2)),
     })),
+    ...(sex ? microsToday(view, sex) : {}),
+    ...(Object.keys(view.nutrients.levels).length > 0 ? { nutrient_signals_7d: view.nutrients } : {}),
     ...(recent.length > 0 ? weekContext(recent) : {}),
     ...(view.alcohol ? { alcohol_week: alcoholContext(view.alcohol) } : {}),
     companion: { mood: view.companion.mood, ...(view.companion.over_alcohol ? { woozy: true } : {}) },

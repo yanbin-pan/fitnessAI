@@ -86,3 +86,23 @@ describe("the context block's mood and drinks", () => {
     });
   });
 });
+
+describe("the context block's vitamins and minerals", () => {
+  it("sums today's micros against the daily references and gives the 7-day signals", () => {
+    const profile = makeProfile({ sex: "female" });
+    const context = () => JSON.parse(buildTurnContext(buildDayView(db.db, profile, "2026-10-10", "2026-10-10", NOW_ISO, []), NOW, "Europe/London", "en", false, [], null, profile.sex).split("\n")[1]);
+    expect(context()).not.toHaveProperty("micros_today");
+    expect(context()).not.toHaveProperty("nutrient_signals_7d");
+
+    const micros = [{ nutrient: "iron_mg" as const, amount: 2 }, { nutrient: "vitamin_c_mg" as const, amount: 40 }];
+    log("2026-10-08", { foods: [sampleFood({ name: "Salad", kcal: 500, micros })] });
+    log("2026-10-09", { foods: [sampleFood({ name: "Salad", kcal: 500, micros })] });
+    log("2026-10-10", { foods: [sampleFood({ name: "Salad", kcal: 300, micros }), sampleFood({ name: "Toast", kcal: 100, micros: null })] });
+    const after = context();
+    expect(after.micros_today.covered_pct).toBe(75);
+    expect(after.micros_today.per_nutrient.iron_mg).toEqual({ amount: 2, daily_reference: 14.8 });
+    expect(after.micros_today.per_nutrient.vitamin_c_mg).toEqual({ amount: 40, daily_reference: 80 });
+    expect(after.nutrient_signals_7d.days).toBe(2);
+    expect(after.nutrient_signals_7d.levels.iron_mg).toBe("low");
+  });
+});
