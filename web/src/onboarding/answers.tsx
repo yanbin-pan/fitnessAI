@@ -106,11 +106,12 @@ export function FocusTiles({ value, onChange }: { value: readonly Focus[]; onCha
             type="button"
             aria-pressed={on}
             onClick={() => onChange(on ? value.filter((f) => f !== focus) : [...value, focus])}
-            className={`tap raised-sm flex min-h-22 flex-col gap-1.5 rounded-2xl p-3.5 text-left ${on ? "outline-2 outline-accent" : ""}`}
+            // A pick is filled with the accent, like a chosen chip (2026-11-03 design review: one look for "picked").
+            className={`tap flex min-h-22 flex-col gap-1.5 rounded-2xl p-3.5 text-left ${on ? chipOn : "raised-sm"}`}
           >
-            <span className="text-accent-ink"><Icon name={FOCUS_ICONS[focus]} size={22} /></span>
+            <span className={on ? "" : "text-accent-ink"}><Icon name={FOCUS_ICONS[focus]} size={22} /></span>
             <span className="text-[15px] font-semibold">{t.onboarding.focus.names[focus]}</span>
-            <span className="text-xs leading-snug text-muted">{t.onboarding.focus.notes[focus]}</span>
+            <span className={`text-xs leading-snug ${on ? "opacity-90" : "text-muted"}`}>{t.onboarding.focus.notes[focus]}</span>
           </button>
         );
       })}
@@ -208,10 +209,10 @@ export function ToneChoice({ value, onChange }: { value: CoachTone; onChange: (v
           role="radio"
           aria-checked={tone === value}
           onClick={() => onChange(tone)}
-          className={`tap raised-sm flex flex-col gap-1 rounded-2xl px-3.5 py-3 text-left ${tone === value ? "outline-2 outline-accent" : ""}`}
+          className={`tap flex flex-col gap-1 rounded-2xl px-3.5 py-3 text-left ${tone === value ? chipOn : "raised-sm"}`}
         >
           <span className="text-sm font-semibold">{t.tones[tone]}</span>
-          <span className="text-sm italic text-muted">{t.samples[tone]}</span>
+          <span className={`text-sm italic ${tone === value ? "opacity-90" : "text-muted"}`}>{t.samples[tone]}</span>
         </button>
       ))}
     </div>

@@ -81,7 +81,7 @@ export function ActivitiesCard({ view, onEdit }: { view: DayView; onEdit: (entry
                 className="flex w-16 flex-col items-center gap-1.5 rounded-2xl py-1"
               >
                 <SportBadge activity={group.activity} size={44} labelled={false} pressed={isOpen} />
-                <span className="text-[0.8125rem] tabular-nums text-muted">{Math.round(group.kcal)}</span>
+                <span className="text-[0.8125rem] tabular-nums text-muted">{Math.round(group.kcal)} {t.units.kcal}</span>
               </button>
             </li>
           );

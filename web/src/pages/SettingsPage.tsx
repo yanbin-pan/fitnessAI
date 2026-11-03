@@ -108,7 +108,7 @@ function Home({ view }: { view: ProfileView }) {
   const showSkin = about.focus.includes("skin") || about.skin_goals.length > 0;
   return (
     <main className={`${main} flex flex-col gap-5`}>
-      <h1 className="ml-1 text-[28px] font-bold tracking-tight">{t.settings.title}</h1>
+      <h1 className="text-2xl font-bold tracking-tight">{t.settings.title}</h1>
       <Link to="goals" className="raised flex items-center gap-3.5 rounded-3xl px-4 py-3.5">
         <span className="pressed flex h-14 w-14 shrink-0 items-center justify-center rounded-full">
           {stills?.[profile.companion] ? <img src={stills[profile.companion]} alt="" className="h-12 w-12" /> : <CompanionBadge companion={profile.companion} className="h-9 w-9" />}
@@ -121,7 +121,7 @@ function Home({ view }: { view: ProfileView }) {
       </Link>
       <Group label={t.prefs.groups.plan}>
         <Row to="goals" icon="mountain_flag" tint="green" label={t.prefs.rows.goals} value={about.focus.map((f) => t.onboarding.focus.names[f]).join(", ")} />
-        <Row to="targets" icon="monitoring" tint="teal" label={t.prefs.rows.targets} value={t.prefs.kcal(thousands(effectiveTargets(profile, view.calculated).kcal, t))} />
+        <Row to="targets" icon="monitoring" tint="teal" label={t.prefs.rows.targets} value={(profile.add_back_pct > 0 ? t.prefs.kcalPlusExercise : t.prefs.kcal)(thousands(effectiveTargets(profile, view.calculated).kcal, t))} />
       </Group>
       <Group label={t.prefs.groups.you}>
         <Row to="/health" icon="ecg_heart" tint="rose" label={t.prefs.rows.health} value={healthCount > 0 ? t.prefs.items(healthCount) : undefined} />
@@ -139,7 +139,7 @@ function Home({ view }: { view: ProfileView }) {
           <div role="radiogroup" aria-labelledby="appearance" className="pressed ml-auto flex gap-0.5 rounded-xl p-1">
             {THEMES.map((value) => (
               <button key={value} type="button" role="radio" aria-checked={theme === value} onClick={() => chooseTheme(value)}
-                className={`min-h-8 rounded-lg px-2.5 text-xs ${theme === value ? "raised-sm font-semibold text-ink" : "text-muted"}`}>
+                className={`min-h-8 rounded-lg px-2.5 text-xs ${theme === value ? "well-tint tint-green font-semibold" : "text-muted"}`}>
                 {t.settings.themes[value]}
               </button>
             ))}
@@ -156,16 +156,16 @@ function Page({ title, save, children }: { title: string; save?: { isPending: bo
   const t = useT();
   return (
     <main className={`${main} flex flex-col gap-5`}>
-      <div className="flex min-h-11 items-center justify-between">
-        <Link to="/settings" className="-ml-1 flex min-h-11 items-center gap-0.5 text-[15px] font-medium text-accent-ink">
-          <Icon name="chevron_left" size={20} />
-          {t.prefs.back}
+      {/* The same header as Health's inner screens (2026-11-03 design review): a round way back and the title beside it. */}
+      <header className="flex items-center gap-3">
+        <Link to="/settings" aria-label={t.prefs.back} className="tap raised-sm flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl">
+          <Icon name="chevron_left" size={22} />
         </Link>
-        <span role="status" className={`text-sm ${save?.isError ? "text-danger" : "text-accent-ink"}`}>
+        <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{title}</h1>
+        <span role="status" className={`shrink-0 text-sm ${save?.isError ? "text-danger" : "text-accent-ink"}`}>
           {save?.isPending ? t.prefs.saving : save?.isError ? t.settings.failed : save?.isSuccess ? t.prefs.saved : ""}
         </span>
-      </div>
-      <h1 className="-mt-3 ml-1 text-[26px] font-bold tracking-tight">{title}</h1>
+      </header>
       {children}
     </main>
   );
@@ -300,7 +300,7 @@ function TargetsPage({ view }: { view: ProfileView }) {
             <div role="radiogroup" aria-labelledby="add-back" className="pressed mt-2.5 flex gap-1 rounded-xl p-1">
               {addBackOptions.map(([pct, label]) => (
                 <button key={pct} type="button" role="radio" aria-checked={addBack === pct} onClick={() => save.mutate({ add_back_pct: pct })}
-                  className={`min-h-9 flex-1 rounded-lg text-sm ${addBack === pct ? "raised-sm font-semibold text-ink" : "text-muted"}`}>
+                  className={`min-h-9 flex-1 rounded-lg text-sm ${addBack === pct ? "well-tint tint-green font-semibold" : "text-muted"}`}>
                   {label}
                 </button>
               ))}

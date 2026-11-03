@@ -1,4 +1,3 @@
-import { useId } from "react";
 import type { CSSProperties } from "react";
 import { timeOf } from "../format.ts";
 import { useT } from "../i18n/index.tsx";
@@ -85,7 +84,6 @@ const PILL_C = 2 * Math.PI * PILL_R;
 /** The week's units: a small striped ring filling towards the 14-unit guide, then the number. */
 export function AlcoholPill({ week, pressed, onClick, controls }: { week: AlcoholWeek; pressed: boolean; onClick: () => void; controls?: string }) {
   const t = useT();
-  const pattern = useId();
   const share = Math.min(1, week.units / ALCOHOL_WEEK_GUIDE);
   const status = week.status === "over" ? t.alcohol.status.over(unitsText(week.units - ALCOHOL_WEEK_GUIDE, t)) : t.alcohol.status[week.status];
   return (
@@ -99,14 +97,8 @@ export function AlcoholPill({ week, pressed, onClick, controls }: { week: Alcoho
     >
       <span className={`relative flex h-9 w-9 items-center justify-center ${STATUS_STRIPES[week.status]}`}>
         <svg viewBox="0 0 36 36" aria-hidden="true" className="absolute inset-0 h-full w-full -rotate-90">
-          <defs>
-            <pattern id={pattern} width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-              <rect width="4" height="4" style={{ fill: "var(--s-bg)" }} />
-              <rect width="1.8" height="4" style={{ fill: "var(--s-fg)" }} />
-            </pattern>
-          </defs>
           <circle cx="18" cy="18" r={PILL_R} fill="none" strokeWidth="5" className="stroke-(--nm-lo) opacity-60" />
-          {share > 0 && <circle cx="18" cy="18" r={PILL_R} fill="none" strokeWidth="5" stroke={`url(#${pattern})`} strokeDasharray={`${PILL_C * share} ${PILL_C}`} />}
+          {share > 0 && <circle cx="18" cy="18" r={PILL_R} fill="none" strokeWidth="5" style={{ stroke: "var(--s-fg)" }} strokeLinecap="round" strokeDasharray={`${PILL_C * share} ${PILL_C}`} />}
         </svg>
         {week.status === "over" && <span className="relative text-[0.625rem] font-bold text-danger">!</span>}
       </span>

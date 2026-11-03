@@ -6,6 +6,13 @@ import { dayView, entry, exerciseItem } from "../test/fixtures.ts";
 import { jsonResponse, mockFetch, renderWithProviders } from "../test/render.tsx";
 import { EntryEditor } from "./EntryEditor.tsx";
 
+/**
+ * What the editor sent, without the Frequent list it reads for its "Save to Frequent" button (2026-11-03): on Today
+ * that list is already loaded, so only the editor's own requests are under test.
+ */
+const sent = (fetchMock: { mock: { calls: [RequestInfo | URL, RequestInit?][] } }) =>
+  fetchMock.mock.calls.filter(([url]) => url !== "/api/frequent");
+
 /** The owner's four, which is what a day view features until someone has logged four activities of their own. */
 const FOUR: Activity[] = ["tennis", "gym", "wakeboarding", "kitesurfing"];
 
@@ -32,7 +39,7 @@ describe("EntryEditor", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    const [url, init] = fetchMock.mock.calls[0];
+    const [url, init] = sent(fetchMock)[0];
     expect(url).toBe("/api/entries/e1");
     expect(init?.method).toBe("PATCH");
     expect(JSON.parse(String(init?.body)).foods[0]).toMatchObject({
@@ -47,7 +54,7 @@ describe("EntryEditor", () => {
     renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-03" entry={entry()} onClose={onClose} />);
     await userEvent.click(screen.getByRole("button", { name: "Delete" }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(fetchMock.mock.calls[0][1]?.method).toBe("DELETE");
+    expect(sent(fetchMock)[0][1]?.method).toBe("DELETE");
   });
 
   it("adds a manual entry with a POST", async () => {
@@ -59,7 +66,7 @@ describe("EntryEditor", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    const [url, init] = fetchMock.mock.calls[0];
+    const [url, init] = sent(fetchMock)[0];
     expect(url).toBe("/api/entries");
     expect(JSON.parse(String(init?.body))).toMatchObject({ date: "2026-10-02", time: null, foods: [{ name: "Apple", kcal: 52 }], exercises: [] });
   });
@@ -73,7 +80,7 @@ describe("EntryEditor", () => {
     await userEvent.click(screen.getByRole("radio", { name: "Kitesurfing" }));
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    const body = JSON.parse(String(sent(fetchMock)[0][1]?.body));
     expect(body.exercises[0]).toMatchObject({ name: "Kite session", activity: "kitesurfing" });
   });
 
@@ -87,7 +94,7 @@ describe("EntryEditor", () => {
     expect(screen.getByRole("radio", { name: "Tennis" })).not.toBeChecked();
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    const [url, init] = fetchMock.mock.calls[0];
+    const [url, init] = sent(fetchMock)[0];
     expect(url).toBe("/api/entries/e1");
     expect(init?.method).toBe("PATCH");
     expect(JSON.parse(String(init?.body)).exercises[0]).toMatchObject({ name: "Tennis", activity: "gym" });
@@ -164,7 +171,7 @@ describe("EntryEditor", () => {
     expect(within(group).getAllByRole("radio").map((radio) => radio.getAttribute("aria-label"))).toEqual(["Tennis", "Gym", "Wakeboarding", "Kitesurfing", "Boxing"]);
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
-    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).exercises[0].activity).toBe("boxing");
+    expect(JSON.parse(String(sent(fetchMock)[0][1]?.body)).exercises[0].activity).toBe("boxing");
   });
 
   it("keeps the open grid for the keyboard: the arrow keys move through every activity", async () => {
@@ -232,7 +239,7 @@ describe("EntryEditor", () => {
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    const ids = fetchMock.mock.calls.map(([, init]) => JSON.parse(String(init?.body)).id);
+    const ids = sent(fetchMock).map(([, init]) => JSON.parse(String(init?.body)).id);
     expect(ids).toHaveLength(2);
     expect(ids[1]).toBe(ids[0]);
   });
@@ -253,7 +260,7 @@ describe("EntryEditor", () => {
     await userEvent.type(screen.getByLabelText("Food"), "s");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    const ids = fetchMock.mock.calls.map(([, init]) => JSON.parse(String(init?.body)).id);
+    const ids = sent(fetchMock).map(([, init]) => JSON.parse(String(init?.body)).id);
     expect(ids[1]).not.toBe(ids[0]);
   });
 
@@ -265,7 +272,7 @@ describe("EntryEditor", () => {
     await userEvent.clear(screen.getByLabelText("Minutes"));
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).exercises).toEqual([{
+    expect(JSON.parse(String(sent(fetchMock)[0][1]?.body)).exercises).toEqual([{
       name: "Outdoor run", category: "cardio", activity: "other", duration_min: null, sets: null, reps: null, weight_kg: null, distance_km: 5,
       // The minutes changed and the kcal came from the MET, so the server works it out again.
       avg_hr: null, met: 9.8, kcal: null, assumption: "easy pace", muscles: [{ muscle: "quads", role: "primary" }],
@@ -284,7 +291,7 @@ describe("EntryEditor", () => {
     await userEvent.type(screen.getByLabelText("kcal burned"), "450");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).exercises[0]).toMatchObject({ duration_min: 60, met: 9.8, kcal: 450 });
+    expect(JSON.parse(String(sent(fetchMock)[0][1]?.body)).exercises[0]).toMatchObject({ duration_min: 60, met: 9.8, kcal: 450 });
   });
 
   it("does not delete when the confirmation is declined", async () => {
@@ -294,7 +301,7 @@ describe("EntryEditor", () => {
     renderWithProviders(<EntryEditor featured={FOUR} date="2026-10-03" entry={entry()} onClose={onClose} />);
     await userEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(confirm).toHaveBeenCalledWith("Delete this entry?");
-    await waitFor(() => expect(fetchMock).not.toHaveBeenCalled());
+    await waitFor(() => expect(sent(fetchMock)).toHaveLength(0));
     expect(onClose).not.toHaveBeenCalled();
   });
 

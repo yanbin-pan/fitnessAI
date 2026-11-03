@@ -89,6 +89,17 @@ function SeverityLabel({ level }: { level: FindingSeverity }) {
   );
 }
 
+/** How a nutrient is going, as a small tinted word: the bar beside it stays in the nutrient's colour. */
+function LevelChip({ level }: { level: FindingSeverity }) {
+  const t = useT();
+  return (
+    <span className={`well-tint ${SEVERITY_TINT[level].tint} inline-flex items-center gap-1 rounded-full px-2 py-px text-[11px] font-semibold`}>
+      <Icon name={SEVERITY_TINT[level].icon} size={11} />
+      {t.insights.severity[level]}
+    </span>
+  );
+}
+
 /** A change on the week before, in grey: the number's own colour already says whether it is good. */
 function Delta({ change, digits = 0 }: { change: number | null; digits?: number }) {
   const t = useT();
@@ -108,22 +119,6 @@ function Delta({ change, digits = 0 }: { change: number | null; digits?: number 
   );
 }
 
-function Tile({ tint, icon, label, value, note, change }: { tint: string; icon: IconName; label: string; value: string; note: string; change: ReactNode }) {
-  return (
-    <div className="raised-sm rounded-2xl p-3">
-      <p className="flex items-center gap-2 text-xs text-muted">
-        <Well tint={tint} icon={icon} size={26} iconSize={15} />
-        {label}
-      </p>
-      <p className="mt-1.5 text-xl font-semibold">{value}</p>
-      <p className="flex items-baseline justify-between gap-2 text-xs text-muted">
-        <span>{note}</span>
-        {change}
-      </p>
-    </div>
-  );
-}
-
 /** A nutrient's daily average on a track that runs to 150 % of its number, with a tick at the number itself. */
 function Meter({ name, dot, stat, unit, level }: { name: string; dot: string; stat: NutrientStat; unit: string; level: FindingSeverity }) {
   const t = useT();
@@ -134,9 +129,9 @@ function Meter({ name, dot, stat, unit, level }: { name: string; dot: string; st
   return (
     <div>
       <div className="flex items-baseline justify-between gap-2 text-sm">
-        <span className="flex items-center gap-1.5">
-          <span aria-hidden="true" className={`h-2 w-2 rounded-full ${dot}`} />
+        <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
           {name}
+          <LevelChip level={level} />
         </span>
         <span className="text-xs text-muted">
           {shown(stat.average)} / {shown(unit === "kcal" ? kcal10(target) : target)} {unit}
@@ -152,7 +147,8 @@ function Meter({ name, dot, stat, unit, level }: { name: string; dot: string; st
           aria-valuetext={`${shown(stat.average)} / ${shown(target)} ${unit}, ${t.insights.severity[level]}`}
           className="pressed h-2.5 rounded-full"
         >
-          <div className={`h-2.5 rounded-full ${SEVERITY_FILL[level]}`} style={{ width: `${share * 100}%` }} />
+          {/* The bar keeps the nutrient's own colour, as on Today; how it is going is the word beside the name (2026-11-03 design review). */}
+          <div className={`h-2.5 rounded-full ${dot}`} style={{ width: `${share * 100}%` }} />
         </div>
         <span aria-hidden="true" className="absolute -top-0.5 h-3.5 w-0.5 rounded-full bg-ink/60" style={{ left: `${(1 / 1.5) * 100}%` }} />
       </div>
@@ -230,10 +226,10 @@ function Goal({ goal }: { goal: InsightGoal }) {
 function Section({ title, icon, tint, aside, children }: { title: string; icon: IconName; tint: string; aside?: ReactNode; children: ReactNode }) {
   return (
     <section aria-label={title} className="raised mt-4 rounded-3xl p-4">
-      <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
+      <h2 className="flex items-center gap-2 font-semibold">
         <Well tint={tint} icon={icon} />
         {title}
-        {aside && <span className="ml-auto normal-case tracking-normal">{aside}</span>}
+        {aside && <span className="ml-auto font-normal">{aside}</span>}
       </h2>
       {children}
     </section>
@@ -258,45 +254,32 @@ function Tally({ report }: { report: InsightReport }) {
   );
 }
 
+/**
+ * The two figures the meters below don't show, on one line (2026-11-03 design review): four big-number tiles repeated
+ * calories and fibre and took a screen.
+ */
 function Numbers({ stats, previous }: { stats: InsightStats; previous: WeekPoint | null }) {
   const t = useT();
-  const kcal = stats.nutrients.kcal;
-  const fibre = stats.nutrients.fibre_g;
   const change = (now: number, before: number | undefined) => (previous && previous.food_days > 0 && stats.food_days > 0 && before !== undefined ? now - before : null);
+  const stat = (tint: string, icon: IconName, label: string, value: string, note: string, delta: ReactNode) => (
+    <p className="flex min-w-0 items-center gap-2">
+      <Well tint={tint} icon={icon} size={26} iconSize={15} />
+      <span className="min-w-0">
+        <span className="block text-xs text-muted">{label}</span>
+        <span className="flex items-baseline gap-1.5">
+          <span className="font-semibold">{value}</span>
+          <span className="text-xs text-muted">{note}</span>
+          {delta}
+        </span>
+      </span>
+    </p>
+  );
   return (
-    <div className="mt-4 grid grid-cols-2 gap-3">
-      <Tile
-        tint="tint-green"
-        icon="restaurant"
-        label={t.insights.calories}
-        value={thousands(kcal.average, t)}
-        note={kcal.target !== null ? t.insights.of(`${thousands(kcal10(kcal.target), t)} ${t.units.kcal}`) : t.insights.perDay}
-        change={<Delta change={change(kcal.average, previous?.kcal)} />}
-      />
-      <Tile
-        tint="tint-blue"
-        icon="fitness_center"
-        label={t.insights.protein}
-        value={stats.protein_g_per_kg.toLocaleString(t.locale)}
-        note={t.insights.perKg}
-        change={<Delta change={change(stats.protein_g_per_kg, previous?.protein_g_per_kg)} digits={1} />}
-      />
-      <Tile
-        tint="tint-teal"
-        icon="nutrition"
-        label={t.insights.fibre}
-        value={`${Math.round(fibre.average)} ${t.units.g}`}
-        note={fibre.target !== null ? t.insights.of(`${Math.round(fibre.target)} ${t.units.g}`) : t.insights.perDay}
-        change={<Delta change={change(fibre.average, previous?.fibre_g)} />}
-      />
-      <Tile
-        tint="tint-orange"
-        icon="directions_run"
-        label={t.insights.trainingTile}
-        value={stats.training.sessions_per_week.toLocaleString(t.locale)}
-        note={t.insights.sessionsWeek}
-        change={<Delta change={previous ? stats.training.sessions_per_week - previous.sessions : null} digits={1} />}
-      />
+    <div className="mt-4 grid grid-cols-2 gap-3 px-1">
+      {stat("tint-blue", "fitness_center", t.insights.protein, stats.protein_g_per_kg.toLocaleString(t.locale), t.insights.perKg,
+        <Delta change={change(stats.protein_g_per_kg, previous?.protein_g_per_kg)} digits={1} />)}
+      {stat("tint-orange", "directions_run", t.insights.trainingTile, stats.training.sessions_per_week.toLocaleString(t.locale), t.insights.sessionsWeek,
+        <Delta change={previous ? stats.training.sessions_per_week - previous.sessions : null} digits={1} />)}
     </div>
   );
 }
@@ -380,6 +363,7 @@ function Report({ report, stats, previous }: { report: InsightReport | null; sta
       )}
       <Section title={t.insights.nutrition} icon="restaurant" tint="tint-amber">
         {report && <p className="mt-3 text-sm">{report.nutrition.summary}</p>}
+        <p className="mt-2 text-xs text-muted">{t.insights.averagesNote}</p>
         <div className="mt-3 grid gap-2.5">
           {NUTRIENTS.filter(({ key }) => stats.nutrients[key].target !== null).map(({ key, unit, judge, dot }) => {
             const stat = stats.nutrients[key];
@@ -543,7 +527,7 @@ export function InsightsPage() {
   return (
     <main className="mx-auto max-w-xl px-4 pb-28 pt-[calc(env(safe-area-inset-top)_+_1rem)]">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">{t.insights.title}</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t.insights.title}</h1>
         {hasReports && (
           <Tabs
             tab={tab}
@@ -577,7 +561,7 @@ export function InsightsPage() {
               {latest ? t.insights.updating : t.insights.pendingFirst}
             </p>
           )}
-          {view.status === "off" && !isPast && <p className="raised-sm mt-3 rounded-2xl px-3 py-2.5 text-sm">{t.insights.off}</p>}
+          {view.status === "off" && !isPast && <p className="mt-3 px-1 text-xs text-muted">{t.insights.off}</p>}
           {shown && <WeekStepper payload={shown} weeks={reportWeeks} onPick={open} nextUpdate={isPast ? null : view.next_update} />}
           {isPast && (
             <p className="mt-3 flex items-center justify-between gap-2">

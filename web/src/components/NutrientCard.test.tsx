@@ -23,7 +23,7 @@ describe("NutrientCard", () => {
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     const fats = screen.getByRole("list", { name: "Fats, sugar & salt" });
     expect(within(fats).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
-      "Unsaturated fatOn point", "Saturated fatA lot", "SugarChill", "SaltOn point",
+      "Unsaturated fatOn point", "Saturated fatA lot", "SugarLow", "SaltOn point",
     ]);
     const micros = screen.getByRole("list", { name: "Vitamins & minerals" });
     expect(within(micros).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Vitamin CStacked", "Vitamin DA bit low", "IronOn point"]);
@@ -97,7 +97,7 @@ describe("toneOf", () => {
   it("is never alarming: low is calm for what you need, high is only a heads-up for what to keep moderate", () => {
     expect(toneOf("vitamin_c_mg", "low")).toBe("calm");
     expect(toneOf("vitamin_c_mg", "high")).toBe("good");
-    expect(toneOf("salt", "low")).toBe("good");
+    expect(toneOf("salt", "low")).toBe("calm");
     expect(toneOf("salt", "high")).toBe("heads-up");
   });
 });

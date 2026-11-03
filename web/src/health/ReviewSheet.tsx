@@ -214,7 +214,7 @@ export function ReviewSheet({ read, messageId = null, onClose, onSaved }: { read
                     className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--nm-accent)]"
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-xs font-semibold uppercase tracking-wide text-muted">{t.health.kinds[fact.kind]}</span>
+                    <span className="block text-sm font-semibold text-muted">{t.health.kinds[fact.kind]}</span>
                     <span className="block text-sm font-medium">{factName(fact, t)}</span>
                     {fact.detail && <span className="block text-xs text-muted">{fact.detail}</span>}
                   </span>

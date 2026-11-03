@@ -128,7 +128,7 @@ export function Heading({ children, action }: { children: ReactNode; action?: Re
 
 /** A small heading in capitals, for a group of rows. */
 export function Label({ children }: { children: ReactNode }) {
-  return <h3 className="mt-5 mb-2 px-0.5 text-xs font-semibold uppercase tracking-wide text-muted">{children}</h3>;
+  return <h3 className="mt-5 mb-2 px-0.5 text-sm font-semibold text-muted">{children}</h3>;
 }
 
 function Consent() {
@@ -165,11 +165,11 @@ export function WithHealth({ children }: { children: (view: HealthView) => React
 /** A bottom sheet holding a form. */
 export function Sheet({ label, onClose, children, onSubmit }: { label: string; onClose: () => void; children: ReactNode; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
   return (
-    <div role="dialog" aria-modal="true" aria-label={label} className="fixed inset-0 z-40 flex items-end bg-black/40 sm:items-center">
+    <div role="dialog" aria-modal="true" aria-label={label} className="scrim fixed inset-0 z-40 flex items-end bg-black/40 sm:items-center">
       <form
         onSubmit={onSubmit}
         onKeyDown={(event) => event.key === "Escape" && onClose()}
-        className="raised max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl p-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)] sm:mx-auto sm:max-w-xl sm:rounded-3xl"
+        className="sheet raised max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl p-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)] sm:mx-auto sm:max-w-xl sm:rounded-3xl"
       >
         {children}
       </form>

@@ -35,7 +35,7 @@ function Tell() {
   };
   const picker = (label: string, capture: boolean) => (
     <label
-      className={`tap raised-sm flex min-h-13 cursor-pointer items-center justify-center gap-2 rounded-2xl px-3 text-sm font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${capture ? "text-accent-ink" : ""} ${reading ? "opacity-40" : ""}`}
+      className={`tap raised-sm flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl px-3 text-sm font-semibold text-accent-ink has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${reading ? "opacity-40" : ""}`}
     >
       <Icon name={capture ? "photo_camera" : "upload"} size={20} />
       {label}
@@ -55,10 +55,11 @@ function Tell() {
     </label>
   );
   return (
-    <section className="raised mt-5 rounded-3xl p-4" aria-label={t.health.tellTitle}>
+    // On the page itself, not a card holding raised buttons (2026-11-03 design review).
+    <section className="mt-5 px-0.5" aria-label={t.health.tellTitle}>
       <h2 className="text-base font-semibold">{t.health.tellTitle}</h2>
       <p className="mt-1 text-sm text-muted">{t.health.tellBody}</p>
-      <form onSubmit={submit} className="pressed mt-3 flex items-center gap-2 rounded-2xl py-1 pr-1 pl-3">
+      <form onSubmit={submit} className="field mt-3 flex items-center gap-2 rounded-2xl py-1 pr-1 pl-3">
         <input
           aria-label={t.health.tellTitle}
           value={text}
@@ -125,24 +126,20 @@ function Profile({ view }: { view: HealthView }) {
       <Heading action={<Link to="/health/coach" className="text-sm font-medium text-accent-ink">{t.health.coachSees}</Link>}>
         {t.health.profile}
       </Heading>
-      <ul className="grid grid-cols-2 gap-3">
+      {/* One row per section, like Settings (2026-11-03 design review): four tall tiles saying "None yet" took a screen. */}
+      <ul className="raised divide-y divide-line rounded-3xl px-3.5">
         {(Object.keys(SECTIONS) as Section[]).map((section) => {
           const facts = view.facts.filter((f) => (SECTIONS[section] as readonly string[]).includes(f.kind));
-          const { lines, footer } = tileLines(section, facts, t);
+          const { lines } = tileLines(section, facts, t);
           return (
             <li key={section}>
-              <Link
-                to={section === "diet" ? "/health/diet" : `/health/profile/${section}`}
-                className="tap raised flex h-full min-h-32 flex-col gap-2 rounded-3xl p-3.5"
-              >
-                <span className="flex items-center gap-2 text-sm font-semibold">
-                  <span className="text-accent-ink"><Icon name={SECTION_ICON[section]} size={20} /></span>
-                  {t.health.sections[section]}
+              <Link to={section === "diet" ? "/health/diet" : `/health/profile/${section}`} className="flex min-h-12 items-center gap-3 py-2 text-[15px]">
+                <span className="well-tint tint-rose flex h-7 w-7 shrink-0 items-center justify-center rounded-lg">
+                  <Icon name={SECTION_ICON[section]} size={16} />
                 </span>
-                <span className="flex flex-col gap-0.5 text-[13px] leading-snug">
-                  {lines.length > 0 ? lines.map((line) => <span key={line} className="line-clamp-2">{line}</span>) : <span className="text-muted">{t.health.noneYet}</span>}
-                </span>
-                {lines.length > 0 && <span className="mt-auto text-xs text-muted">{footer}</span>}
+                <span className="shrink-0">{t.health.sections[section]}</span>
+                <span className="ml-auto min-w-0 truncate text-right text-sm text-muted">{lines.length > 0 ? lines.join(" · ") : t.health.noneYet}</span>
+                <span className="shrink-0 text-muted"><Icon name="chevron_right" size={18} /></span>
               </Link>
             </li>
           );

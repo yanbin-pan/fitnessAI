@@ -13,7 +13,8 @@ type Tone = "good" | "calm" | "heads-up";
 const DOT: Record<Tone, string> = { good: "bg-good", calm: "bg-muted/50", "heads-up": "bg-watch" };
 
 export function toneOf(key: SignalKey, level: NutrientLevel): Tone {
-  if (MODERATE.includes(key)) return level === "high" ? "heads-up" : "good";
+  // Low on something to keep moderate is fine, but not an achievement: a neutral dot (2026-11-03 design review).
+  if (MODERATE.includes(key)) return level === "high" ? "heads-up" : level === "low" ? "calm" : "good";
   return level === "low" ? "calm" : "good";
 }
 
@@ -31,7 +32,7 @@ function remembered(): boolean {
 
 function Tile({ name, word, tone }: { name: string; word: string; tone: Tone }) {
   return (
-    <li className="pressed rounded-2xl px-3 py-2">
+    <li className="px-1 py-1">
       <p className="truncate text-xs text-muted">{name}</p>
       <p className="mt-0.5 flex items-center gap-1.5 text-sm font-medium">
         <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${DOT[tone]}`} />
@@ -49,7 +50,8 @@ function DayRow({ title, figure, figureClass = "text-muted", open, onToggle, chi
 }) {
   const id = useId();
   return (
-    <li className="pressed rounded-2xl px-3 py-2.5">
+    // Rows divided by a hairline rather than set in cards inside the card (2026-11-03 design review).
+    <li className="border-t border-line px-1 pt-2.5 first:border-t-0 first:pt-0">
       <button type="button" aria-expanded={open} aria-controls={open ? id : undefined} onClick={onToggle} className="block w-full text-left">
         <span className="flex items-baseline justify-between gap-2 text-sm">
           <span className="font-medium">{title}</span>
@@ -90,8 +92,8 @@ function DaySection({ day, foods, title, saturatedMax }: { day: FatSugarDay; foo
   const over = added === null ? 0 : Math.max(0, added - ADDED_SUGARS_MAX_G);
   return (
     <div>
-      <h3 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted">{title}</h3>
-      <ul aria-label={title} className="mt-2 grid gap-2">
+      <h3 className="px-1 text-sm font-semibold">{title}</h3>
+      <ul aria-label={title} className="mt-2 grid gap-2.5">
         {day.fat_g > 0 && (
           <DayRow
             title={t.fatSugar.fat}
@@ -201,8 +203,8 @@ export function NutrientCard({ signals, foods = [], isToday = true, sex = "male"
     if (shown.length === 0) return null;
     return (
       <div className="mt-3">
-        <h3 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted">{title}</h3>
-        <ul aria-label={title} className="mt-2 grid grid-cols-2 gap-2">
+        <h3 className="px-1 text-xs font-medium text-muted">{title}</h3>
+        <ul aria-label={title} className="mt-1 grid grid-cols-2 gap-x-2">
           {shown.map((key) => {
             const level = signals.levels[key] as NutrientLevel;
             return <Tile key={key} name={t.nutrients.names[key]} word={word(key, level)} tone={toneOf(key, level)} />;
@@ -232,7 +234,7 @@ export function NutrientCard({ signals, foods = [], isToday = true, sex = "male"
           {hasDay && (
             <>
               <DaySection day={day} foods={foods} title={dayTitle} saturatedMax={saturatedMax} />
-              <h3 className="mt-4 px-1 text-xs font-semibold uppercase tracking-wide text-muted">{t.fatSugar.week}</h3>
+              <h3 className="mt-5 border-t border-line px-1 pt-4 text-sm font-semibold">{t.fatSugar.week}</h3>
             </>
           )}
           {!hasFats ? (

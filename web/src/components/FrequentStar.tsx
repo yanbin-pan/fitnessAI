@@ -15,7 +15,7 @@ const namesKey = (items: { name: string }[]) => items.map((i) => i.name.trim().t
  * ☆ on an entry card, above its copy button (2026-11-01 frequent items): saves the entry to Frequent as it is, around the
  * part of the day it was had, and shows filled while a frequent item has the same items; a tap then removes that item.
  */
-export function FrequentStar({ entry }: { entry: Entry }) {
+export function FrequentStar({ entry, variant = "corner" }: { entry: Entry; variant?: "corner" | "action" }) {
   const t = useT();
   const client = useQueryClient();
   const frequent = useFrequent();
@@ -38,6 +38,24 @@ export function FrequentStar({ entry }: { entry: Entry }) {
     onSuccess: done,
   });
   if (!key) return null;
+  // On the card the star only shows once saved (2026-11-03 design review): an outline star on every card was noise. Saving
+  // lives in the entry's sheet, as a labelled button.
+  if (variant === "corner" && !saved) return null;
+  if (variant === "action") {
+    return (
+      <button
+        type="button"
+        aria-label={`${saved ? t.frequent.starOn : t.frequent.starOff}: ${entryNames(entry)}`}
+        aria-pressed={saved !== undefined}
+        disabled={toggle.isPending || frequent.isPending}
+        onClick={() => toggle.mutate(saved)}
+        className={`tap inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium disabled:opacity-60 ${saved ? "well-tint tint-custard" : "raised-sm text-ink"}`}
+      >
+        <Icon name="star" size={16} className={saved ? "" : "text-muted"} />
+        {saved ? t.frequent.savedAction : t.frequent.starOff}
+      </button>
+    );
+  }
   return (
     <button
       type="button"

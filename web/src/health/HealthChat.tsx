@@ -31,7 +31,7 @@ function Suggestion({ suggestion, ticked, onTick }: { suggestion: SuggestionView
           />
         )}
         <span className="min-w-0 flex-1">
-          <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted">{t.health.kinds[fact.kind]}</span>
+          <span className="block text-xs font-medium text-muted">{t.health.kinds[fact.kind]}</span>
           <span className="block text-[15px] font-semibold">{factName(fact, t)}</span>
           {(fact.detail || fact.level) && (
             <span className="block text-xs text-muted">{[fact.level && t.health.levels[fact.level], fact.detail].filter(Boolean).join(" · ")}</span>

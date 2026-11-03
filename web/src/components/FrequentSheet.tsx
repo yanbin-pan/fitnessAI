@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../api.ts";
 import { useT } from "../i18n/index.tsx";
+import { useEscape, useLeaving } from "./motion.ts";
 import { Icon } from "../icons/Icon.tsx";
 import { FREQUENT_SLOTS } from "../shared.ts";
 import type { Activity, ExerciseItemInput, FoodItemInput, FrequentItem, FrequentSlot, FrequentView, Regular, RegularKind } from "../shared.ts";
@@ -185,7 +186,7 @@ function List({ view, onEdit, onAdd }: { view: FrequentView; onEdit: (item: Freq
             role="tab"
             aria-selected={kind === k}
             onClick={() => setKind(k)}
-            className={`flex-1 rounded-xl py-2 ${kind === k ? "raised-sm font-semibold text-ink" : "text-muted"}`}
+            className={`flex-1 rounded-xl py-2 ${kind === k ? "well-tint tint-green font-semibold" : "text-muted"}`}
           >
             {k === "meal" ? t.frequent.meals : t.frequent.activities} · {count(k)}
           </button>
@@ -212,7 +213,7 @@ function List({ view, onEdit, onAdd }: { view: FrequentView; onEdit: (item: Freq
       </ul>
       {suggestions.length > 0 && (
         <>
-          <h3 className="mx-1 mt-4 mb-1 text-xs font-semibold uppercase tracking-wide text-muted">{t.frequent.suggested}</h3>
+          <h3 className="mx-1 mt-4 mb-1 text-sm font-semibold text-muted">{t.frequent.suggested}</h3>
           <ul>
             {suggestions.map((regular) => (
               <li key={regular.key} className="flex items-center gap-3 border-b border-[color-mix(in_srgb,var(--nm-lo)_50%,transparent)] py-2.5">
@@ -260,18 +261,20 @@ export function FrequentSheet({ featured, onClose }: { featured: readonly Activi
   const client = useQueryClient();
   const frequent = useFrequent();
   const [editing, setEditing] = useState<Draft | null>(null);
+  const [leaving, leave] = useLeaving(onClose);
   // What changed here shows behind the quick button once the sheet closes.
   const close = () => {
     void client.invalidateQueries({ queryKey: ["day"] });
-    onClose();
+    leave();
   };
+  useEscape(close);
   // On the body, not inside the chat bar: there it sat in the bar's stacking layer, under the tab bar, and its list could
   // not be scrolled to the end.
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label={t.frequent.title} className="fixed inset-0 z-50 flex items-end bg-black/30 sm:items-center" onClick={close}>
+    <div role="dialog" aria-modal="true" aria-label={t.frequent.title} data-leaving={leaving || undefined} className="scrim fixed inset-0 z-50 flex items-end bg-black/30 sm:items-center" onClick={close}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="raised max-h-[88dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl p-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)] sm:mx-auto sm:max-w-xl sm:rounded-3xl"
+        className="sheet raised max-h-[88dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl p-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)] sm:mx-auto sm:max-w-xl sm:rounded-3xl"
       >
         {editing ? (
           <Editor key={editing.id} start={editing} featured={featured} onBack={() => setEditing(null)} />

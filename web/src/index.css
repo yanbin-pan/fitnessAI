@@ -17,9 +17,18 @@
   --nm-accent-text: #067052;
   --nm-danger: #a8321f;
   /* Calendar tints (spec §11.4), already mixed into the base: within target, a little off, well off. */
-  --nm-tint-within: #b7d1c8;
-  --nm-tint-near: #dcd1ba;
-  --nm-tint-off: #dac2c0;
+  --nm-tint-within: #a9cbbd;
+  --nm-tint-near: #ddcb9f;
+  --nm-tint-off: #dcb3ae;
+  /* Hairlines between the parts of a card or sheet, instead of a card inside it (2026-11-03 design review). */
+  --nm-line: #c8d0dc;
+  /* The edge of a text box, about 3:1 on the surface: the inset shadow alone measured 1.4:1. */
+  --nm-edge: #7f8b9e;
+  /* The macros (2026-11-03 design review): a step darker in light, about 3:1 on the surface, the same hues. */
+  --nm-protein: #4a78d8;
+  --nm-carbs: #c27a10;
+  --nm-fat: #d4593f;
+  --nm-fibre: #2f9c66;
   /* Severity in the weekly insights: going well, keep an eye on, change this week. Validated as a set (dataviz
      validate_palette.js, light, on --nm-base): every check passes. Always shown with a word, never colour alone. */
   --nm-good: #087a54;
@@ -36,7 +45,8 @@
 :root[data-theme="dark"] {
   --nm-base: #262a31;
   --nm-hi: #31363f;
-  --nm-lo: #17191e;
+  /* Deeper than before (2026-11-03 design review), so cards and wells keep an edge in dark. */
+  --nm-lo: #111317;
   --nm-text: #e8ecf1;
   --nm-muted: #9aa5b5;
   --nm-accent: #34d399;
@@ -47,6 +57,12 @@
   --nm-tint-within: #3d544c;
   --nm-tint-near: #575042;
   --nm-tint-off: #584645;
+  --nm-line: #3b414b;
+  --nm-edge: #6b7686;
+  --nm-protein: #5b8def;
+  --nm-carbs: #f2a93b;
+  --nm-fat: #e8735a;
+  --nm-fibre: #4cb782;
   /* Dark, on --nm-base: passes all but CVD separation, which sits in the 6–8 band that is allowed with a label. */
   --nm-good: #1f9c8c;
   --nm-watch: #a8922c;
@@ -71,10 +87,16 @@
   --color-good: var(--nm-good);
   --color-watch: var(--nm-watch);
   --color-act: var(--nm-act);
-  --color-protein: #5b8def;
-  --color-carbs: #f2a93b;
-  --color-fat: #e8735a;
-  --color-fibre: #4cb782;
+  --color-protein: var(--nm-protein);
+  --color-carbs: var(--nm-carbs);
+  --color-fat: var(--nm-fat);
+  --color-fibre: var(--nm-fibre);
+  --color-line: var(--nm-line);
+  /* Cards at 20 px rather than 24 (2026-11-03 design review): still soft, less inflated. */
+  --radius-3xl: 1.25rem;
+  /* Motion curves (Emil Kowalski's design-engineering guidance): a strong ease-out, and the iOS-like drawer curve. */
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   /* Saturated fat (2026-10-17 fat & sugar design): the fat colour, darker. */
   --color-fat-sat: #9c3320;
 }
@@ -97,6 +119,13 @@
   box-shadow: inset 3px 3px 6px var(--nm-lo), inset -3px -3px 6px var(--nm-hi);
 }
 
+/* A text box: pressed in, with a fine edge so it reads as a field without the shadow (2026-11-03 design review). */
+@utility field {
+  background-color: var(--nm-base);
+  box-shadow: inset 3px 3px 6px var(--nm-lo), inset -3px -3px 6px var(--nm-hi);
+  border: 1px solid color-mix(in srgb, var(--nm-edge) 70%, transparent);
+}
+
 /* A touch of colour (2026-10-20): a well, chip or bubble takes a hue (a tint-* class sets --tint and --tint-ink) mixed
    into the surface, so the depth still comes from the same pair of shadows and the colour stays soft. */
 @utility well-tint {
@@ -113,9 +142,11 @@
 
 /* Presses in while tapped. */
 @utility tap {
-  transition: box-shadow 150ms ease;
+  transition: box-shadow 150ms ease, transform 160ms var(--ease-out-strong);
   &:active:not(:disabled) {
     box-shadow: inset 3px 3px 6px var(--nm-lo), inset -3px -3px 6px var(--nm-hi);
+    /* A slight press (2026-11-03 design review): the shadow alone barely shows under a thumb. */
+    transform: scale(0.97);
   }
 }
 
@@ -180,7 +211,7 @@ body {
 /* The companion's bubble grows out of its button in the top-left corner. */
 @keyframes companion-pop {
   from {
-    transform: scale(0.15);
+    transform: scale(0.9);
     opacity: 0;
   }
   to {
@@ -190,7 +221,7 @@ body {
 }
 .companion-pop {
   transform-origin: top left;
-  animation: companion-pop 220ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  animation: companion-pop 200ms var(--ease-out-strong);
 }
 
 /* The companion's reaction pops onto your bubble's corner. */
@@ -200,15 +231,23 @@ body {
 
 /* The companion has something for you (2026-10-23 pet tips design): a custard halo that breathes slowly round it. Without
    motion it simply stays lit. */
+/* The halo is drawn once on a pseudo-element and only its opacity breathes (2026-11-03 design review): an animated
+   box-shadow repainted every frame. */
 @keyframes pet-glow {
   from {
-    box-shadow: 0 0 0 2px color-mix(in srgb, #ffc94a 75%, transparent), 0 0 8px 2px color-mix(in srgb, #ffc94a 40%, transparent);
+    opacity: 0.55;
   }
   to {
-    box-shadow: 0 0 0 2.5px #ffc94a, 0 0 16px 5px color-mix(in srgb, #ffc94a 60%, transparent);
+    opacity: 1;
   }
 }
-.pet-glow {
+/* .pet-glow is already placed absolutely over the companion, so its ::after fills it. */
+.pet-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
   box-shadow: 0 0 0 2.5px #ffc94a, 0 0 16px 5px color-mix(in srgb, #ffc94a 60%, transparent);
   animation: pet-glow 1.6s ease-in-out infinite alternate;
 }
@@ -233,12 +272,98 @@ body {
   animation: summary-strip-in 160ms ease-out;
 }
 
+/* Sheets (2026-11-03 design review): they rise from the bottom on the drawer curve and leave faster than they came. The
+   scrim behind fades. On a wide screen, where the sheet sits in the middle, it only lifts a little. */
+@keyframes sheet-in {
+  from {
+    transform: translateY(var(--sheet-from, 100%));
+    opacity: var(--sheet-fade, 1);
+  }
+}
+@keyframes sheet-out {
+  to {
+    transform: translateY(var(--sheet-from, 100%));
+    opacity: var(--sheet-fade, 1);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+.sheet {
+  animation: sheet-in 280ms var(--ease-drawer);
+}
+[data-leaving] .sheet,
+.sheet[data-leaving] {
+  animation: sheet-out 180ms var(--ease-drawer) forwards;
+}
+.scrim {
+  animation: fade-in 200ms ease-out;
+}
+.scrim[data-leaving],
+[data-leaving].scrim {
+  animation: fade-out 180ms ease-out forwards;
+}
+@media (min-width: 40rem) {
+  .sheet {
+    --sheet-from: 12px;
+    --sheet-fade: 0;
+  }
+}
+/* A card that opens above its button (the quick card, the calendar): a short lift from where it is anchored. */
+@keyframes pop-up {
+  from {
+    transform: translateY(8px) scale(0.98);
+    opacity: 0;
+  }
+}
+.pop-up {
+  transform-origin: bottom center;
+  animation: pop-up 180ms var(--ease-out-strong);
+}
+@keyframes drop-down {
+  from {
+    transform: translateY(-8px) scale(0.98);
+    opacity: 0;
+  }
+}
+.drop-down {
+  transform-origin: top center;
+  animation: drop-down 180ms var(--ease-out-strong);
+}
+
+/* Reduced motion means gentler, not none (2026-11-03 design review): things still fade, but nothing moves or scales. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    transition-duration: 0ms !important;
-    animation-duration: 0ms !important;
     animation-iteration-count: 1 !important;
+  }
+  .tap:active:not(:disabled) {
+    transform: none;
+  }
+  .sheet,
+  .pop-up,
+  .drop-down,
+  .companion-pop,
+  .reaction-pop,
+  .summary-strip {
+    animation-name: fade-in;
+  }
+  [data-leaving] .sheet,
+  .sheet[data-leaving] {
+    animation-name: fade-out;
+  }
+  .pet-glow::after {
+    animation: none;
+  }
+  .transition-transform {
+    transition-duration: 0ms !important;
   }
 }

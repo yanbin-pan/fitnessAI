@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import { clearCopied, toggleCopied } from "../copied.ts";
@@ -32,19 +32,31 @@ function fakeServer(view = yesterday, failure?: { status: number; error: string 
 
 afterEach(() => clearCopied());
 
+/** Copying starts in an entry's sheet (2026-11-03): open the card, tap Copy, close the sheet. */
+async function copyFromSheet(name: string) {
+  const card = (await screen.findAllByText(name)).map((el) => el.closest("button")).find((b) => b !== null)!;
+  await userEvent.click(card);
+  const sheet = await screen.findByRole("dialog", { name: "Edit entry" });
+  await userEvent.click(within(sheet).getByRole("button", { name: `Copy: ${name}` }));
+  await userEvent.click(within(sheet).getByRole("button", { name: "Cancel" }));
+}
+
 describe("copying and pasting entries", () => {
   it("shows no paste until an entry is copied", async () => {
     fakeServer();
     renderDay("2026-10-02");
-    expect(await screen.findByRole("button", { name: "Copy: Porridge" })).toHaveAttribute("aria-pressed", "false");
+    await screen.findAllByText("Porridge");
+    // Nothing copied: no copy mark on the cards, and no paste.
+    expect(screen.queryByRole("button", { name: "Copy: Porridge" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Paste/ })).not.toBeInTheDocument();
   });
 
   it("copies entries from their cards and pastes them through the server, not the coach", async () => {
     const pastes = fakeServer();
     renderDay("2026-10-02");
-    await userEvent.click(await screen.findByRole("button", { name: "Copy: Porridge" }));
-    await userEvent.click(screen.getByRole("button", { name: "Copy: Tennis" }));
+    await copyFromSheet("Porridge");
+    await copyFromSheet("Tennis");
+    // The card keeps a tick while it is copied.
     expect(screen.getByRole("button", { name: "Copy: Porridge" })).toHaveAttribute("aria-pressed", "true");
 
     await userEvent.click(screen.getByRole("button", { name: "Paste 2" }));
@@ -60,11 +72,11 @@ describe("copying and pasting entries", () => {
   it("takes an entry out of the copy when its button is tapped again", async () => {
     fakeServer();
     renderDay("2026-10-02");
-    const copy = await screen.findByRole("button", { name: "Copy: Porridge" });
-    await userEvent.click(copy);
+    await copyFromSheet("Porridge");
     expect(screen.getByRole("button", { name: "Paste 1" })).toBeInTheDocument();
-    await userEvent.click(copy);
-    expect(copy).toHaveAttribute("aria-pressed", "false");
+    // The tick on the card takes it out again.
+    await userEvent.click(screen.getByRole("button", { name: "Copy: Porridge" }));
+    expect(screen.queryByRole("button", { name: "Copy: Porridge" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Paste/ })).not.toBeInTheDocument();
   });
 
@@ -99,7 +111,8 @@ describe("copying and pasting entries", () => {
   it("copies from a day too old to add to, but pastes only where an entry may go", async () => {
     fakeServer(dayView({ date: "2026-09-20", entries: [entry({ id: "old", date: "2026-09-20" })] }));
     renderDay("2026-09-20");
-    await userEvent.click(await screen.findByRole("button", { name: "Copy: Porridge" }));
+    await copyFromSheet("Porridge");
+    expect(screen.getByRole("button", { name: "Copy: Porridge" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("button", { name: /Paste/ })).not.toBeInTheDocument();
   });
 });

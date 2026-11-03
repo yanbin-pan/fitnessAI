@@ -9,7 +9,10 @@ import { EXERCISE_CATEGORIES, MAX_BACKDATE_DAYS } from "../shared.ts";
 import type {
   Activity, DeleteResult, Entry, EntryResult, ExerciseCategory, ExerciseItem, ExerciseItemInput, FoodItem, FoodItemInput,
 } from "../shared.ts";
+import { CopyButton } from "./CopyPaste.tsx";
+import { FrequentStar } from "./FrequentStar.tsx";
 import { SportBadge, familiesFor, sportName } from "./SportBadge.tsx";
+import { useEscape, useLeaving } from "./motion.ts";
 import { primaryButton, quietButton } from "./ui.tsx";
 
 export function toFoodInput(f: FoodItem): FoodItemInput {
@@ -43,8 +46,9 @@ export const blankExercise = (): ExerciseItemInput => ({
   distance_km: null, avg_hr: null, met: null, kcal: 0, assumption: "", muscles: [],
 });
 
-const inputClass = "pressed mt-0.5 rounded-xl px-2 py-1.5 text-base text-ink";
-const rowClass = "pressed mt-3 rounded-2xl p-3";
+const inputClass = "field mt-0.5 w-full min-w-0 rounded-xl px-2 py-1.5 text-base text-ink";
+/** One item of the entry: set apart by a hairline, not another card inside the sheet (2026-11-03 design review). */
+const rowClass = "mt-3 border-t border-(--nm-line) pt-3";
 
 function NumberField({ label, value, onChange }: { label: string; value: number | null; onChange: (value: number | null) => void }) {
   return (
@@ -69,11 +73,11 @@ function FoodRow({ food, onChange, onRemove }: { food: FoodItemInput; onChange: 
   return (
     <div className={rowClass}>
       <div className="flex gap-2">
-        <label className="flex flex-1 flex-col text-xs">
+        <label className="flex min-w-0 flex-1 flex-col text-xs">
           {t.editor.food}
           <input value={food.name} onChange={(event) => set({ name: event.target.value })} className={inputClass} />
         </label>
-        <label className="flex w-28 flex-col text-xs">
+        <label className="flex w-24 shrink-0 flex-col text-xs">
           {t.editor.amount}
           <input value={food.quantity} onChange={(event) => set({ quantity: event.target.value })} className={inputClass} />
         </label>
@@ -176,11 +180,11 @@ function ExerciseRow({
   return (
     <div className={rowClass}>
       <div className="flex gap-2">
-        <label className="flex flex-1 flex-col text-xs">
+        <label className="flex min-w-0 flex-1 flex-col text-xs">
           {t.editor.exercise}
           <input value={item.name} onChange={(event) => set({ name: event.target.value })} className={inputClass} />
         </label>
-        <label className="flex w-28 flex-col text-xs">
+        <label className="flex w-28 shrink-0 flex-col text-xs">
           {t.editor.type}
           <select value={item.category} onChange={(event) => set({ category: event.target.value as ExerciseCategory })} className={inputClass}>
             {EXERCISE_CATEGORIES.map((category) => (
@@ -257,9 +261,11 @@ function failureText(error: unknown, deleting: boolean, t: Messages): string {
   return deleting ? t.editor.deleteFailed : t.editor.saveFailed;
 }
 
-export function EntryEditor({ date, entry, featured, onClose }: { date: string; entry: Entry | null; featured: readonly Activity[]; onClose: () => void }) {
+export function EntryEditor({ date, entry, featured, onClose: closed }: { date: string; entry: Entry | null; featured: readonly Activity[]; onClose: () => void }) {
   const client = useQueryClient();
   const t = useT();
+  const [leaving, onClose] = useLeaving(closed);
+  useEscape(onClose);
   const [foods, setFoods] = useState<FoodItemInput[]>(() => (entry ? entry.foods.map(toFoodInput) : [blankFood()]));
   const [exercises, setExercises] = useState<ExerciseItemInput[]>(() => (entry ? entry.exercises.map(toExerciseInput) : []));
   // The last manual add that was sent. Saving again with nothing changed (after a lost reply) is the same
@@ -299,12 +305,19 @@ export function EntryEditor({ date, entry, featured, onClose }: { date: string; 
   }
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={entry ? t.editor.edit : t.editor.add} className="fixed inset-0 z-40 flex items-end bg-black/40 sm:items-center">
+    <div role="dialog" aria-modal="true" aria-label={entry ? t.editor.edit : t.editor.add} data-leaving={leaving || undefined} className="scrim fixed inset-0 z-40 flex items-end bg-black/40 sm:items-center">
       <form
         onSubmit={submit}
-        className="raised max-h-[90dvh] w-full overflow-y-auto rounded-t-3xl p-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)] sm:mx-auto sm:max-w-xl sm:rounded-3xl"
+        className="sheet raised max-h-[90dvh] w-full overflow-y-auto rounded-t-3xl p-4 pb-[calc(env(safe-area-inset-bottom)_+_1rem)] sm:mx-auto sm:max-w-xl sm:rounded-3xl"
       >
         <h2 className="text-lg font-semibold">{entry ? t.editor.edit : t.editor.add}</h2>
+        {/* Saving to Frequent and copying moved here from every card's corner (2026-11-03 design review). */}
+        {entry && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            <FrequentStar entry={entry} variant="action" />
+            <CopyButton entry={entry} variant="action" />
+          </div>
+        )}
         <ItemsEditor foods={foods} exercises={exercises} featured={featured} onFoods={setFoods} onExercises={setExercises} />
         {(save.isError || remove.isError) && (
           <p role="alert" className="mt-2 text-sm text-danger">

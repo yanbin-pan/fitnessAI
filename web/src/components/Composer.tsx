@@ -345,13 +345,15 @@ export function Composer({
             onChange={(event) => setText(event.target.value)}
             onPaste={onPaste}
             placeholder={attachments.length > 0 ? t.composer.placeholderPhotos : t.composer.placeholder}
-            className="pressed field-sizing-content max-h-36 min-h-11 flex-1 resize-none rounded-2xl px-3 py-2.5 text-base text-ink placeholder:text-muted placeholder:text-sm"
+            className="field field-sizing-content max-h-36 min-h-11 flex-1 resize-none rounded-2xl px-3 py-2.5 text-base text-ink placeholder:text-muted placeholder:text-sm"
           />
           <button
             type="submit"
             aria-label={t.composer.send}
             disabled={!canSend}
-            className="tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent shadow-[3px_3px_6px_var(--nm-lo),-3px_-3px_6px_var(--nm-hi)] disabled:opacity-40"
+            // Off, it is a plain raised button with a muted arrow; it turns green once there is something to send (2026-11-03
+            // design review: the accent at 40 % read as another colour, not as "off").
+            className={`tap flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${canSend ? "bg-accent text-on-accent shadow-[3px_3px_6px_var(--nm-lo),-3px_-3px_6px_var(--nm-hi)]" : "raised-sm text-muted"}`}
           >
             <Icon name="arrow_upward" size={22} />
           </button>

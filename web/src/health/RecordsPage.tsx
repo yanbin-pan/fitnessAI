@@ -34,7 +34,7 @@ function AllRecords({ view }: { view: HealthView }) {
             type="button"
             aria-pressed={filter === key}
             onClick={() => setFilter(key)}
-            className={`h-9 rounded-xl text-sm ${filter === key ? "raised-sm font-semibold text-accent-ink" : "text-muted"}`}
+            className={`h-9 rounded-xl text-sm ${filter === key ? "well-tint tint-green font-semibold" : "text-muted"}`}
           >
             {t.health.filters[key]}
           </button>
@@ -226,10 +226,10 @@ function Record({ view, doc }: { view: HealthView; doc: DocumentView }) {
         <>
           {outside.length > 0 && (
             <div role="group" aria-label={t.health.records} className="pressed mt-4 grid grid-cols-2 gap-1 rounded-2xl p-1">
-              <button type="button" aria-pressed={!all} onClick={() => setAll(false)} className={`h-9 rounded-xl text-sm ${!all ? "raised-sm font-semibold text-accent-ink" : "text-muted"}`}>
+              <button type="button" aria-pressed={!all} onClick={() => setAll(false)} className={`h-9 rounded-xl text-sm ${!all ? "well-tint tint-green font-semibold" : "text-muted"}`}>
                 {t.health.viewOutside(outside.length)}
               </button>
-              <button type="button" aria-pressed={all} onClick={() => setAll(true)} className={`h-9 rounded-xl text-sm ${all ? "raised-sm font-semibold text-accent-ink" : "text-muted"}`}>
+              <button type="button" aria-pressed={all} onClick={() => setAll(true)} className={`h-9 rounded-xl text-sm ${all ? "well-tint tint-green font-semibold" : "text-muted"}`}>
                 {t.health.viewAll(doc.observations.length)}
               </button>
             </div>
