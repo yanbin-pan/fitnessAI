@@ -23,10 +23,10 @@ describe("NutrientCard", () => {
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     const fats = screen.getByRole("list", { name: "Fats, sugar & salt" });
     expect(within(fats).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
-      "Unsaturated fatOn point", "Saturated fatA lot", "SugarLow", "SaltOn point",
+      "A lotSaturated fat", "LowSugar", "On pointUnsaturated fat, Salt",
     ]);
     const micros = screen.getByRole("list", { name: "Vitamins & minerals" });
-    expect(within(micros).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Vitamin CStacked", "Vitamin DA bit low", "IronOn point"]);
+    expect(within(micros).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["A bit lowVitamin D", "On pointIron", "StackedVitamin C"]);
     expect(screen.getByText("Vitamin D comes mostly from sunlight, so food alone often reads low.")).toBeInTheDocument();
     // No amounts and no targets: only the caption's "7 days".
     expect(document.body.textContent).not.toMatch(/\d\s*(mg|µg|ug|g|kcal|%)\b/);
