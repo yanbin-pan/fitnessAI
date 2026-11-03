@@ -73,7 +73,7 @@ export const en = {
     toTop: "Back to the summary",
     over: "kcal over",
     grams: (value: number, target: number) => `${value} of ${target} g`,
-    addBack: (added: number, workout: number) => `+${added} kcal from ${workout} kcal of exercise`,
+    addBack: (added: number, workout: number) => `Incl. +${added} kcal from ${workout} kcal of exercise`,
   },
   macros: { protein: "Protein", carbs: "Carbs", fat: "Fat", fibre: "Fibre", proteinShort: "P", carbsShort: "C", fatShort: "F", fibreShort: "Fib" },
   activity: {
@@ -89,6 +89,7 @@ export const en = {
   },
   copy: {
     copy: "Copy",
+    copied: "Copied",
     paste: (n: number) => `Paste ${n}`,
     clear: "Clear copied entries",
     gone: "Something you copied has been deleted since, so nothing was pasted. Copy again.",
@@ -225,7 +226,7 @@ export const en = {
     /** Nutrients to get enough of. */
     enough: { low: "A bit low", ok: "On point", high: "Stacked" },
     /** Nutrients to keep moderate: saturated fat, sugar, salt. */
-    moderate: { low: "Chill", ok: "On point", high: "A lot" },
+    moderate: { low: "Low", ok: "On point", high: "A lot" },
     empty: "Not enough logged yet to say. A few days of meals and this fills in.",
     microsPending: "Vitamins and minerals appear once Zabaione has estimated most of what you eat.",
     sunlight: "Vitamin D comes mostly from sunlight, so food alone often reads low.",
@@ -269,6 +270,7 @@ export const en = {
   frequent: {
     starOn: "Saved to Frequent: tap to remove",
     starOff: "Save to Frequent",
+    savedAction: "Saved to Frequent",
     title: "Frequent",
     close: "Close",
     meals: "Meals",
@@ -326,7 +328,7 @@ export const en = {
     // The home
     tellTitle: "Tell your coach",
     tellBody: "A condition, injury, medication or diet, in your own words. Or scan a record in any language. Nothing is added until you say yes.",
-    tellPlaceholder: "My lower back has hurt since August…",
+    tellPlaceholder: "Back pain since August…",
     send: "Send",
     scan: "Scan a record",
     upload: "Upload file",
@@ -520,6 +522,7 @@ export const en = {
     helped: "Helped",
     nextWeek: "Next week",
     byActivity: "By activity",
+    averagesNote: "Daily averages. Targets include exercise added back.",
     disclaimer: "Worked out from what you logged. General guidance, not medical advice.",
     tabs: { label: "Insights view", week: "Week", trends: "Trends" },
     nextReport: (date: string) => `Next report ${date}`,
@@ -551,6 +554,9 @@ export const en = {
       kept: "Every report is kept.",
       loadFailed: "Couldn't load your past weeks.",
       tapChart: "Tap a chart to see a week's numbers",
+      arrangeDone: "Done",
+      arrange: "Reorder",
+      oneWeek: "Trend lines start after your second week of logging. Until then, your numbers are in Week.",
       tapBar: "Tap a bar for that week's breakdown",
       move: (name: string) => `Move ${name}`,
       weekOf: (date: string) => `Week of ${date}`,
@@ -676,11 +682,11 @@ export const en = {
   drinks: { beer: "Beer", wine: "Wine", cocktail: "Cocktail", other: "Other drinks" },
   alcohol: {
     badge: (name: string, count: number, units: string) => `${name}: ${count} today, ${units} units`,
-    units: (units: string) => `${units} u`,
+    units: (units: string) => `${units} units`,
     fromDrinks: (kcal: number) => `${kcal} kcal from drinks`,
     gramsFromDrinks: (grams: number) => `${grams} g from drinks`,
     pill: (units: string, status: string) => `Alcohol, last 7 days: ${units} units. ${status}`,
-    pillDays: "7 days",
+    pillDays: "last 7 days",
     week: "Last 7 days",
     ofGuide: (guide: number) => `of ${guide} units`,
     freeDays: (days: number) => (days === 1 ? "1 alcohol-free day" : `${days} alcohol-free days`),
@@ -849,6 +855,7 @@ export const en = {
       skin: "Skin", coach: "Coach", region: "Language and region", appearance: "Appearance", data: "Your data",
     },
     kcal: (value: string) => `${value} kcal`,
+    kcalPlusExercise: (value: string) => `${value} kcal + exercise`,
     sessions: (count: number) => `${count}× a week`,
     items: (count: number) => (count === 1 ? "1 item" : `${count} items`),
     working: "Working on",

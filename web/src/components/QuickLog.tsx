@@ -173,6 +173,8 @@ export function QuickButton({ open, onToggle, disabled }: { open: boolean; onTog
 /** How far a row slides to show its remove button, and how far a swipe must go to leave it open. */
 const SWIPE_OPEN = 88;
 const SWIPE_MIN = 40;
+/** A flick faster than this (px per ms) opens or closes the row whatever its distance (2026-11-03 design review). */
+const FLICK = 0.11;
 
 /**
  * One item in the quick card: a tap logs it; a swipe to the left shows a button that unpins it (a pinned item) or stops
@@ -181,7 +183,7 @@ const SWIPE_MIN = 40;
 function SwipeRow({ item, quick, onLogged }: { item: QuickItem; quick: QuickLog; onLogged: () => void }) {
   const t = useT();
   const [offset, setOffset] = useState(0);
-  const drag = useRef<{ x: number; y: number; from: number; moved: boolean; horizontal: boolean | null } | null>(null);
+  const drag = useRef<{ x: number; y: number; from: number; moved: boolean; horizontal: boolean | null; at: number; lastX: number } | null>(null);
   const kcal = `${Math.round(item.kcal)} ${t.units.kcal}`;
   const icon = item.kind === "meal" ? "restaurant" : sportOf(item.activity ?? "other").icon;
   const busy = quick.log.isPending || quick.pin.isPending || quick.remove.isPending;
@@ -200,10 +202,10 @@ function SwipeRow({ item, quick, onLogged }: { item: QuickItem; quick: QuickLog;
         {item.pinned ? t.quick.unpin : t.quick.hide}
       </button>
       <div
-        className="relative flex touch-pan-y items-center gap-2 bg-base py-1 pr-1 transition-transform duration-150"
+        className="relative flex touch-pan-y items-center gap-2 bg-base py-1 pr-1.5 transition-transform duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]"
         style={{ transform: `translateX(${offset}px)`, transitionDuration: drag.current?.moved ? "0ms" : undefined }}
         onPointerDown={(e) => {
-          drag.current = { x: e.clientX, y: e.clientY, from: offset, moved: false, horizontal: null };
+          drag.current = { x: e.clientX, y: e.clientY, from: offset, moved: false, horizontal: null, at: e.timeStamp, lastX: e.clientX };
         }}
         onPointerMove={(e) => {
           const d = drag.current;
@@ -213,11 +215,16 @@ function SwipeRow({ item, quick, onLogged }: { item: QuickItem; quick: QuickLog;
           if (d.horizontal === null && Math.abs(dx) + Math.abs(dy) > 6) d.horizontal = Math.abs(dx) > Math.abs(dy);
           if (!d.horizontal) return;
           d.moved = true;
+          d.lastX = e.clientX;
           setOffset(Math.max(-SWIPE_OPEN, Math.min(0, d.from + dx)));
         }}
-        onPointerUp={() => {
+        onPointerUp={(e) => {
           const d = drag.current;
-          if (d?.moved) setOffset((o) => (o <= -SWIPE_MIN ? -SWIPE_OPEN : 0));
+          if (!d?.moved) return;
+          const dx = d.lastX - d.x;
+          const speed = Math.abs(dx) / Math.max(1, e.timeStamp - d.at);
+          if (speed > FLICK) setOffset(dx < 0 ? -SWIPE_OPEN : 0);
+          else setOffset((o) => (o <= -SWIPE_MIN ? -SWIPE_OPEN : 0));
         }}
         onPointerCancel={() => {
           drag.current = null;
@@ -251,7 +258,7 @@ function SwipeRow({ item, quick, onLogged }: { item: QuickItem; quick: QuickLog;
               <Icon name={icon} size={17} />
             </span>
           )}
-          <span className={`min-w-0 flex-1 truncate text-sm ${item.pinned ? "font-medium" : "text-muted"}`}>{item.name}</span>
+          <span className={`line-clamp-2 min-w-0 flex-1 text-sm leading-snug break-words ${item.pinned ? "font-medium" : "text-muted"}`}>{item.name}</span>
           {item.logged_today && <Icon name="check" size={15} className="shrink-0 text-accent-ink" />}
           <span className="shrink-0 text-xs text-muted">{kcal}</span>
         </button>
@@ -261,7 +268,7 @@ function SwipeRow({ item, quick, onLogged }: { item: QuickItem; quick: QuickLog;
             disabled={busy}
             aria-label={t.quick.pin(item.name)}
             onClick={() => quick.pin.mutate(item)}
-            className="tap raised-sm flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-accent-ink disabled:opacity-50"
+            className="tap well-tint tint-green flex h-8 w-8 shrink-0 items-center justify-center rounded-full disabled:opacity-50"
           >
             <Icon name="add" size={15} />
           </button>
@@ -277,10 +284,10 @@ export function QuickCard({ items, quick, onClose, onManage }: { items: QuickIte
   return (
     <>
       {/* A tap anywhere else closes the card. */}
-      <div aria-hidden="true" className="fixed inset-0 z-0" onClick={onClose} />
-      <div className="raised absolute inset-x-0 bottom-full z-10 mb-2 flex max-h-[50dvh] flex-col rounded-3xl p-2">
+      <div aria-hidden="true" className="scrim fixed inset-0 z-0 bg-black/15" onClick={onClose} />
+      <div className="raised pop-up absolute inset-x-0 bottom-full z-10 mb-2 flex max-h-[50dvh] flex-col rounded-3xl p-2">
         <div className="flex items-center justify-between pb-1 pl-2.5">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted">{t.quick.items}</span>
+          <span className="text-sm font-semibold">{t.quick.items}</span>
           <button type="button" aria-label={t.quick.manage} onClick={onManage} className="tap raised-sm flex h-8 w-10 items-center justify-center rounded-full text-muted">
             <Icon name="more_horiz" size={20} />
           </button>

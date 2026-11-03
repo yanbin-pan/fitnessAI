@@ -4,12 +4,20 @@ import { describe, expect, it } from "vitest";
 import { entry, regular } from "../test/fixtures.ts";
 import { jsonResponse, mockFetch, renderWithProviders } from "../test/render.tsx";
 import { EntryCard } from "./EntryCard.tsx";
+import { FrequentStar } from "./FrequentStar.tsx";
 
 describe("the star on an entry card", () => {
-  it("saves the entry to Frequent with one tap", async () => {
+  it("shows no star on a card that isn't saved", async () => {
+    mockFetch(() => jsonResponse({ items: [], suggestions: [] }));
+    renderWithProviders(<EntryCard entry={entry()} />);
+    await screen.findByText("Porridge");
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Frequent/ })).not.toBeInTheDocument());
+  });
+
+  it("saves the entry to Frequent with one tap in its sheet", async () => {
     const fetch = mockFetch((url, init) => (init?.method === "PUT" ? jsonResponse({}) : jsonResponse({ items: [], suggestions: [] })));
     const logged = entry();
-    renderWithProviders(<EntryCard entry={logged} />);
+    renderWithProviders(<FrequentStar entry={logged} variant="action" />);
     const star = await screen.findByRole("button", { name: /^Save to Frequent: / });
     expect(star).toHaveAttribute("aria-pressed", "false");
     await waitFor(() => expect(star).toBeEnabled());

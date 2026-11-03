@@ -20,7 +20,7 @@ describe("Summary", () => {
     render(<Summary view={view} />);
     expect(screen.getByText("1240")).toBeInTheDocument();
     expect(screen.getByText("/ 2490 kcal")).toBeInTheDocument();
-    expect(screen.getByText("+180 kcal from 360 kcal of exercise")).toBeInTheDocument();
+    expect(screen.getByText("Incl. +180 kcal from 360 kcal of exercise")).toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: "Protein" })).toHaveAttribute("aria-valuenow", "98");
   });
 

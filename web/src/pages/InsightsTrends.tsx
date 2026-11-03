@@ -99,7 +99,7 @@ function format(n: number, digits: number, t: Messages): string {
 }
 
 /** One measure over the weeks: a line (or bars), the person's own target dashed behind it. Tap (or arrow keys) to read a week. */
-function Chart({ metric, weeks, t, details, hint, grip }: { metric: Metric; weeks: WeekPoint[]; t: Messages; details?: (week: WeekPoint) => ReactNode; hint?: string; grip?: Grip }) {
+function Chart({ metric, weeks, t, details, hint, grip, arranging = false }: { metric: Metric; weeks: WeekPoint[]; t: Messages; details?: (week: WeekPoint) => ReactNode; hint?: string; grip?: Grip; arranging?: boolean }) {
   const [selected, setSelected] = useState<number | null>(null);
   const points = weeks.map((w, i) => ({ i, w, v: metric.food && w.food_days === 0 ? null : metric.value(w), target: metric.target?.(w) ?? null }));
   const values = points.flatMap((p) => (p.v === null ? [] : [p.v]));
@@ -148,7 +148,7 @@ function Chart({ metric, weeks, t, details, hint, grip }: { metric: Metric; week
         </div>
         <div className="flex items-center gap-1.5">
           <p className="text-lg font-semibold">{format(last.v, metric.digits, t)}</p>
-          {grip && <GripButton grip={grip} label={t.insights.trends.move(metric.name(t))} />}
+          {grip && arranging && <GripButton grip={grip} label={t.insights.trends.move(metric.name(t))} />}
         </div>
       </div>
       <div className="relative">
@@ -339,6 +339,8 @@ export function InsightsTrends({ history, current, onOpen }: { history: Insights
   const [range, setRange] = useState<Range>("8");
   const [extra, setExtra] = useState<string | null>(null);
   const [order, setOrder] = useState<string[]>(savedOrder);
+  // The grips show only while arranging (2026-11-03 design review): six of them on every visit were noise.
+  const [arranging, setArranging] = useState(false);
   const weeks = range === "all" ? history.weeks : history.weeks.slice(-Number(range));
   const glance = history.reports.slice(0, 8).reverse();
   const latest = history.reports[0]?.week_start;
@@ -356,7 +358,7 @@ export function InsightsTrends({ history, current, onOpen }: { history: Insights
               role="radio"
               aria-checked={range === r}
               onClick={() => setRange(r)}
-              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${range === r ? "well-tint tint-slate" : "text-muted"}`}
+              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${range === r ? "well-tint tint-green" : "text-muted"}`}
             >
               {t.insights.trends.range[r]}
             </button>
@@ -366,7 +368,7 @@ export function InsightsTrends({ history, current, onOpen }: { history: Insights
 
       {glance.length > 0 && (
         <section aria-label={t.insights.trends.glance} className="raised mt-4 rounded-3xl p-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">{t.insights.trends.glance}</h2>
+          <h2 className="text-sm font-semibold text-muted">{t.insights.trends.glance}</h2>
           <ul className="mt-2.5 flex gap-1.5">
             {glance.map((r, i) => (
               <li key={r.week_start} className="min-w-0 flex-1">
@@ -389,10 +391,18 @@ export function InsightsTrends({ history, current, onOpen }: { history: Insights
       )}
 
       {weeks.length === 0 ? (
-        <p className="raised-sm mt-4 rounded-2xl px-3 py-2.5 text-sm">{t.insights.trends.empty}</p>
+        <p className="mt-4 px-1 text-sm text-muted">{t.insights.trends.empty}</p>
+      ) : weeks.length === 1 ? (
+        // One week is one dot per chart (2026-11-03 design review): a line of text says when the lines begin instead.
+        <p className="mt-4 px-1 text-sm text-muted">{t.insights.trends.oneWeek}</p>
       ) : (
         <>
-          <p className="mt-3 px-1 text-xs text-muted">{t.insights.trends.tapChart}</p>
+          <p className="mt-3 flex items-center justify-between gap-2 px-1 text-xs text-muted">
+            {t.insights.trends.tapChart}
+            <button type="button" aria-pressed={arranging} onClick={() => setArranging((on) => !on)} className="min-h-9 shrink-0 px-1 text-xs font-semibold text-accent-ink">
+              {arranging ? t.insights.trends.arrangeDone : t.insights.trends.arrange}
+            </button>
+          </p>
           <Reorderable
             ids={order}
             onReorder={(next) => {
@@ -408,6 +418,7 @@ export function InsightsTrends({ history, current, onOpen }: { history: Insights
                   weeks={weeks}
                   t={t}
                   grip={grip}
+                  arranging={arranging}
                   details={metric.bars ? (week) => <TrainingTable week={week} /> : undefined}
                   hint={metric.bars ? t.insights.trends.tapBar : undefined}
                 />
@@ -434,7 +445,7 @@ export function InsightsTrends({ history, current, onOpen }: { history: Insights
 
       {history.reports.length > 0 && (
         <section aria-label={t.insights.trends.past} className="mt-6">
-          <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted">{t.insights.trends.past}</h2>
+          <h2 className="px-1 text-sm font-semibold text-muted">{t.insights.trends.past}</h2>
           <ul className="mt-1 flex flex-col gap-2.5">
             {history.reports.map((r) => {
               const isLatest = r.week_start === latest;

@@ -74,9 +74,8 @@ describe("InsightsPage", () => {
     expect(await screen.findByText(REPORT.headline)).toBeInTheDocument();
     expect(screen.getByText("28 Sept – 4 Oct")).toBeInTheDocument();
     expect(screen.getByText("Next report 12 October")).toBeInTheDocument();
-    expect(screen.getByText("1,980")).toBeInTheDocument();
-    expect(screen.getByText("of 2,100 kcal")).toBeInTheDocument();
-    expect(screen.getByText("−120 vs the week before")).toBeInTheDocument();
+    // Calories are a meter, not a big-number tile (2026-11-03); its colour is the nutrient's and its word sits beside it.
+    expect(screen.getByRole("meter", { name: "Calories" }).getAttribute("aria-valuetext")).toMatch(/^1,980 \/ 2,100 kcal, /);
     expect(screen.getByText("1 to change")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Training" })).toHaveTextContent("Training load: Steady");
     expect(screen.getByRole("list", { name: "Days with training" }).children).toHaveLength(7);
@@ -167,6 +166,8 @@ describe("arranging the charts", () => {
     const { unmount } = renderWithProviders(<InsightsPage />);
     fireEvent.click(await screen.findByRole("tab", { name: "Trends" }));
     await screen.findByRole("region", { name: "Calories" });
+    // The grips show only while arranging.
+    fireEvent.click(screen.getByRole("button", { name: "Reorder" }));
     expect(order()).toEqual(["Move Calories", "Move Protein", "Move Carbs", "Move Fat", "Move Fibre", "Move Training"]);
     const training = screen.getByRole("button", { name: "Move Training" });
     fireEvent.keyDown(training, { key: "ArrowUp" });
@@ -181,6 +182,8 @@ describe("arranging the charts", () => {
     renderWithProviders(<InsightsPage />);
     fireEvent.click(await screen.findByRole("tab", { name: "Trends" }));
     await screen.findByRole("region", { name: "Calories" });
+    // The grips show only while arranging.
+    fireEvent.click(screen.getByRole("button", { name: "Reorder" }));
     expect(order()).toEqual(["Move Calories", "Move Protein", "Move Carbs", "Move Training", "Move Fat", "Move Fibre"]);
     localStorage.removeItem("trends-order");
   });
@@ -191,6 +194,8 @@ describe("arranging the charts", () => {
     renderWithProviders(<InsightsPage />);
     fireEvent.click(await screen.findByRole("tab", { name: "Trends" }));
     await screen.findByRole("region", { name: "Calories" });
+    // The grips show only while arranging.
+    fireEvent.click(screen.getByRole("button", { name: "Reorder" }));
     expect(order()).toEqual(["Move Fibre", "Move Calories", "Move Protein", "Move Carbs", "Move Fat", "Move Training"]);
     localStorage.removeItem("trends-order");
   });

@@ -1,7 +1,7 @@
 import { useId } from "react";
 
 /** Text boxes and selects: pressed into the surface (spec §11.4). */
-export const fieldClass = "pressed mt-1 w-full rounded-xl px-3 py-2 text-base text-ink placeholder:text-muted";
+export const fieldClass = "field mt-1 w-full rounded-xl px-3 py-2 text-base text-ink placeholder:text-muted";
 
 /** The one strong action on a screen, filled with the accent. */
 export const primaryButton =
@@ -29,7 +29,7 @@ export function Segmented<T extends string>({
           return (
             <label
               key={option.value}
-              className={`flex-1 cursor-pointer rounded-xl py-3 text-center text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${chosen ? "raised-sm font-semibold text-ink" : "text-muted"}`}
+              className={`flex-1 cursor-pointer rounded-xl py-3 text-center text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${chosen ? "well-tint tint-green font-semibold" : "text-muted"}`}
             >
               <input type="radio" name={name} value={option.value} checked={chosen} onChange={() => onChange(option.value)} className="sr-only" />
               {option.label}

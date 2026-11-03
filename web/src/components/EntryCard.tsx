@@ -1,4 +1,3 @@
-import { entryNames } from "../copied.ts";
 import { timeOf } from "../format.ts";
 import { useT } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
@@ -12,7 +11,8 @@ export function EntryCard({ entry, onEdit, onUndo }: { entry: Entry; onEdit?: (e
   const t = useT();
   const eaten = entry.foods.reduce((sum, f) => sum + f.kcal, 0);
   const burned = entry.exercises.reduce((sum, x) => sum + x.kcal, 0);
-  const names = entryNames(entry);
+  // Items joined with a plus (2026-11-03 design review): with commas, "Chicken Caesar salad, Sourdough" read as one dish.
+  const names = [...entry.foods, ...entry.exercises].map((item) => item.name).join(" + ");
   const grams = (key: "protein_g" | "carbs_g" | "fat_g" | "fibre_g") => Math.round(entry.foods.reduce((sum, f) => sum + f[key], 0));
   const facts = [
     eaten > 0 ? `${Math.round(eaten)} ${t.units.kcal}` : null,
@@ -27,10 +27,10 @@ export function EntryCard({ entry, onEdit, onUndo }: { entry: Entry; onEdit?: (e
       {/* With Undo, the icon column keeps room below the badge for the undo button in the bottom-left corner. */}
       <span className={`shrink-0 ${onUndo ? "pb-7" : ""}`}>
         {sport ? (
-          <SportBadge activity={sport} />
+          <SportBadge activity={sport} size={32} />
         ) : (
-          <span className="well-tint tint-amber flex h-9 w-9 items-center justify-center rounded-full">
-            <Icon name="restaurant" size={18} />
+          <span className="well-tint tint-amber flex h-8 w-8 items-center justify-center rounded-full">
+            <Icon name="restaurant" size={16} />
           </span>
         )}
       </span>

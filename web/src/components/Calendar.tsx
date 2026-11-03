@@ -22,6 +22,18 @@ export function shiftMonth(month: string, delta: number): string {
 }
 
 const TINT: Record<CalorieStatus, string> = { within: "bg-tint-within", near: "bg-tint-near", off: "bg-tint-off" };
+/**
+ * The tints alone measured about 1.3:1 against the surface (2026-11-03 design review), so each judged day also gets a mark
+ * under its number in a colour of 3:1 or more, and a shape of its own: a dot within, a ring a little over, a bar well over.
+ */
+const MARK: Record<CalorieStatus, string> = {
+  within: "h-1.5 w-1.5 rounded-full bg-good",
+  near: "h-2 w-2 rounded-full border-[1.5px] border-watch",
+  off: "h-1.5 w-2.5 rounded-sm bg-act",
+};
+function Mark({ status }: { status: CalorieStatus }) {
+  return <span aria-hidden="true" className={`block ${MARK[status]}`} />;
+}
 // The day bar is 4.25rem tall below the safe area; the calendar and its scrim start under it, so the bar stays usable.
 const BELOW_BAR = "top-[calc(env(safe-area-inset-top)_+_4.25rem)]";
 const round = "tap raised-sm flex h-11 w-11 items-center justify-center rounded-full text-ink disabled:opacity-30";
@@ -72,9 +84,9 @@ export function Calendar({ date, today, onPick, onClose }: CalendarProps) {
 
   return createPortal(
     <>
-      <div data-testid="calendar-scrim" aria-hidden="true" onClick={onClose} className={`fixed inset-x-0 bottom-0 ${BELOW_BAR} z-40 bg-black/30`} />
+      <div data-testid="calendar-scrim" aria-hidden="true" onClick={onClose} className={`scrim fixed inset-x-0 bottom-0 ${BELOW_BAR} z-40 bg-black/30`} />
       <div role="dialog" aria-label={t.calendar.title} className={`fixed inset-x-0 ${BELOW_BAR} z-50 mx-auto max-w-xl px-4`}>
-        <div className="raised rounded-3xl p-3">
+        <div className="drop-down raised rounded-3xl p-3">
           <div className="flex items-center justify-between">
             <button type="button" aria-label={t.calendar.previousMonth} className={round} onClick={() => setMonth(shiftMonth(month, -1))}>
               <Icon name="chevron_left" size={22} />
@@ -107,9 +119,14 @@ export function Calendar({ date, today, onPick, onClose }: CalendarProps) {
                   aria-pressed={viewed}
                   onClick={() => onPick(day)}
                   // The viewed day is pressed in with the shadow alone, so a tint behind it still shows.
-                  className={`mx-auto flex h-11 w-11 items-center justify-center rounded-full text-sm tabular-nums disabled:opacity-40 ${status ? TINT[status] : ""} ${viewed ? "font-semibold shadow-[inset_3px_3px_6px_var(--nm-lo),inset_-3px_-3px_6px_var(--nm-hi)]" : ""} ${day === today ? "outline-2 outline-offset-1 outline-accent" : ""}`}
+                  className={`relative mx-auto flex h-11 w-11 items-center justify-center rounded-full text-sm tabular-nums disabled:opacity-40 ${status ? TINT[status] : ""} ${viewed ? "font-semibold shadow-[inset_3px_3px_6px_var(--nm-lo),inset_-3px_-3px_6px_var(--nm-hi)]" : ""} ${day === today ? "outline-2 outline-offset-1 outline-accent" : ""}`}
                 >
                   {Number(day.slice(8))}
+                  {status && (
+                    <span className="absolute bottom-1 left-1/2 flex h-2 -translate-x-1/2 items-center">
+                      <Mark status={status} />
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -117,7 +134,9 @@ export function Calendar({ date, today, onPick, onClose }: CalendarProps) {
           <p className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 text-xs text-muted">
             {(["within", "near", "off"] as const).map((status) => (
               <span key={status} className="inline-flex items-center gap-1">
-                <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-full ${TINT[status]}`} />
+                <span aria-hidden="true" className={`flex h-4 w-4 items-center justify-center rounded-full ${TINT[status]}`}>
+                  <Mark status={status} />
+                </span>
                 {words[status]}
               </span>
             ))}

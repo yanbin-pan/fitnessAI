@@ -16,7 +16,7 @@ export function FeedDivider({ chat, logOnly, onChange }: { chat: boolean; logOnl
   return (
     <div className="flex items-center gap-2.5 px-4 pt-4">
       <span aria-hidden="true" className="h-px w-4 bg-(--nm-lo)" />
-      <span className="text-xs font-semibold uppercase tracking-wide text-muted">{chat ? t.day.chat : t.day.logbook}</span>
+      <span className="text-sm font-semibold text-muted">{chat ? t.day.chat : t.day.logbook}</span>
       <span aria-hidden="true" className="h-px flex-1 bg-(--nm-lo)" />
       <fieldset className="pressed flex shrink-0 rounded-full p-0.5">
         <legend className="sr-only">{t.day.show}</legend>
@@ -25,7 +25,7 @@ export function FeedDivider({ chat, logOnly, onChange }: { chat: boolean; logOnl
           return (
             <label
               key={option.label}
-              className={`relative cursor-pointer rounded-full px-3 py-1 text-xs after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${chosen ? "raised-sm font-semibold text-ink" : "text-muted"}`}
+              className={`relative cursor-pointer rounded-full px-3 py-1 text-xs after:absolute after:inset-x-0 after:-inset-y-2 after:content-[''] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${chosen ? "well-tint tint-green font-semibold" : "text-muted"}`}
             >
               <input type="radio" name={name} checked={chosen} onChange={() => onChange(option.value)} className="sr-only" />
               {option.label}

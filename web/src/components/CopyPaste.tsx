@@ -8,9 +8,25 @@ import { storeDay } from "../queries.ts";
 import type { EntriesResult, Entry } from "../shared.ts";
 
 /** The small copy button in an entry card's corner: adds the entry to what is copied, or takes it out again. */
-export function CopyButton({ entry }: { entry: Entry }) {
+export function CopyButton({ entry, variant = "corner" }: { entry: Entry; variant?: "corner" | "action" }) {
   const t = useT();
   const copied = useCopied()?.entries.some((e) => e.id === entry.id) ?? false;
+  // On the card only while copied, as a tick (2026-11-03 design review); copying starts from the entry's sheet.
+  if (variant === "corner" && !copied) return null;
+  if (variant === "action") {
+    return (
+      <button
+        type="button"
+        aria-label={`${t.copy.copy}: ${entryNames(entry)}`}
+        aria-pressed={copied}
+        onClick={() => toggleCopied(entry)}
+        className={`tap inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium ${copied ? "well-tint tint-green" : "raised-sm text-ink"}`}
+      >
+        <Icon name={copied ? "check" : "content_copy"} size={16} className={copied ? "" : "text-muted"} />
+        {copied ? t.copy.copied : t.copy.copy}
+      </button>
+    );
+  }
   return (
     <button
       type="button"

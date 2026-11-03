@@ -12,7 +12,7 @@ import { DEFAULT_COMPANION, HEARD_FROM, LANGUAGES, MAX_NAME_LENGTH } from "../sh
 import type { About, CoachTone, CompanionId, Focus, HealthView, HeardFrom, Language, ProfileInput, ProfileView } from "../shared.ts";
 import { deviceTimeZone } from "../timezones.ts";
 import {
-  AnswerLabel, Chip, DietChips, FactChips, FactList, FocusTiles, HabitAnswers, OneOf, SkinAnswers, ToneChoice, TrainingAnswers, healthOptions, useConsent, useProfileSave,
+  AnswerLabel, DietChips, FactChips, FactList, FocusTiles, HabitAnswers, OneOf, SkinAnswers, ToneChoice, TrainingAnswers, healthOptions, useConsent, useProfileSave,
 } from "./answers.tsx";
 import type { Habits, SkinValue, TrainingValue } from "./answers.tsx";
 import { BodyFields, GoalFields, bodyFormFrom, bodyPatch, validateBody } from "./body.tsx";
@@ -62,7 +62,8 @@ function Frame({
       {body && <p className="mt-2 text-[15px] leading-snug text-muted">{body}</p>}
       <div className="mt-6 flex flex-col gap-6">{children}</div>
       <div className="flex-1" />
-      <div className="sticky bottom-0 mt-8 bg-base pt-3 pb-1">{footer}</div>
+      {/* A soft edge above the footer shows that the page goes on under it. */}
+      <div className="sticky bottom-0 mt-8 bg-base pt-3 pb-1 shadow-[0_-12px_12px_-4px_var(--nm-base)]">{footer}</div>
     </main>
   );
 }
@@ -174,12 +175,15 @@ function Flow({ view }: { view: ProfileView | null }) {
             {t.onboarding.welcome.name}
             <input value={name} onChange={(event) => setName(event.target.value)} autoComplete="given-name" maxLength={MAX_NAME_LENGTH} className={fieldClass} />
           </label>
-          <div role="group" aria-label={t.onboarding.welcome.language} className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-sm text-muted">{t.onboarding.welcome.language}</span>
-            {LANGUAGES.map((value) => (
-              <Chip key={value} on={value === language} onClick={() => void pickLanguage(value)}>{LANGUAGE_NAMES[value]}</Chip>
-            ))}
-          </div>
+          {/* One compact select (2026-11-03 design review): seven chips wrapped onto three rows and the last ones hid under the button. */}
+          <label className="flex items-center justify-between gap-3 text-sm font-medium">
+            {t.onboarding.welcome.language}
+            <select value={language} onChange={(event) => void pickLanguage(event.target.value as Language)} className="pressed min-h-11 rounded-xl px-3 text-base text-ink">
+              {LANGUAGES.map((value) => (
+                <option key={value} value={value}>{LANGUAGE_NAMES[value]}</option>
+              ))}
+            </select>
+          </label>
         </Frame>
       );
     case "focus":

@@ -122,7 +122,7 @@ export function HealthDataSettings() {
   if (!health.data?.consented_at) return null;
   return (
     <section className="raised mt-6 rounded-3xl p-4">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">{t.health.data}</h2>
+      <h2 className="text-sm font-semibold text-muted">{t.health.data}</h2>
       <p className="mt-2 text-xs text-muted">{t.health.dataNote}</p>
       {deleteAll.isError && <p role="alert" className="mt-2 text-sm text-danger">{t.health.saveFailed}</p>}
       <button

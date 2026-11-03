@@ -91,7 +91,7 @@ describe("the Health home", () => {
     const profile = screen.getByRole("region", { name: "Your health profile" });
     expect(within(profile).getByRole("link", { name: /Conditions.*Prediabetes/ })).toHaveAttribute("href", "/health/profile/conditions");
     expect(within(profile).getByRole("link", { name: /Injuries.*Left knee, meniscus tear · No deep squats/ })).toBeInTheDocument();
-    expect(within(profile).getByRole("link", { name: /Diet & allergies.*Vegetarian.*Peanuts.*1 target set/ })).toHaveAttribute("href", "/health/diet");
+    expect(within(profile).getByRole("link", { name: /Diet & allergies.*Vegetarian.*Peanuts/ })).toHaveAttribute("href", "/health/diet");
     expect(screen.getByRole("link", { name: /LDL cholesterol went from 3.6 to 4.1 since Mar 2026/ })).toHaveAttribute("href", "/health/markers/ldl");
     const records = screen.getByRole("region", { name: "Records" });
     expect(within(records).getByRole("link", { name: /Blood test.*12 Sept 2026 · Spanish · 1 out of range/ })).toHaveAttribute("href", "/health/records/d1");
