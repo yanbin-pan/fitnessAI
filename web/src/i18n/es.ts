@@ -206,6 +206,7 @@ export const es: Messages = {
     empty: "Aún no hay suficiente para decirlo. Unos días de comidas y esto se llena.",
     microsPending: "Las vitaminas y minerales aparecen cuando Zabaione haya estimado casi todo lo que comes.",
     sunlight: "La vitamina D viene sobre todo del sol, así que solo con la comida suele salir baja.",
+    scale: { low: "bajo", good: "bien", high: "alto" },
     disclaimer: "Estimado a partir de lo que registras: una guía aproximada, nunca un objetivo.",
   },
   /** Fat and sugar of the day in the nutrients card (2026-10-17 fat & sugar design). */

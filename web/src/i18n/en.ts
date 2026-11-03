@@ -230,6 +230,8 @@ export const en = {
     empty: "Not enough logged yet to say. A few days of meals and this fills in.",
     microsPending: "Vitamins and minerals appear once Zabaione has estimated most of what you eat.",
     sunlight: "Vitamin D comes mostly from sunlight, so food alone often reads low.",
+    /** The 7-day scale's three columns. */
+    scale: { low: "low", good: "good", high: "high" },
     disclaimer: "Estimated from what you log: a rough guide, never a target.",
   },
   /** Fat and sugar of the day in the nutrients card (2026-10-17 fat & sugar design). */

@@ -106,3 +106,32 @@ describe("the context block's vitamins and minerals", () => {
     expect(after.nutrient_signals_7d.levels.iron_mg).toBe("low");
   });
 });
+
+describe("the week's vitamins and minerals in the system prompt", () => {
+  it("averages the 7 days before against the reference, scaled to what had an estimate, with the foods that gave most", () => {
+    const iron = (amount: number) => [{ nutrient: "iron_mg" as const, amount }];
+    log("2026-10-10", { foods: [sampleFood({ name: "Today's steak", kcal: 500, micros: iron(9) })] });
+    log("2026-10-09", { foods: [sampleFood({ name: "Lentils", kcal: 400, micros: iron(4) }), sampleFood({ name: "Spinach", kcal: 100, micros: iron(2) })] });
+    log("2026-10-08", { foods: [sampleFood({ name: "lentils", kcal: 400, micros: iron(4) }), sampleFood({ name: "Toast", kcal: 100, micros: null })] });
+    log("2026-10-02", { foods: [sampleFood({ name: "Eight days back", kcal: 500, micros: iron(20) })] });
+
+    const week = earlierDays(db.db, "2026-10-10", "female").micros_week!;
+    expect(week.days).toBe(2);
+    expect(week.covered_pct).toBe(90);
+    // 10 mg over 2 days, scaled up for the 10% without an estimate: about 5.6 mg a day against 14.8.
+    expect(week.per_nutrient.iron_mg).toEqual({ avg_daily: 5.6, daily_reference: 14.8, pct_of_reference: 38, top_sources: ["lentils", "Spinach"] });
+    expect(week.per_nutrient.vitamin_c_mg).toMatchObject({ avg_daily: 0, top_sources: [] });
+
+    const prompt = buildSystemPrompt(makeProfile({ sex: "female" }), "2026-10-10", earlierDays(db.db, "2026-10-10", "female"));
+    expect(prompt).toContain('"micros_week":');
+    expect(prompt).toContain("micros_week, in \"Their last days\"");
+  });
+
+  it("is left out when the card would judge none: too few days or too little with an estimate", () => {
+    log("2026-10-09", { foods: [sampleFood({ kcal: 500, micros: [{ nutrient: "iron_mg", amount: 4 }] })] });
+    expect(earlierDays(db.db, "2026-10-10", "male")).not.toHaveProperty("micros_week");
+    log("2026-10-08", { foods: [sampleFood({ kcal: 500, micros: null })] });
+    expect(earlierDays(db.db, "2026-10-10", "male")).not.toHaveProperty("micros_week");
+    expect(earlierDays(db.db, "2026-10-10")).not.toHaveProperty("micros_week");
+  });
+});

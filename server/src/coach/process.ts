@@ -85,7 +85,7 @@ export async function processMessage(deps: CoachDeps, messageId: string): Promis
   // Checked before the first call: a run that starts under the cap may end a few calls over it (2.2 §6).
   if (callsOn(deps.db, today) >= deps.dailyCallCap) return fail(deps.db, messageId, "ai_cap");
   const system = getOrCreateThread(deps.db, message.date, () =>
-    buildSystemPrompt(profile, message.date, earlierDays(deps.db, message.date), profile.memories === "on" ? memoriesForCoach(deps.db, message.date) : null), nowIso);
+    buildSystemPrompt(profile, message.date, earlierDays(deps.db, message.date, profile.sex), profile.memories === "on" ? memoriesForCoach(deps.db, message.date) : null), nowIso);
   const load = (id: string) => photoData(deps.db, deps.photoDir, id);
   const history = hydrateTurns(loadTurns(deps.db, message.date), load);
   // The coach's context never shows the featured row.

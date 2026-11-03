@@ -30,23 +30,28 @@ function remembered(): boolean {
   }
 }
 
+const POSITION: Record<NutrientLevel, number> = { low: 0, ok: 1, high: 2 };
+
 /**
- * One status and the nutrients at it, e.g. "● A bit low  Vitamin D, Iron". Grouped by word rather than one tile per
- * nutrient, so the few that need attention lead and the list stays short and aligned (2026-11-03 follow-up).
+ * One nutrient on a low / good / high scale (2026-11-03, Bin's pick "C"): a dot in the third that matches its level,
+ * coloured by tone, so which way each one is off reads at a glance and still no number is shown.
  */
-function StatusRow({ word, tone, names }: { word: string; tone: Tone; names: string[] }) {
+function ScaleRow({ name, word, tone, level }: { name: string; word: string; tone: Tone; level: NutrientLevel }) {
   return (
-    <li className="col-span-2 grid grid-cols-subgrid items-baseline border-t border-line py-2 text-sm first:border-t-0 first:pt-0">
-      <span className="flex items-center gap-1.5 font-medium">
-        <span aria-hidden="true" className={`h-2 w-2 shrink-0 self-center rounded-full ${DOT[tone]}`} />
-        {word}
+    <li className="flex items-center justify-between gap-3 border-t border-line py-1.5 text-sm first:border-t-0">
+      <span className="min-w-0 truncate">{name}</span>
+      <span className="sr-only">{word}</span>
+      <span aria-hidden="true" className="pressed relative grid h-3 w-28 shrink-0 grid-cols-3 rounded-full">
+        <span className="col-start-2 my-[3px] rounded-full bg-good/20" />
+        <span
+          data-level={level}
+          className={`absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-(--nm-base) ${DOT[tone]}`}
+          style={{ left: `${((POSITION[level] * 2 + 1) / 6) * 100}%` }}
+        />
       </span>
-      <span className="min-w-0 text-muted">{names.join(", ")}</span>
     </li>
   );
 }
-
-const TONE_ORDER: readonly Tone[] = ["heads-up", "calm", "good"];
 
 const whole = (grams: number) => Math.round(grams);
 
@@ -208,23 +213,19 @@ export function NutrientCard({ signals, foods = [], isToday = true, sex = "male"
   const group = (title: string, keys: readonly SignalKey[]) => {
     const shown = keys.filter((key) => signals.levels[key] !== undefined);
     if (shown.length === 0) return null;
-    const rows = new Map<string, { word: string; tone: Tone; rank: number; names: string[] }>();
-    for (const key of shown) {
-      const level = signals.levels[key] as NutrientLevel;
-      const tone = toneOf(key, level);
-      const label = word(key, level);
-      // Needs a look first, then a bit low, then on point before stacked.
-      const rank = TONE_ORDER.indexOf(tone) * 2 + (level === "high" && tone === "good" ? 1 : 0);
-      const row = rows.get(`${tone}:${label}`) ?? { word: label, tone, rank, names: [] };
-      row.names.push(t.nutrients.names[key]);
-      rows.set(`${tone}:${label}`, row);
-    }
-    const ordered = [...rows.values()].sort((a, b) => a.rank - b.rank);
     return (
       <div className="mt-4">
-        <h3 className="text-xs font-medium text-muted">{title}</h3>
-        <ul aria-label={title} className="mt-2 grid grid-cols-[minmax(6.5rem,max-content)_minmax(0,1fr)] gap-x-4">
-          {ordered.map((row) => <StatusRow key={`${row.tone}:${row.word}`} word={row.word} tone={row.tone} names={row.names} />)}
+        <div className="flex items-baseline justify-between gap-3">
+          <h3 className="min-w-0 text-xs font-medium text-muted">{title}</h3>
+          <span aria-hidden="true" className="grid w-28 shrink-0 grid-cols-3 text-center text-[0.625rem] text-muted">
+            <span>{t.nutrients.scale.low}</span><span>{t.nutrients.scale.good}</span><span>{t.nutrients.scale.high}</span>
+          </span>
+        </div>
+        <ul aria-label={title} className="mt-1.5 flex flex-col">
+          {shown.map((key) => {
+            const level = signals.levels[key] as NutrientLevel;
+            return <ScaleRow key={key} name={t.nutrients.names[key]} word={word(key, level)} tone={toneOf(key, level)} level={level} />;
+          })}
         </ul>
       </div>
     );

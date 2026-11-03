@@ -1,7 +1,7 @@
 import type { Sql } from "../db/types.ts";
 import { listEntries, listEntriesBetween } from "../log/entries.ts";
-import { addDays } from "../shared.ts";
-import type { Activity, Entry, FoodItem } from "../shared.ts";
+import { MICRO_MIN_COVERAGE, MICRO_REFERENCE, MICROS, SIGNAL_MIN_DAYS, addDays } from "../shared.ts";
+import type { Activity, Entry, FoodItem, Micro, Sex } from "../shared.ts";
 import { weekdayName } from "../time.ts";
 
 // What the coach knows of the days before the one it is chatting about (2026-11-02 coach context): the foods of the
@@ -70,6 +70,59 @@ export interface EarlierDays {
   recent_workouts: { date: string; weekday: string; workouts: Workout[] }[];
   /** Of the RECENT_WORKOUT_DAYS days before, how many had any training. */
   training_days: number;
+  /** The week's vitamins and minerals behind the nutrient card's words; left out when the card shows none. */
+  micros_week?: MicrosWeek;
+}
+
+/** Days back whose vitamins and minerals the coach sees: the same 7 the nutrient card judges. */
+export const MICRO_WEEK_DAYS = 7;
+/** Foods named per nutrient as where it came from. */
+const MICRO_SOURCES = 3;
+
+/**
+ * The 7 days before a message's day, nutrient by nutrient (2026-11-03, Bin's ask): the daily average against the
+ * reference, scaled to the share of food with an estimate the way the card's words are, and the foods that gave the
+ * most, so the coach can say how to close a gap with the whole week in view. Built once a day with the system prompt.
+ */
+export interface MicrosWeek {
+  days: number;
+  covered_pct: number;
+  per_nutrient: Partial<Record<Micro, { avg_daily: number; daily_reference: number; pct_of_reference: number; top_sources: string[] }>>;
+}
+
+const roughly = (amount: number) => (amount >= 10 ? Math.round(amount) : Math.round(amount * 10) / 10);
+
+export function microsWeek(foodsByDay: readonly (readonly FoodItem[])[], sex: Sex): MicrosWeek | null {
+  const eaten = foodsByDay.filter((foods) => foods.reduce((kcal, food) => kcal + food.kcal, 0) > 0);
+  if (eaten.length < SIGNAL_MIN_DAYS) return null;
+  const foods = eaten.flat();
+  const kcal = foods.reduce((sum, food) => sum + food.kcal, 0);
+  const covered = foods.filter((food) => food.micros !== null).reduce((sum, food) => sum + food.kcal, 0);
+  const coverage = covered / kcal;
+  if (coverage < MICRO_MIN_COVERAGE) return null;
+  const per_nutrient: MicrosWeek["per_nutrient"] = {};
+  for (const micro of MICROS) {
+    const bySource = new Map<string, { name: string; amount: number }>();
+    let total = 0;
+    for (const food of foods) {
+      const amount = food.micros?.find((m) => m.nutrient === micro)?.amount ?? 0;
+      if (amount <= 0) continue;
+      total += amount;
+      const key = foodKey(food.name);
+      const source = bySource.get(key) ?? { name: food.name.trim(), amount: 0 };
+      source.amount += amount;
+      bySource.set(key, source);
+    }
+    const reference = MICRO_REFERENCE[micro][sex];
+    const daily = total / eaten.length / coverage;
+    per_nutrient[micro] = {
+      avg_daily: roughly(daily),
+      daily_reference: reference,
+      pct_of_reference: Math.round((daily / reference) * 100),
+      top_sources: [...bySource.values()].sort((a, b) => b.amount - a.amount).slice(0, MICRO_SOURCES).map((source) => source.name),
+    };
+  }
+  return { days: eaten.length, covered_pct: Math.min(100, Math.round(coverage * 100)), per_nutrient };
 }
 
 function workoutsOf(list: readonly Entry[]): Workout[] {
@@ -89,13 +142,19 @@ function workoutsOf(list: readonly Entry[]): Workout[] {
 
 const weekdayOf = (date: string) => weekdayName(new Date(`${date}T12:00:00Z`), "UTC");
 
-/** The foods of the RECENT_FOOD_DAYS days before `date` and the workouts of the RECENT_WORKOUT_DAYS before it, oldest first. */
-export function earlierDays(sql: Sql, date: string): EarlierDays {
+/**
+ * The foods of the RECENT_FOOD_DAYS days before `date` and the workouts of the RECENT_WORKOUT_DAYS before it, oldest
+ * first; with `sex`, also the vitamins and minerals of the MICRO_WEEK_DAYS before it.
+ */
+export function earlierDays(sql: Sql, date: string, sex: Sex | null = null): EarlierDays {
   const recent_foods: EarlierDays["recent_foods"] = [];
   const recent_workouts: EarlierDays["recent_workouts"] = [];
-  for (let back = RECENT_WORKOUT_DAYS; back >= 1; back--) {
+  const foodsByDay: FoodItem[][] = [];
+  for (let back = Math.max(RECENT_WORKOUT_DAYS, MICRO_WEEK_DAYS); back >= 1; back--) {
     const day = addDays(date, -back);
     const list = listEntries(sql, day);
+    if (back <= MICRO_WEEK_DAYS) foodsByDay.push(list.flatMap((entry) => entry.foods));
+    if (back > RECENT_WORKOUT_DAYS) continue;
     const workouts = workoutsOf(list);
     if (workouts.length > 0) recent_workouts.push({ date: day, weekday: weekdayOf(day), workouts });
     if (back <= RECENT_FOOD_DAYS) {
@@ -103,7 +162,8 @@ export function earlierDays(sql: Sql, date: string): EarlierDays {
       recent_foods.push({ date: day, weekday: weekdayOf(day), foods });
     }
   }
-  return { recent_foods, recent_workouts, training_days: recent_workouts.length };
+  const micros = sex ? microsWeek(foodsByDay, sex) : null;
+  return { recent_foods, recent_workouts, training_days: recent_workouts.length, ...(micros ? { micros_week: micros } : {}) };
 }
 
 /** The most foods the weekly analysis sees by name. */
