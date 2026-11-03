@@ -94,7 +94,7 @@ describe("the context block's vitamins and minerals", () => {
     expect(context()).not.toHaveProperty("micros_today");
     expect(context()).not.toHaveProperty("nutrient_signals_7d");
 
-    const micros = [{ nutrient: "iron_mg", amount: 2 }, { nutrient: "vitamin_c_mg", amount: 40 }];
+    const micros = [{ nutrient: "iron_mg" as const, amount: 2 }, { nutrient: "vitamin_c_mg" as const, amount: 40 }];
     log("2026-10-08", { foods: [sampleFood({ name: "Salad", kcal: 500, micros })] });
     log("2026-10-09", { foods: [sampleFood({ name: "Salad", kcal: 500, micros })] });
     log("2026-10-10", { foods: [sampleFood({ name: "Salad", kcal: 300, micros }), sampleFood({ name: "Toast", kcal: 100, micros: null })] });
