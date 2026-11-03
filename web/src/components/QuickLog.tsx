@@ -5,6 +5,7 @@ import { useT } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
 import { storeDay } from "../queries.ts";
 import type { DeleteResult, Entry, EntryResult, QuickItem } from "../shared.ts";
+import { useScrollLock } from "./motion.ts";
 import { sportOf } from "./SportBadge.tsx";
 
 // The chat bar's quick logging (2026-11-01 frequent items): a star button that opens the pinned and suggested items in a
@@ -258,7 +259,7 @@ function SwipeRow({ item, quick, onLogged }: { item: QuickItem; quick: QuickLog;
               <Icon name={icon} size={17} />
             </span>
           )}
-          <span className={`line-clamp-2 min-w-0 flex-1 text-sm leading-snug break-words ${item.pinned ? "font-medium" : "text-muted"}`}>{item.name}</span>
+          <span className={`min-w-0 flex-1 truncate text-sm ${item.pinned ? "font-medium" : "text-muted"}`}>{item.name}</span>
           {item.logged_today && <Icon name="check" size={15} className="shrink-0 text-accent-ink" />}
           <span className="shrink-0 text-xs text-muted">{kcal}</span>
         </button>
@@ -281,6 +282,7 @@ function SwipeRow({ item, quick, onLogged }: { item: QuickItem; quick: QuickLog;
 /** The card above the chat bar: every quick item in a list that scrolls, and ⋯ to manage them. */
 export function QuickCard({ items, quick, onClose, onManage }: { items: QuickItem[]; quick: QuickLog; onClose: () => void; onManage: () => void }) {
   const t = useT();
+  useScrollLock();
   return (
     <>
       {/* A tap anywhere else closes the card. */}

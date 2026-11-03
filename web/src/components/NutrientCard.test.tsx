@@ -35,6 +35,31 @@ describe("NutrientCard", () => {
     expect(document.body.textContent?.match(/\d+/g)).toEqual(["7"]);
   });
 
+  it("places each vitamin at its share of the reference and opens its amount and sources on a tap", async () => {
+    localStorage.setItem("nutrients-open", "1");
+    render(<NutrientCard signals={{
+      ...signals,
+      micros: {
+        vitamin_d_ug: { avg_daily: 3.5, daily_reference: 10, pct_of_reference: 34, top_sources: ["Salmon", "Eggs"] },
+        iron_mg: { avg_daily: 12.4, daily_reference: 8.7, pct_of_reference: 143, top_sources: [] },
+      },
+    }} />);
+    const micros = screen.getByRole("list", { name: "Vitamins & minerals" });
+    // No numbers until asked.
+    expect(micros.textContent).not.toMatch(/\d/);
+    const vitaminD = within(micros).getByRole("button", { name: /Vitamin D/ });
+    expect(vitaminD.querySelector("[data-share]")).toHaveStyle({ left: "17%" });
+    await userEvent.click(vitaminD);
+    expect(vitaminD).toHaveAttribute("aria-expanded", "true");
+    expect(within(micros).getByText("about 30% of the daily reference · 3.5 of 10 µg a day · mostly from Salmon, Eggs")).toBeInTheDocument();
+    // One open at a time; no sources, no "mostly from".
+    await userEvent.click(within(micros).getByRole("button", { name: /Iron/ }));
+    expect(vitaminD).toHaveAttribute("aria-expanded", "false");
+    expect(within(micros).getByText("about 140% of the daily reference · 12 of 8.7 mg a day")).toBeInTheDocument();
+    // Vitamin C has no detail from this server: it keeps the plain scale.
+    expect(within(micros).queryByRole("button", { name: /Vitamin C/ })).toBeNull();
+  });
+
   it("remembers being open", async () => {
     const { unmount } = render(<NutrientCard signals={signals} />);
     await userEvent.click(screen.getByRole("button", { name: /Vitamins/ }));

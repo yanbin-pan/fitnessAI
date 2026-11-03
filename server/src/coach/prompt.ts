@@ -286,7 +286,8 @@ export function buildTurnContext(
       exercises: entry.exercises.map(({ id: _id, position: _position, kcal_measured: _measured, avg_hr: _hr, ...item }) => rounded(item, 2)),
     })),
     ...(sex ? microsToday(view, sex) : {}),
-    ...(Object.keys(view.nutrients.levels).length > 0 ? { nutrient_signals_7d: view.nutrients } : {}),
+    // The words only: the amounts behind them are in the system prompt's micros_week, sent once a day.
+    ...(Object.keys(view.nutrients.levels).length > 0 ? { nutrient_signals_7d: { days: view.nutrients.days, levels: view.nutrients.levels } } : {}),
     ...(recent.length > 0 ? weekContext(recent) : {}),
     ...(view.alcohol ? { alcohol_week: alcoholContext(view.alcohol) } : {}),
     companion: { mood: view.companion.mood, ...(view.companion.over_alcohol ? { woozy: true } : {}) },

@@ -206,7 +206,12 @@ export const it: Messages = {
     empty: "Non c’è ancora abbastanza per dirlo. Qualche giorno di pasti e si riempie.",
     microsPending: "Vitamine e minerali compaiono quando Zabaione avrà stimato quasi tutto ciò che mangi.",
     sunlight: "La vitamina D arriva soprattutto dal sole, quindi col solo cibo risulta spesso bassa.",
-    scale: { low: "basso", good: "giusto", high: "alto" },
+    scale: { low: "basso", good: "giusto", high: "alto", reference: "riferimento" },
+    detail: {
+      share: (p: string) => `circa il ${p} del riferimento giornaliero`,
+      amount: (avg: string, ref: string, unit: string) => `${avg} su ${ref} ${unit} al giorno`,
+      from: (names: string) => `soprattutto da ${names}`,
+    },
     disclaimer: "Stimato da ciò che registri: un’indicazione di massima, mai un obiettivo.",
   },
   /** Fat and sugar of the day in the nutrients card (2026-10-17 fat & sugar design). */

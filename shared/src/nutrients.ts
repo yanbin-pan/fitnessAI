@@ -41,11 +41,22 @@ export interface SignalDay {
   micros_kcal: number;
 }
 
+/** One vitamin or mineral over the window: the daily average against its reference, and the foods that gave most. */
+export interface MicroDetail {
+  avg_daily: number;
+  daily_reference: number;
+  /** Scaled up for food without an estimate, as the level is, so the two agree. */
+  pct_of_reference: number;
+  top_sources: string[];
+}
+
 export interface NutrientSignals {
   /** Days with food in the window. */
   days: number;
   /** A nutrient left out has too little to go on. */
   levels: Partial<Record<SignalKey, NutrientLevel>>;
+  /** Behind the vitamins' and minerals' levels (2026-11-03): only when they are judged, and from a server that sends it. */
+  micros?: Partial<Record<Micro, MicroDetail>>;
 }
 
 /** Fewer days than this, and nothing is judged. */

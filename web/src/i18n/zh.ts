@@ -206,7 +206,12 @@ export const zh: Messages = {
     empty: "记录还不够，暂时说不准。多记几天饮食就会显示。",
     microsPending: "Zabaione 估算了你大部分饮食后，就会显示维生素和矿物质。",
     sunlight: "维生素 D 主要来自阳光，只看食物常常显示偏少。",
-    scale: { low: "低", good: "适中", high: "高" },
+    scale: { low: "低", good: "适中", high: "高", reference: "参考值" },
+    detail: {
+      share: (p: string) => `约为每日参考值的 ${p}`,
+      amount: (avg: string, ref: string, unit: string) => `每天 ${avg} / ${ref} ${unit}`,
+      from: (names: string) => `主要来自 ${names}`,
+    },
     disclaimer: "根据你的记录估算：只是大致参考，不是目标。",
   },
   /** Fat and sugar of the day in the nutrients card (2026-10-17 fat & sugar design). */

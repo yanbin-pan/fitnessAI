@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { FormEvent, ReactNode } from "react";
 import { Link } from "react-router";
 import { ApiError, api } from "../api.ts";
+import { useScrollLock } from "../components/motion.ts";
 import { primaryButton } from "../components/ui.tsx";
 import { useT } from "../i18n/index.tsx";
 import type { Messages } from "../i18n/index.tsx";
@@ -164,6 +165,7 @@ export function WithHealth({ children }: { children: (view: HealthView) => React
 
 /** A bottom sheet holding a form. */
 export function Sheet({ label, onClose, children, onSubmit }: { label: string; onClose: () => void; children: ReactNode; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
+  useScrollLock();
   return (
     <div role="dialog" aria-modal="true" aria-label={label} className="scrim fixed inset-0 z-40 flex items-end bg-black/40 sm:items-center">
       <form
