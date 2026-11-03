@@ -30,14 +30,25 @@ function remembered(): boolean {
   }
 }
 
-function Tile({ name, word, tone }: { name: string; word: string; tone: Tone }) {
+const POSITION: Record<NutrientLevel, number> = { low: 0, ok: 1, high: 2 };
+
+/**
+ * One nutrient on a low / good / high scale (2026-11-03, Bin's pick "C"): a dot in the third that matches its level,
+ * coloured by tone, so which way each one is off reads at a glance and still no number is shown.
+ */
+function ScaleRow({ name, word, tone, level }: { name: string; word: string; tone: Tone; level: NutrientLevel }) {
   return (
-    <li className="px-1 py-1">
-      <p className="truncate text-xs text-muted">{name}</p>
-      <p className="mt-0.5 flex items-center gap-1.5 text-sm font-medium">
-        <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${DOT[tone]}`} />
-        {word}
-      </p>
+    <li className="flex items-center justify-between gap-3 border-t border-line py-1.5 text-sm first:border-t-0">
+      <span className="min-w-0 truncate">{name}</span>
+      <span className="sr-only">{word}</span>
+      <span aria-hidden="true" className="pressed relative grid h-3 w-28 shrink-0 grid-cols-3 rounded-full">
+        <span className="col-start-2 my-[3px] rounded-full bg-good/20" />
+        <span
+          data-level={level}
+          className={`absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-(--nm-base) ${DOT[tone]}`}
+          style={{ left: `${((POSITION[level] * 2 + 1) / 6) * 100}%` }}
+        />
+      </span>
     </li>
   );
 }
@@ -51,7 +62,7 @@ function DayRow({ title, figure, figureClass = "text-muted", open, onToggle, chi
   const id = useId();
   return (
     // Rows divided by a hairline rather than set in cards inside the card (2026-11-03 design review).
-    <li className="border-t border-line px-1 pt-2.5 first:border-t-0 first:pt-0">
+    <li className="min-w-0 border-t border-line pt-2.5 first:border-t-0 first:pt-0">
       <button type="button" aria-expanded={open} aria-controls={open ? id : undefined} onClick={onToggle} className="block w-full text-left">
         <span className="flex items-baseline justify-between gap-2 text-sm">
           <span className="font-medium">{title}</span>
@@ -67,7 +78,7 @@ function DayRow({ title, figure, figureClass = "text-muted", open, onToggle, chi
 function Sources({ rows, title }: { rows: { key: string; name: string; grams: number }[]; title?: string }) {
   const t = useT();
   return (
-    <ul aria-label={title} className="mt-2 flex flex-col gap-1 border-t border-(--nm-lo) pt-2">
+    <ul aria-label={title} className="mt-2 flex min-w-0 flex-col gap-1 border-t border-line pt-2">
       {title && <li aria-hidden="true" className="text-[0.6875rem] font-semibold text-muted">{title}</li>}
       {rows.map((row) => (
         <li key={row.key} className="flex items-baseline gap-2 text-xs">
@@ -92,8 +103,9 @@ function DaySection({ day, foods, title, saturatedMax }: { day: FatSugarDay; foo
   const over = added === null ? 0 : Math.max(0, added - ADDED_SUGARS_MAX_G);
   return (
     <div>
-      <h3 className="px-1 text-sm font-semibold">{title}</h3>
-      <ul aria-label={title} className="mt-2 grid gap-2.5">
+      <h3 className="text-sm font-semibold">{title}</h3>
+      {/* A flex column, not a grid: a grid's implicit column grows to a long food name and pushes the page sideways. */}
+      <ul aria-label={title} className="mt-2 flex flex-col gap-2.5">
         {day.fat_g > 0 && (
           <DayRow
             title={t.fatSugar.fat}
@@ -202,12 +214,17 @@ export function NutrientCard({ signals, foods = [], isToday = true, sex = "male"
     const shown = keys.filter((key) => signals.levels[key] !== undefined);
     if (shown.length === 0) return null;
     return (
-      <div className="mt-3">
-        <h3 className="px-1 text-xs font-medium text-muted">{title}</h3>
-        <ul aria-label={title} className="mt-1 grid grid-cols-2 gap-x-2">
+      <div className="mt-4">
+        <div className="flex items-baseline justify-between gap-3">
+          <h3 className="min-w-0 text-xs font-medium text-muted">{title}</h3>
+          <span aria-hidden="true" className="grid w-28 shrink-0 grid-cols-3 text-center text-[0.625rem] text-muted">
+            <span>{t.nutrients.scale.low}</span><span>{t.nutrients.scale.good}</span><span>{t.nutrients.scale.high}</span>
+          </span>
+        </div>
+        <ul aria-label={title} className="mt-1.5 flex flex-col">
           {shown.map((key) => {
             const level = signals.levels[key] as NutrientLevel;
-            return <Tile key={key} name={t.nutrients.names[key]} word={word(key, level)} tone={toneOf(key, level)} />;
+            return <ScaleRow key={key} name={t.nutrients.names[key]} word={word(key, level)} tone={toneOf(key, level)} level={level} />;
           })}
         </ul>
       </div>
@@ -234,7 +251,7 @@ export function NutrientCard({ signals, foods = [], isToday = true, sex = "male"
           {hasDay && (
             <>
               <DaySection day={day} foods={foods} title={dayTitle} saturatedMax={saturatedMax} />
-              <h3 className="mt-5 border-t border-line px-1 pt-4 text-sm font-semibold">{t.fatSugar.week}</h3>
+              <h3 className="mt-5 border-t border-line pt-4 text-sm font-semibold">{t.fatSugar.week}</h3>
             </>
           )}
           {!hasFats ? (
@@ -243,9 +260,9 @@ export function NutrientCard({ signals, foods = [], isToday = true, sex = "male"
             <>
               {group(t.nutrients.fats, FATS)}
               {group(t.nutrients.micros, MICROS)}
-              {!hasMicros && <p className="mt-3 px-1 text-xs text-muted">{t.nutrients.microsPending}</p>}
-              {signals.levels.vitamin_d_ug === "low" && <p className="mt-3 px-1 text-xs text-muted">{t.nutrients.sunlight}</p>}
-              <p className="mt-2 px-1 text-xs text-muted">{t.nutrients.disclaimer}</p>
+              {!hasMicros && <p className="mt-3 text-xs text-muted">{t.nutrients.microsPending}</p>}
+              {signals.levels.vitamin_d_ug === "low" && <p className="mt-3 text-xs text-muted">{t.nutrients.sunlight}</p>}
+              <p className="mt-2 text-xs text-muted">{t.nutrients.disclaimer}</p>
             </>
           )}
         </div>

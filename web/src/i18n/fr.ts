@@ -208,6 +208,7 @@ export const fr: Messages = {
     empty: "Pas encore assez d’enregistrements pour le dire. Quelques jours de repas et ça se remplit.",
     microsPending: "Les vitamines et minéraux apparaissent quand Zabaione a estimé l’essentiel de ce que vous mangez.",
     sunlight: "La vitamine D vient surtout du soleil : l’alimentation seule paraît souvent juste.",
+    scale: { low: "bas", good: "bien", high: "haut" },
     disclaimer: "Estimé d’après vos enregistrements : un repère approximatif, jamais un objectif.",
   },
   /** Fat and sugar of the day in the nutrients card (2026-10-17 fat & sugar design). */

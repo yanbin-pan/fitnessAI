@@ -206,6 +206,7 @@ export const de: Messages = {
     empty: "Noch zu wenig eingetragen, um etwas zu sagen. Ein paar Tage Mahlzeiten, dann füllt sich das hier.",
     microsPending: "Vitamine und Mineralstoffe erscheinen, sobald Zabaione das meiste deines Essens geschätzt hat.",
     sunlight: "Vitamin D kommt vor allem aus Sonnenlicht, deshalb wirkt es über das Essen allein oft knapp.",
+    scale: { low: "wenig", good: "gut", high: "viel" },
     disclaimer: "Geschätzt aus deinen Einträgen: eine grobe Richtung, nie ein Ziel.",
   },
   /** Fat and sugar of the day in the nutrients card (2026-10-17 fat & sugar design). */

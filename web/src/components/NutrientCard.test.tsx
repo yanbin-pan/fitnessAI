@@ -27,6 +27,8 @@ describe("NutrientCard", () => {
     ]);
     const micros = screen.getByRole("list", { name: "Vitamins & minerals" });
     expect(within(micros).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Vitamin CStacked", "Vitamin DA bit low", "IronOn point"]);
+    // Each sits on the low / good / high scale at its level.
+    expect([...within(micros).getAllByRole("listitem")].map((li) => li.querySelector("[data-level]")?.getAttribute("data-level"))).toEqual(["high", "low", "ok"]);
     expect(screen.getByText("Vitamin D comes mostly from sunlight, so food alone often reads low.")).toBeInTheDocument();
     // No amounts and no targets: only the caption's "7 days".
     expect(document.body.textContent).not.toMatch(/\d\s*(mg|µg|ug|g|kcal|%)\b/);
