@@ -1,7 +1,7 @@
 import type { Sql } from "../db/types.ts";
 import { listEntries, listEntriesBetween } from "../log/entries.ts";
 import { MICRO_MIN_COVERAGE, MICRO_REFERENCE, MICROS, SIGNAL_MIN_DAYS, addDays } from "../shared.ts";
-import type { Activity, Entry, FoodItem, Micro, Sex } from "../shared.ts";
+import type { Activity, Entry, FoodItem, Micro, MicroDetail, Sex } from "../shared.ts";
 import { weekdayName } from "../time.ts";
 
 // What the coach knows of the days before the one it is chatting about (2026-11-02 coach context): the foods of the
@@ -87,7 +87,7 @@ const MICRO_SOURCES = 3;
 export interface MicrosWeek {
   days: number;
   covered_pct: number;
-  per_nutrient: Partial<Record<Micro, { avg_daily: number; daily_reference: number; pct_of_reference: number; top_sources: string[] }>>;
+  per_nutrient: Partial<Record<Micro, MicroDetail>>;
 }
 
 const roughly = (amount: number) => (amount >= 10 ? Math.round(amount) : Math.round(amount * 10) / 10);

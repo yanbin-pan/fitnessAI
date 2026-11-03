@@ -12,7 +12,7 @@ import type {
 import { CopyButton } from "./CopyPaste.tsx";
 import { FrequentStar } from "./FrequentStar.tsx";
 import { SportBadge, familiesFor, sportName } from "./SportBadge.tsx";
-import { useEscape, useLeaving } from "./motion.ts";
+import { useEscape, useLeaving, useScrollLock } from "./motion.ts";
 import { primaryButton, quietButton } from "./ui.tsx";
 
 export function toFoodInput(f: FoodItem): FoodItemInput {
@@ -266,6 +266,7 @@ export function EntryEditor({ date, entry, featured, onClose: closed }: { date: 
   const t = useT();
   const [leaving, onClose] = useLeaving(closed);
   useEscape(onClose);
+  useScrollLock();
   const [foods, setFoods] = useState<FoodItemInput[]>(() => (entry ? entry.foods.map(toFoodInput) : [blankFood()]));
   const [exercises, setExercises] = useState<ExerciseItemInput[]>(() => (entry ? entry.exercises.map(toExerciseInput) : []));
   // The last manual add that was sent. Saving again with nothing changed (after a lost reply) is the same

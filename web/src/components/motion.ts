@@ -48,3 +48,24 @@ export function useEscape(onEscape: () => void): void {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 }
+
+let locks = 0;
+/**
+ * Keeps the page behind still while a sheet is open (2026-11-03): a swipe inside the sheet, or past its end, scrolls the
+ * sheet and never the chat underneath. Counted, so a sheet opened over another keeps the lock until both are gone.
+ */
+export function useScrollLock(): void {
+  useEffect(() => {
+    const root = document.documentElement;
+    if (locks++ === 0) {
+      root.style.overflow = "hidden";
+      root.style.overscrollBehavior = "none";
+    }
+    return () => {
+      if (--locks === 0) {
+        root.style.overflow = "";
+        root.style.overscrollBehavior = "";
+      }
+    };
+  }, []);
+}

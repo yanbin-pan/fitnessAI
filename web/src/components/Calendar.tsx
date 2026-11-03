@@ -6,6 +6,7 @@ import { Icon } from "../icons/Icon.tsx";
 import { useDaySummaries } from "../queries.ts";
 import { addDays, calorieStatus } from "../shared.ts";
 import type { CalorieStatus, DaySummary } from "../shared.ts";
+import { useScrollLock } from "./motion.ts";
 
 /** The 42 days (six weeks, Monday first) of the grid that shows `month`, written "2026-10". */
 export function monthGrid(month: string): string[] {
@@ -49,6 +50,7 @@ interface CalendarProps {
 /** The month that drops down under the day bar (spec §11.1): pick a day; past days are tinted by how they went. */
 export function Calendar({ date, today, onPick, onClose }: CalendarProps) {
   const t = useT();
+  useScrollLock();
   const [month, setMonth] = useState(date.slice(0, 7));
   const cells = monthGrid(month);
   const summaries = useDaySummaries(cells[0], cells[cells.length - 1]);

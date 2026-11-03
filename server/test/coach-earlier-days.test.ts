@@ -135,3 +135,17 @@ describe("the week's vitamins and minerals in the system prompt", () => {
     expect(earlierDays(db.db, "2026-10-10")).not.toHaveProperty("micros_week");
   });
 });
+
+describe("the nutrient card's vitamin detail", () => {
+  it("comes with the day's signals, matching the coach's numbers, and stays out of every message's context", () => {
+    const profile = makeProfile({ sex: "female" });
+    const micros = [{ nutrient: "iron_mg" as const, amount: 4 }];
+    log("2026-10-08", { foods: [sampleFood({ name: "Lentils", kcal: 500, micros })] });
+    log("2026-10-09", { foods: [sampleFood({ name: "Lentils", kcal: 500, micros })] });
+    const view = buildDayView(db.db, profile, "2026-10-10", "2026-10-10", NOW_ISO, []);
+    expect(view.nutrients.micros?.iron_mg).toEqual(earlierDays(db.db, "2026-10-10", "female").micros_week!.per_nutrient.iron_mg);
+    expect(view.nutrients.micros?.iron_mg).toMatchObject({ avg_daily: 4, pct_of_reference: 27, top_sources: ["Lentils"] });
+    const context = JSON.parse(buildTurnContext(view, NOW, "Europe/London", "en", false, [], null, "female").split("\n")[1]);
+    expect(context.nutrient_signals_7d).toEqual({ days: 2, levels: view.nutrients.levels });
+  });
+});

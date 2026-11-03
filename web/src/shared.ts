@@ -18,7 +18,7 @@ export { ADDED_SUGARS_MAX_G, SATURATED_FAT_MAX_G, fatSugarDay } from "../../shar
 export type { FatSugarDay } from "../../shared/src/fatsugar.ts";
 export type { CompanionMood, CompanionStatus } from "../../shared/src/companions.ts";
 export { MODERATE, SIGNAL_KEYS } from "../../shared/src/nutrients.ts";
-export type { NutrientLevel, NutrientSignals, SignalKey } from "../../shared/src/nutrients.ts";
+export type { MicroDetail, NutrientLevel, NutrientSignals, SignalKey } from "../../shared/src/nutrients.ts";
 export { DOCUMENT_KINDS, FACT_KINDS, FOOD_LEVELS, HEALTH_CONDITIONS, LAB_MARKERS, LEVELLED_KINDS, MAX_LAB_PHOTOS, hasLevel, kindOfCode, labFlag } from "../../shared/src/health.ts";
 export type * from "../../shared/src/health.ts";
 export {

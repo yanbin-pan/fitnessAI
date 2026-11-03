@@ -2,7 +2,7 @@ import { useId, useState } from "react";
 import { useT } from "../i18n/index.tsx";
 import { Icon } from "../icons/Icon.tsx";
 import { ADDED_SUGARS_MAX_G, MODERATE, SATURATED_FAT_MAX_G, SIGNAL_KEYS, fatSugarDay } from "../shared.ts";
-import type { FatSugarDay, FoodItem, NutrientLevel, NutrientSignals, Sex, SignalKey } from "../shared.ts";
+import type { FatSugarDay, FoodItem, Micro, MicroDetail, NutrientLevel, NutrientSignals, Sex, SignalKey } from "../shared.ts";
 
 // Vitamins, fats and sugar (2026-10-06 nutrients design): a word for each over the last 7 days, never a number against a
 // target, so that part reads as a nudge rather than a scorecard. Nothing there is ever red: "a bit low" is grey, "a lot" a
@@ -49,6 +49,51 @@ function ScaleRow({ name, word, tone, level }: { name: string; word: string; ton
           style={{ left: `${((POSITION[level] * 2 + 1) / 6) * 100}%` }}
         />
       </span>
+    </li>
+  );
+}
+
+/** The reference scale runs from nothing to twice the reference; past that the dot rests at the end. */
+const REF_MAX = 2;
+const at = (share: number) => `${(Math.min(Math.max(share, 0), REF_MAX) / REF_MAX) * 100}%`;
+/** The good band, as the levels draw it (66 % to 150 % of the reference). */
+const BAND = { from: 0.66, to: 1.5 };
+
+/**
+ * A vitamin or mineral against its daily reference (2026-11-03, Bin's pick "C"): the dot sits at the 7-day share of the
+ * reference, a tick marks the reference, and a tap opens one line with the share rounded to 10 %, the amount and the
+ * foods it came from. Still calm by default: the exact figure only on demand.
+ */
+function MicroRow({ id, name, word, tone, detail, open, onToggle }: {
+  id: Micro; name: string; word: string; tone: Tone; detail: MicroDetail; open: boolean; onToggle: () => void;
+}) {
+  const t = useT();
+  const panel = useId();
+  const share = detail.pct_of_reference / 100;
+  const pct = (Math.round(detail.pct_of_reference / 10) / 10).toLocaleString(t.locale, { style: "percent" });
+  const unit = id.endsWith("_ug") ? "µg" : "mg";
+  const num = (n: number) => n.toLocaleString(t.locale, { maximumFractionDigits: n >= 10 ? 0 : 1 });
+  const parts = [
+    t.nutrients.detail.share(pct),
+    t.nutrients.detail.amount(num(detail.avg_daily), num(detail.daily_reference), unit),
+    ...(detail.top_sources.length > 0 ? [t.nutrients.detail.from(detail.top_sources.join(", "))] : []),
+  ];
+  return (
+    <li className="border-t border-line first:border-t-0">
+      <button type="button" aria-expanded={open} aria-controls={open ? panel : undefined} onClick={onToggle} className="flex w-full items-center justify-between gap-3 py-1.5 text-left text-sm">
+        <span className="min-w-0 truncate">{name}</span>
+        <span className="sr-only">{word}</span>
+        <span aria-hidden="true" className="pressed relative h-3 w-28 shrink-0 rounded-full">
+          <span className="absolute inset-y-[3px] rounded-full bg-good/20" style={{ left: at(BAND.from), right: `calc(100% - ${at(BAND.to)})` }} />
+          <span className="absolute inset-y-0 left-1/2 w-px bg-ink/40" />
+          <span
+            data-share={detail.pct_of_reference}
+            className={`absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-(--nm-base) ${DOT[tone]}`}
+            style={{ left: at(share) }}
+          />
+        </span>
+      </button>
+      {open && <p id={panel} className="pb-2 text-xs text-muted">{parts.join(" · ")}</p>}
     </li>
   );
 }
@@ -209,6 +254,7 @@ export function NutrientCard({ signals, foods = [], isToday = true, sex = "male"
       return !was;
     });
   };
+  const [openMicro, setOpenMicro] = useState<SignalKey | null>(null);
   const word = (key: SignalKey, level: NutrientLevel) => (MODERATE.includes(key) ? t.nutrients.moderate : t.nutrients.enough)[level];
   const group = (title: string, keys: readonly SignalKey[]) => {
     const shown = keys.filter((key) => signals.levels[key] !== undefined);
@@ -217,13 +263,26 @@ export function NutrientCard({ signals, foods = [], isToday = true, sex = "male"
       <div className="mt-4">
         <div className="flex items-baseline justify-between gap-3">
           <h3 className="min-w-0 text-xs font-medium text-muted">{title}</h3>
-          <span aria-hidden="true" className="grid w-28 shrink-0 grid-cols-3 text-center text-[0.625rem] text-muted">
-            <span>{t.nutrients.scale.low}</span><span>{t.nutrients.scale.good}</span><span>{t.nutrients.scale.high}</span>
-          </span>
+          {keys === MICROS && signals.micros ? (
+            <span aria-hidden="true" className="w-28 shrink-0 text-center text-[0.625rem] text-muted">{t.nutrients.scale.reference}</span>
+          ) : (
+            <span aria-hidden="true" className="grid w-28 shrink-0 grid-cols-3 text-center text-[0.625rem] text-muted">
+              <span>{t.nutrients.scale.low}</span><span>{t.nutrients.scale.good}</span><span>{t.nutrients.scale.high}</span>
+            </span>
+          )}
         </div>
         <ul aria-label={title} className="mt-1.5 flex flex-col">
           {shown.map((key) => {
             const level = signals.levels[key] as NutrientLevel;
+            const detail = signals.micros?.[key as Micro];
+            if (detail) {
+              return (
+                <MicroRow
+                  key={key} id={key as Micro} name={t.nutrients.names[key]} word={word(key, level)} tone={toneOf(key, level)} detail={detail}
+                  open={openMicro === key} onToggle={() => setOpenMicro(openMicro === key ? null : key)}
+                />
+              );
+            }
             return <ScaleRow key={key} name={t.nutrients.names[key]} word={word(key, level)} tone={toneOf(key, level)} level={level} />;
           })}
         </ul>

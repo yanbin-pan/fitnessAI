@@ -206,7 +206,12 @@ export const lt: Messages = {
     empty: "Kol kas per mažai įrašų. Kelios dienos valgių – ir čia atsiras.",
     microsPending: "Vitaminai ir mineralai atsiras, kai Zabaione įvertins didžiąją dalį to, ką valgote.",
     sunlight: "Vitamino D daugiausia gauname iš saulės, todėl vien iš maisto jo dažnai atrodo per mažai.",
-    scale: { low: "mažai", good: "gerai", high: "daug" },
+    scale: { low: "mažai", good: "gerai", high: "daug", reference: "norma" },
+    detail: {
+      share: (p: string) => `apie ${p} paros normos`,
+      amount: (avg: string, ref: string, unit: string) => `${avg} iš ${ref} ${unit} per dieną`,
+      from: (names: string) => `daugiausia iš: ${names}`,
+    },
     disclaimer: "Įvertinta pagal jūsų įrašus: apytikslė gairė, ne tikslas.",
   },
   /** Fat and sugar of the day in the nutrients card (2026-10-17 fat & sugar design). */

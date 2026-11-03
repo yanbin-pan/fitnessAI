@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../api.ts";
 import { useT } from "../i18n/index.tsx";
-import { useEscape, useLeaving } from "./motion.ts";
+import { useEscape, useLeaving, useScrollLock } from "./motion.ts";
 import { Icon } from "../icons/Icon.tsx";
 import { FREQUENT_SLOTS } from "../shared.ts";
 import type { Activity, ExerciseItemInput, FoodItemInput, FrequentItem, FrequentSlot, FrequentView, Regular, RegularKind } from "../shared.ts";
@@ -268,6 +268,7 @@ export function FrequentSheet({ featured, onClose }: { featured: readonly Activi
     leave();
   };
   useEscape(close);
+  useScrollLock();
   // On the body, not inside the chat bar: there it sat in the bar's stacking layer, under the tab bar, and its list could
   // not be scrolled to the end.
   return createPortal(

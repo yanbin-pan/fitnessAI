@@ -1,6 +1,7 @@
 import type { Sql } from "../db/types.ts";
 import { listEntriesBetween } from "../log/entries.ts";
 import { addDays, nutrientSignals } from "../shared.ts";
+import { microsWeek } from "./history.ts";
 import type { Entry, Micro, NutrientSignals, Profile, SignalDay } from "../shared.ts";
 
 // Nutrient signals (2026-10-06 nutrients design): fats, sugar, salt, vitamins and minerals as words, over several days.
@@ -33,5 +34,10 @@ export function signalDays(list: Entry[]): SignalDay[] {
 export function signalsFor(sql: Sql, profile: Profile, date: string, today: string): NutrientSignals {
   const end = date === today ? addDays(date, -1) : date;
   const list = listEntriesBetween(sql, addDays(end, -6), end).map((row) => row.entry);
-  return nutrientSignals(signalDays(list), profile.sex);
+  const signals = nutrientSignals(signalDays(list), profile.sex);
+  // The card's tap-for-detail line (2026-11-03): the same numbers the coach gets as micros_week.
+  const byDay = new Map<string, Entry["foods"]>();
+  for (const entry of list) byDay.set(entry.date, [...(byDay.get(entry.date) ?? []), ...entry.foods]);
+  const micros = microsWeek([...byDay.values()], profile.sex);
+  return micros ? { ...signals, micros: micros.per_nutrient } : signals;
 }
