@@ -190,14 +190,16 @@ function SwipeRow({ item, quick, onLogged }: { item: QuickItem; quick: QuickLog;
   const busy = quick.log.isPending || quick.pin.isPending || quick.remove.isPending;
   const open = offset <= -SWIPE_MIN;
   return (
-    <li className="relative overflow-hidden rounded-2xl">
+    // shrink-0: in a list taller than the card, flex would squash each row and clip its icon (2026-11-04).
+    <li className="relative shrink-0 overflow-hidden rounded-2xl">
       <button
         type="button"
         tabIndex={open ? 0 : -1}
         disabled={busy}
         onClick={() => quick.remove.mutate(item)}
         className="absolute inset-y-0 right-0 flex items-center gap-1 rounded-2xl bg-danger px-3 text-sm font-semibold text-white"
-        style={{ width: SWIPE_OPEN - 6 }}
+        // Hidden while the row is closed: its rounded corners otherwise ghosted past the row's edge (2026-11-04).
+        style={{ width: SWIPE_OPEN - 6, opacity: offset === 0 ? 0 : 1 }}
       >
         <Icon name={item.pinned ? "delete" : "close"} size={16} />
         {item.pinned ? t.quick.unpin : t.quick.hide}
