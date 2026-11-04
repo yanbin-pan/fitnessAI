@@ -18,6 +18,24 @@ export function useFrequent(enabled = true) {
   return useQuery({ queryKey: ["frequent"], queryFn: () => api<FrequentView>("/api/frequent"), enabled });
 }
 
+/**
+ * An item's name and what is in it, without saying the same thing twice (2026-11-04 critique): a name made from its
+ * items shows the first as the title and the rest below; a name that is just its one item has no second line.
+ */
+function ItemTitle({ item }: { item: Pick<FrequentItem, "name" | "foods" | "exercises"> }) {
+  const parts = [...new Set([...item.foods, ...item.exercises].map((x) => x.name.trim()).filter(Boolean))];
+  const contents = nameFrom([...item.foods, ...item.exercises]);
+  const auto = item.name.trim() === contents;
+  const title = auto && parts.length > 0 ? parts[0] : item.name;
+  const below = auto ? (parts.length > 1 ? `+ ${nameFrom(parts.slice(1).map((name) => ({ name })))}` : "") : contents;
+  return (
+    <>
+      <span className="block truncate font-semibold">{title}</span>
+      {below && below !== title && <span className="block truncate text-xs text-muted">{below}</span>}
+    </>
+  );
+}
+
 /** "Porridge, Coffee +2" style names, for an item saved without one. */
 function nameFrom(items: { name: string }[]): string {
   const names = [...new Set(items.map((item) => item.name.trim()).filter(Boolean))];
@@ -199,8 +217,7 @@ function List({ view, onEdit, onAdd }: { view: FrequentView; onEdit: (item: Freq
             <button type="button" onClick={() => onEdit(item)} className="flex w-full items-center gap-3 py-2.5 text-left">
               <KindIcon kind={item.kind} activity={item.exercises[0]?.activity} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-semibold">{item.name}</span>
-                <span className="block truncate text-xs text-muted">{nameFrom([...item.foods, ...item.exercises])}</span>
+                <ItemTitle item={item} />
               </span>
               <span className="shrink-0 text-right text-xs text-muted">
                 {item.slot !== "any" && <span className="block">{t.frequent.slots[item.slot]}</span>}
