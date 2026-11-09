@@ -2,7 +2,7 @@ import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createStage, companionStills, type Framing, type Stage } from "@app/companions/stage.ts";
 import { moodInput, canDraw3d, type MoodInput } from "@app/companions/mood.ts";
-import { useRhythm, Highway, Pads, Meter, dayLabel, DAYS, DAY_MS, FUN_WIN, MACROS } from "./rhythm.tsx";
+import { useFortnight, Sky, MeterBar, Buttons, clockLabel, METERS, DAYS, DAY_MS, WIN_SHARE } from "./fortnight.tsx";
 import { SPECIES } from "@app/companions/species.ts";
 import type { CompanionId, CompanionMood } from "@app/shared.ts";
 import { BlurText, ClickSpark, CountUp, DotGrid, RotatingText, TextType, reduceMotion, useInView } from "./fx.tsx";
@@ -290,25 +290,30 @@ function useTipsyPage(level: number) {
   return hics;
 }
 
-const MOOD_NOTE: Record<string, string> = {
-  Thriving: "Fed well, moving, glowing.",
-  Okay: "An ordinary day. Nothing to fix.",
-  Sluggish: "Missed meals. They droop a little.",
-  Stuffed: "A few snacks too many.",
-  Tipsy: "A bit wobbly. Slow down on the drinks.",
-};
+/** Training gives the page a short boost: a punch-in zoom, speed lines and a big +GAINS. */
+function useBoostPage(boosts: number, on: boolean) {
+  const first = useRef(boosts);
+  useEffect(() => {
+    if (!on || boosts === first.current) return;
+    const root = document.documentElement;
+    root.classList.remove("boost"); void root.offsetWidth; root.classList.add("boost");
+    const t = setTimeout(() => root.classList.remove("boost"), 950);
+    return () => clearTimeout(t);
+  }, [boosts, on]);
+  useEffect(() => () => document.documentElement.classList.remove("boost"), []);
+}
 
 function Crew() {
   const stills = useStills();
   const [pick, setPick] = useState<CompanionId>("zabaione");
   const c = nameOf(pick);
-  const g = useRhythm();
+  const g = useFortnight();
   const v = g.verdict;
+  const motion = g.phase === "play" && !reduceMotion();
+  const hics = useTipsyPage(motion ? v.tipsy : 0);
+  useBoostPage(g.s.boosts, motion);
   const progress = Math.max(0, Math.min(100, (g.now / (DAYS * DAY_MS)) * 100));
-  const funLeft = g.stats.fun < FUN_WIN;
-  const tipsy = g.phase === "play" && !reduceMotion() ? Math.min(3, g.stats.tipsy) : 0;
-  const hics = useTipsyPage(tipsy);
-  const eaten = Math.max(1, ...Object.values(g.stats.macros));
+  const pct = (x: number) => `${Math.round(x * 100)}%`;
   return (
     <section className="crew" id="crew" aria-labelledby="crew-h">
       <div className="wrap crew-grid">
@@ -325,13 +330,13 @@ function Crew() {
           </div>
           <div className="howto">
             <h3>Two weeks with {c.name}</h3>
-            <p>Fourteen days roll by in under a minute, and time doesn't stop. Tap <b>🍝 Food</b> when a meal reaches the line (mix all four macros) and <b>🏃 Move</b> for a workout. Save <b>🍷 Drinks</b> for the gold social slots on Friday and Saturday to fill the Fun meter.</p>
-            <p>Skip meals and {c.name} gets sluggish, snack between them and they're stuffed, drink out of turn and they're tipsy. Finish day 14 <b>Thriving</b>, with Fun at least half full.</p>
+            <p>Two weeks fly by in about a minute. Keep <b>Fuel</b>, <b>Looksmaxxing</b> and <b>Vibes</b> in the green: everything drains as the day goes on, and going over is just as bad as running low.</p>
+            <p><b>🍝 Eat</b> at mealtimes (snacks count for less), <b>🏋️ Train</b> to mog but it burns fuel, and <b>🍷 Drink</b> for vibes, best after 6pm and not too many. Every day brings a surprise.</p>
           </div>
         </div>
-        {tipsy >= 2 && (
+        {v.tipsy >= 2 && motion && (
           <div className="booze" aria-hidden="true">
-            {Array.from({ length: tipsy >= 3 ? 14 : 8 }, (_, i) => <span key={i} style={{ left: `${(i * 37) % 100}%`, animationDelay: `${(i * 0.37) % 3}s` }}>{i % 3 ? "🫧" : "✨"}</span>)}
+            {Array.from({ length: v.tipsy >= 3 ? 14 : 8 }, (_, i) => <span key={i} style={{ left: `${(i * 37) % 100}%`, animationDelay: `${(i * 0.37) % 3}s` }}>{i % 3 ? "🫧" : "✨"}</span>)}
             {hics.map((h) => <b key={h.id} className="hic-pop" style={{ left: `${h.x}%`, top: `${h.y}%` }}>hic!</b>)}
           </div>
         )}
@@ -341,29 +346,28 @@ function Crew() {
               <Companion id={pick} mood="okay" input={g.phase === "idle" ? moodInput("thriving") : v.input} interactive={g.phase !== "play"} plinth framing="full" />
             </div>
             <div className="g-hud">
-              <div aria-live="polite" className="g-mood"><b>{c.name}</b><span className={`m-${v.label.toLowerCase()}`}>{g.phase === "idle" ? "Ready to play" : v.label}</span><small>{g.phase === "idle" ? c.animal : MOOD_NOTE[v.label]}</small></div>
-              <div className="g-macros" aria-label="Macros eaten">
-                {MACROS.map((m) => <span key={m.id} className={`mac ${m.id}`} title={m.label}><i style={{ height: `${(g.stats.macros[m.id] / eaten) * 100}%` }} /><b>{m.short}</b></span>)}
-              </div>
-              <Meter label="Fun" value={g.stats.fun} />
-              <div className="g-day"><span>{g.phase === "idle" ? "14 days" : g.phase === "done" ? "Day 14 done" : dayLabel(g.now)}</span><div className="meter-bar inset-sm"><i className="time" style={{ width: `${progress}%` }} /></div></div>
-              {g.stats.combo > 2 && g.phase === "play" && <div className="g-combo">Combo ×{g.stats.combo}</div>}
+              <div aria-live="polite" className="g-mood"><b>{c.name}</b><span className={`m-${v.label.toLowerCase()}`}>{g.phase === "idle" ? "Ready to play" : v.label}</span><small>{g.phase === "idle" ? c.animal : v.note}</small></div>
+              {METERS.map((m) => <MeterBar key={m.id} id={m.id} label={m.label} value={g.s[m.id]} />)}
             </div>
           </div>
           <div className="g-field">
-            <Highway g={g} sway={v.tipsy && g.phase === "play" && !reduceMotion()} />
+            <div className="g-day"><span>{g.phase === "idle" ? "14 days" : g.phase === "done" ? "Two weeks done" : clockLabel(g.now)}</span><div className="meter-bar inset-sm"><i className="time" style={{ width: `${progress}%` }} /></div></div>
+            <Sky g={g} />
             {g.phase !== "play" && (
               <div className="g-over">
                 {g.phase === "idle" ? (
                   <>
                     <p className="g-title">Two weeks with {c.name}</p>
-                    <p>Get them to Thriving by day 14.</p>
+                    <p>Max out all three. Don't overdo any.</p>
                     <button className="btn primary" onClick={g.start}>Play</button>
                   </>
                 ) : (
                   <>
-                    <p className="g-title">{g.won ? `${c.name} is thriving!` : `${c.name} finished ${v.label.toLowerCase()}`}</p>
-                    <p>{g.won ? `Two great weeks. Best combo ×${g.stats.best}.` : v.label !== "Thriving" ? MOOD_NOTE[v.label] : funLeft ? "Balanced, but no fun. Enjoy a drink in the social slots next time." : ""}</p>
+                    <p className="g-title">{g.won ? `${c.name} is thriving!` : `So close, ${c.name}`}</p>
+                    <div className="g-scores">
+                      {METERS.map((m) => <span key={m.id} className={g.shares[m.id] >= WIN_SHARE ? "ok" : ""}><b>{pct(g.shares[m.id])}</b>{m.label}</span>)}
+                    </div>
+                    <p>{g.won ? "Time in the green on all three. Full main character energy." : `You need ${pct(WIN_SHARE)} of the time in the green on each one.`}</p>
                     <div className="g-actions">
                       <button className="btn primary" onClick={g.start}>Play again</button>
                       <a className="btn ghost" href="#waitlist">Meet the real one</a>
@@ -373,7 +377,7 @@ function Crew() {
               </div>
             )}
           </div>
-          <Pads g={g} />
+          <Buttons g={g} />
         </div>
       </div>
     </section>
