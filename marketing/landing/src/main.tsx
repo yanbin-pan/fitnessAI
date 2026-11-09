@@ -2,7 +2,7 @@ import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createStage, companionStills, type Framing, type Stage } from "@app/companions/stage.ts";
 import { moodInput, canDraw3d, type MoodInput } from "@app/companions/mood.ts";
-import { useRhythm, Highway, Pads, Meter, dayLabel, DAYS, DAY_MS, FUN_WIN } from "./rhythm.tsx";
+import { useRhythm, Highway, Pads, Meter, dayLabel, DAYS, DAY_MS, FUN_WIN, MACROS } from "./rhythm.tsx";
 import { SPECIES } from "@app/companions/species.ts";
 import type { CompanionId, CompanionMood } from "@app/shared.ts";
 import { BlurText, ClickSpark, CountUp, DotGrid, RotatingText, TextType, reduceMotion, useInView } from "./fx.tsx";
@@ -266,6 +266,30 @@ function Hero() {
 
 /* ---------- Crew: one hero, the rest waiting their turn ---------- */
 
+/** Tipsy turns the whole page woozy: 2 tilts and blurs, 3 rolls, double-visions and hiccups. Off when the game ends. */
+function useTipsyPage(level: number) {
+  const [hics, setHics] = useState<{ id: number; x: number; y: number }[]>([]);
+  useEffect(() => {
+    const root = document.documentElement;
+    if (level >= 2) root.dataset.tipsy = String(level); else delete root.dataset.tipsy;
+    if (level < 2) return;
+    let id = 0, alive = true, timer = 0;
+    const hic = () => {
+      if (!alive) return;
+      const n = ++id;
+      root.classList.add("hic");
+      setTimeout(() => root.classList.remove("hic"), 650);
+      setHics((h) => [...h.slice(-3), { id: n, x: 10 + Math.random() * 75, y: 15 + Math.random() * 60 }]);
+      setTimeout(() => setHics((h) => h.filter((x) => x.id !== n)), 1400);
+      timer = window.setTimeout(hic, (level >= 3 ? 1400 : 2600) + Math.random() * 1800);
+    };
+    timer = window.setTimeout(hic, 700);
+    return () => { alive = false; clearTimeout(timer); delete root.dataset.tipsy; root.classList.remove("hic"); };
+  }, [level]);
+  useEffect(() => () => setHics([]), []);
+  return hics;
+}
+
 const MOOD_NOTE: Record<string, string> = {
   Thriving: "Fed well, moving, glowing.",
   Okay: "An ordinary day. Nothing to fix.",
@@ -282,6 +306,9 @@ function Crew() {
   const v = g.verdict;
   const progress = Math.max(0, Math.min(100, (g.now / (DAYS * DAY_MS)) * 100));
   const funLeft = g.stats.fun < FUN_WIN;
+  const tipsy = g.phase === "play" && !reduceMotion() ? Math.min(3, g.stats.tipsy) : 0;
+  const hics = useTipsyPage(tipsy);
+  const eaten = Math.max(1, ...Object.values(g.stats.macros));
   return (
     <section className="crew" id="crew" aria-labelledby="crew-h">
       <div className="wrap crew-grid">
@@ -298,10 +325,16 @@ function Crew() {
           </div>
           <div className="howto">
             <h3>Two weeks with {c.name}</h3>
-            <p>Fourteen days roll by in a minute, and time doesn't stop. Tap <b>🍝 Food</b> when a meal reaches the line and <b>🏃 Move</b> for a workout. Save <b>🍷 Drinks</b> for the gold social slots on Friday and Saturday to fill the Fun meter.</p>
+            <p>Fourteen days roll by in under a minute, and time doesn't stop. Tap <b>🍝 Food</b> when a meal reaches the line (mix all four macros) and <b>🏃 Move</b> for a workout. Save <b>🍷 Drinks</b> for the gold social slots on Friday and Saturday to fill the Fun meter.</p>
             <p>Skip meals and {c.name} gets sluggish, snack between them and they're stuffed, drink out of turn and they're tipsy. Finish day 14 <b>Thriving</b>, with Fun at least half full.</p>
           </div>
         </div>
+        {tipsy >= 2 && (
+          <div className="booze" aria-hidden="true">
+            {Array.from({ length: tipsy >= 3 ? 14 : 8 }, (_, i) => <span key={i} style={{ left: `${(i * 37) % 100}%`, animationDelay: `${(i * 0.37) % 3}s` }}>{i % 3 ? "🫧" : "✨"}</span>)}
+            {hics.map((h) => <b key={h.id} className="hic-pop" style={{ left: `${h.x}%`, top: `${h.y}%` }}>hic!</b>)}
+          </div>
+        )}
         <div className={`stage-card game-card raised ${g.phase}`} style={{ ["--fur" as string]: SPECIES[pick].fur }}>
           <div className="g-top">
             <div className="stage-well g-well inset">
@@ -309,6 +342,9 @@ function Crew() {
             </div>
             <div className="g-hud">
               <div aria-live="polite" className="g-mood"><b>{c.name}</b><span className={`m-${v.label.toLowerCase()}`}>{g.phase === "idle" ? "Ready to play" : v.label}</span><small>{g.phase === "idle" ? c.animal : MOOD_NOTE[v.label]}</small></div>
+              <div className="g-macros" aria-label="Macros eaten">
+                {MACROS.map((m) => <span key={m.id} className={`mac ${m.id}`} title={m.label}><i style={{ height: `${(g.stats.macros[m.id] / eaten) * 100}%` }} /><b>{m.short}</b></span>)}
+              </div>
               <Meter label="Fun" value={g.stats.fun} />
               <div className="g-day"><span>{g.phase === "idle" ? "14 days" : g.phase === "done" ? "Day 14 done" : dayLabel(g.now)}</span><div className="meter-bar inset-sm"><i className="time" style={{ width: `${progress}%` }} /></div></div>
               {g.stats.combo > 2 && g.phase === "play" && <div className="g-combo">Combo ×{g.stats.combo}</div>}

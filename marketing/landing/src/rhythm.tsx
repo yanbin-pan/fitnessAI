@@ -7,10 +7,12 @@ import type { MoodInput } from "@app/companions/mood.ts";
 // missed meals droop it (Sluggish), snacking between notes stuffs it, and drinks outside the slots make it tipsy.
 // Win: Thriving on day 14 with Fun at least half full.
 
-export const DAY_MS = 4000;
+export const DAY_MS = 3200;
 export const DAYS = 14;
 const LEAD_MS = 2200;              // notes appear before day 1 starts
-const LOOK_MS = 1900;              // how far ahead the highway shows
+const LOOK_MS = 1650;              // how far ahead the highway shows in week 1
+const LOOK_FAST_MS = 1250;         // week 2 scrolls faster
+const look = (now: number) => (now < 7 * DAY_MS ? LOOK_MS : LOOK_FAST_MS);
 const HIT_MS = 230;                // tap window either side of a note
 const TIPSY_HIT_MS = 150;          // a tipsy companion is harder to steer
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -23,24 +25,49 @@ export const LANES: { id: Lane; label: string; icon: string; key: string }[] = [
   { id: "drink", label: "Drinks", icon: "🍷", key: "D" },
 ];
 
-interface Note { lane: "food" | "move"; t: number; day: number; state: "open" | "hit" | "miss" }
-interface Slot { t0: number; t1: number; day: number; drinks: number }
+export type Macro = "protein" | "carbs" | "fat" | "fibre";
+export const MACROS: { id: Macro; label: string; short: string; foods: string[] }[] = [
+  { id: "protein", label: "Protein", short: "Pro", foods: ["🍗", "🥚", "🐟", "🥩", "🫘"] },
+  { id: "carbs", label: "Carbs", short: "Carb", foods: ["🍝", "🍞", "🍚", "🥔", "🍕"] },
+  { id: "fat", label: "Fat", short: "Fat", foods: ["🥑", "🥜", "🧀", "🫒"] },
+  { id: "fibre", label: "Fibre", short: "Fibre", foods: ["🥦", "🥗", "🍎", "🥕", "🍓"] },
+];
+const MOVES = ["🏃", "🚴", "🏋️", "🎾", "🏊", "🧘"];
+const SOCIAL = ["Aperitivo", "Birthday", "Date night", "Dinner party"];
 
+interface Note { lane: "food" | "move"; t: number; day: number; state: "open" | "hit" | "miss"; icon: string; macro?: Macro }
+interface Slot { t0: number; t1: number; day: number; drinks: number; label: string }
+
+const rnd = (a: number, b: number) => a + Math.random() * (b - a);
+const pick = <T,>(xs: readonly T[]) => xs[Math.floor(Math.random() * xs.length)];
+const shuffle = <T,>(xs: T[]) => { for (let i = xs.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [xs[i], xs[j]] = [xs[j], xs[i]]; } return xs; };
+
+/** A fresh, slightly different fortnight every game: jittered meals from all four macros, random workout days and
+ *  social slots on Friday and Saturday, plus a surprise one some weeks. */
 function schedule() {
   const notes: Note[] = [];
   const slots: Slot[] = [];
-  for (let d = 0; d < DAYS; d++) {
-    const at = (f: number) => d * DAY_MS + f * DAY_MS;
-    for (const f of [0.12, 0.42, 0.72]) notes.push({ lane: "food", t: at(f), day: d, state: "open" });
-    const wd = d % 7;
-    if (wd === 0 || wd === 2 || wd === 4 || wd === 6) notes.push({ lane: "move", t: at(wd === 6 ? 0.28 : 0.57), day: d, state: "open" });
-    if (wd === 4 || wd === 5) slots.push({ t0: at(0.8), t1: at(0.97), day: d, drinks: 0 });
+  for (let w = 0; w < 2; w++) {
+    const moveDays = new Set(shuffle([0, 1, 2, 3, 4, 5, 6]).slice(0, 3 + Math.floor(Math.random() * 2)));
+    const socialDays = new Map<number, string>([[4, "Friday night"], [5, "Saturday"]]);
+    if (Math.random() < 0.6) socialDays.set(pick([1, 2, 3, 6]), pick(SOCIAL));
+    for (let wd = 0; wd < 7; wd++) {
+      const d = w * 7 + wd;
+      const at = (f: number) => d * DAY_MS + f * DAY_MS;
+      const macros = shuffle(MACROS.map((m) => m.id));
+      const meals = [rnd(0.06, 0.18), rnd(0.36, 0.48), rnd(0.62, 0.74)];
+      if (Math.random() < 0.3) meals.splice(1, 0, rnd(0.24, 0.3));          // a quick second breakfast now and then
+      meals.forEach((f, i) => { const m = macros[i % 4]; notes.push({ lane: "food", t: at(f), day: d, state: "open", macro: m, icon: pick(MACROS.find((x) => x.id === m)!.foods) }); });
+      if (moveDays.has(wd)) notes.push({ lane: "move", t: at(rnd(0.2, 0.6)), day: d, state: "open", icon: pick(MOVES) });
+      const social = socialDays.get(wd);
+      if (social) { const t0 = rnd(0.76, 0.82); slots.push({ t0: at(t0), t1: at(t0 + rnd(0.12, 0.18)), day: d, drinks: 0, label: social }); }
+    }
   }
   return { notes, slots };
 }
 
-interface Stats { food: number[]; meal: number[]; move: number[]; tipsy: number; fun: number; combo: number; best: number }
-const freshStats = (): Stats => ({ food: Array(DAYS).fill(0), meal: Array(DAYS).fill(0), move: Array(DAYS).fill(0), tipsy: 0, fun: 0, combo: 0, best: 0 });
+interface Stats { food: number[]; meal: number[]; move: number[]; macros: Record<Macro, number>; tipsy: number; fun: number; combo: number; best: number }
+const freshStats = (): Stats => ({ food: Array(DAYS).fill(0), meal: Array(DAYS).fill(0), move: Array(DAYS).fill(0), macros: { protein: 0, carbs: 0, fat: 0, fibre: 0 }, tipsy: 0, fun: 0, combo: 0, best: 0 });
 
 export type Verdict = { label: string; input: MoodInput; tipsy: boolean };
 
@@ -134,7 +161,7 @@ export function useRhythm() {
       const slot = game.current.slots.find((x) => t >= x.t0 - 120 && t <= x.t1 + 120);
       if (slot && slot.drinks < 2) { slot.drinks++; s.fun = Math.min(100, s.fun + FUN_PER_DRINK); pop(lane, "Cheers!", "fun"); }
       else if (slot) { slot.drinks++; s.tipsy++; pop(lane, "One too many", "warn"); }
-      else { s.tipsy++; pop(lane, s.tipsy >= 2 ? "Tipsy…" : "Not the time", "warn"); }
+      else { s.tipsy++; pop(lane, s.tipsy >= 3 ? "Wheee!" : s.tipsy >= 2 ? "Tipsy…" : "Not now", "warn"); }
       return;
     }
     let best: Note | null = null;
@@ -145,7 +172,7 @@ export function useRhythm() {
     if (best) {
       best.state = "hit";
       s.combo++; s.best = Math.max(s.best, s.combo);
-      if (lane === "food") { s.food[best.day]++; s.meal[best.day]++; pop(lane, Math.abs(best.t - t) < 90 ? "Perfect" : "Nice", "good"); }
+      if (lane === "food") { s.food[best.day]++; s.meal[best.day]++; if (best.macro) s.macros[best.macro]++; pop(lane, Math.abs(best.t - t) < 90 ? "Perfect!" : MACROS.find((m) => m.id === best!.macro)?.label ?? "Nice", "good"); }
       else { s.move[best.day]++; s.fun = Math.min(100, s.fun + FUN_PER_MOVE); pop(lane, "Strong!", "good"); }
     } else if (lane === "food") {
       s.food[day] += 1.5; s.combo = 0; pop(lane, "Snack", "meh");
@@ -183,17 +210,18 @@ export function dayLabel(now: number) {
 
 /** The highway: lanes, falling notes, gold social bands and the hit line. */
 export function Highway({ g, sway }: { g: Rhythm; sway: boolean }) {
-  const lo = g.now - 400, hi = g.now + LOOK_MS;
-  const y = (t: number) => `${(1 - (t - g.now) / LOOK_MS) * 84}%`;   // hit line sits at 84%
+  const L = look(g.now);
+  const lo = g.now - 400, hi = g.now + L;
+  const y = (t: number) => `${(1 - (t - g.now) / L) * 84}%`;   // hit line sits at 84%
   return (
     <div className={`hw inset ${sway ? "sway" : ""}`} aria-hidden="true">
       {LANES.map((l, i) => (
         <div key={l.id} className={`hw-lane l-${l.id}`} style={{ left: `${(i * 100) / 3}%` }}>
           {l.id === "drink" && g.slots.filter((s) => s.t1 > lo && s.t0 < hi).map((s) => (
-            <span key={s.t0} className="hw-slot" style={{ top: y(s.t1), height: `${((s.t1 - s.t0) / LOOK_MS) * 84}%` }}><i>Social</i></span>
+            <span key={s.t0} className="hw-slot" style={{ top: y(s.t1), height: `${((s.t1 - s.t0) / L) * 84}%` }}><i>{s.label}</i></span>
           ))}
           {g.notes.filter((n) => n.lane === l.id && n.t > lo && n.t < hi && n.state !== "hit").map((n) => (
-            <span key={n.t} className={`hw-note ${n.state}`} style={{ top: y(n.t) }}>{l.icon}</span>
+            <span key={n.t} className={`hw-note ${n.state} ${n.macro ?? ""}`} style={{ top: y(n.t) }}>{n.icon}</span>
           ))}
           {g.pops.filter((p) => p.lane === l.id).map((p) => <span key={p.id} className={`hw-pop ${p.tone}`}>{p.text}</span>)}
         </div>

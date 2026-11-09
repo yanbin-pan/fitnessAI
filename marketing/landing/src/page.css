@@ -274,3 +274,33 @@ button{font:inherit}
 .pad:active:not([disabled]){box-shadow:inset 3px 3px 6px var(--lo),inset -3px -3px 6px var(--hi);transform:scale(.97)}
 .pad[disabled]{opacity:.55;cursor:default}
 .pad:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+/* macros mini-bars in the HUD */
+.g-macros{display:flex;gap:8px;height:34px;align-items:flex-end}
+.mac{position:relative;flex:1;height:100%;border-radius:8px;overflow:hidden;box-shadow:inset 2px 2px 4px var(--lo),inset -2px -2px 4px var(--hi)}
+.mac i{position:absolute;left:0;right:0;bottom:0;border-radius:8px;transition:height .25s var(--ease)}
+.mac b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:600 11px var(--body);color:var(--ink);mix-blend-mode:multiply}
+.mac.protein i{background:var(--protein)}.mac.carbs i{background:var(--carbs)}.mac.fat i{background:var(--fat)}.mac.fibre i{background:var(--fibre)}
+.hw-note.protein{border-color:var(--protein)}.hw-note.carbs{border-color:var(--carbs)}.hw-note.fat{border-color:var(--fat)}.hw-note.fibre{border-color:var(--fibre)}
+
+/* tipsy: the whole page gets woozy. Level 2 tilts and drifts; level 3 rolls, double-visions and hue-shifts. */
+html[data-tipsy] body{overflow-x:hidden}
+html[data-tipsy="2"] main,html[data-tipsy="2"] .nav{animation:woozy 2.4s ease-in-out infinite;transform-origin:50% 40vh}
+html[data-tipsy="3"] main,html[data-tipsy="3"] .nav{animation:woozy3d 1.9s ease-in-out infinite;transform-origin:50% 40vh}
+html[data-tipsy="3"] main{filter:hue-rotate(25deg) saturate(1.3)}
+html[data-tipsy="3"] .h2,html[data-tipsy="3"] .sub,html[data-tipsy="3"] .howto p,html[data-tipsy="3"] .g-mood{text-shadow:6px 2px 0 color-mix(in srgb,#a3477d 35%,transparent),-5px -1px 0 color-mix(in srgb,var(--accent-2) 35%,transparent)}
+@keyframes woozy{0%,100%{transform:rotate(0) translateX(0) skewX(0)}25%{transform:rotate(-2.5deg) translateX(-10px) skewX(2deg)}75%{transform:rotate(2.5deg) translateX(10px) skewX(-2deg)}}
+@keyframes woozy3d{0%,100%{transform:perspective(900px) rotateY(0) rotateZ(0) scale(1)}
+  25%{transform:perspective(900px) rotateY(-9deg) rotateZ(-4deg) scale(1.02)}
+  50%{transform:perspective(900px) rotateX(5deg) rotateZ(1deg) scale(.98)}
+  75%{transform:perspective(900px) rotateY(9deg) rotateZ(4deg) scale(1.03)}}
+html.hic main{animation:hiccup .65s cubic-bezier(.3,1.6,.5,1) !important}
+html[data-tipsy="3"].hic main{animation:barrel .65s cubic-bezier(.5,0,.3,1) !important}
+@keyframes hiccup{0%{transform:none}30%{transform:translateY(-18px) scale(1.03,0.96) rotate(-3deg)}60%{transform:translateY(6px) rotate(2deg)}100%{transform:none}}
+@keyframes barrel{0%{transform:perspective(900px) rotateZ(0)}100%{transform:perspective(900px) rotateZ(360deg)}}
+.booze{position:fixed;inset:0;pointer-events:none;z-index:30;overflow:hidden}
+.booze span{position:absolute;bottom:-40px;font-size:26px;animation:bubble 3s linear infinite;opacity:.85}
+@keyframes bubble{0%{transform:translate(0,0) scale(.6)}50%{transform:translate(18px,-55vh) scale(1)}100%{transform:translate(-14px,-110vh) scale(1.2);opacity:0}}
+.hic-pop{position:absolute;font:600 34px/1 var(--display);font-variation-settings:'SOFT' 100;color:#a3477d;animation:hicpop 1.4s var(--ease) forwards;text-shadow:3px 3px 0 var(--custard)}
+@keyframes hicpop{0%{transform:scale(.2) rotate(-20deg);opacity:0}20%{transform:scale(1.25) rotate(8deg);opacity:1}60%{transform:scale(1) rotate(-4deg)}100%{transform:translateY(-40px) scale(.9);opacity:0}}
+@media (prefers-reduced-motion:reduce){html[data-tipsy] main,html[data-tipsy] .nav{animation:none!important}}
