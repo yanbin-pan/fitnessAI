@@ -1,7 +1,8 @@
 import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createStage, companionStills, type Framing, type Stage } from "@app/companions/stage.ts";
-import { moodInput, canDraw3d } from "@app/companions/mood.ts";
+import { moodInput, canDraw3d, type MoodInput } from "@app/companions/mood.ts";
+import { useRhythm, Highway, Pads, Meter, dayLabel, DAYS, DAY_MS, FUN_WIN } from "./rhythm.tsx";
 import { SPECIES } from "@app/companions/species.ts";
 import type { CompanionId, CompanionMood } from "@app/shared.ts";
 import { BlurText, ClickSpark, CountUp, DotGrid, RotatingText, TextType, reduceMotion, useInView } from "./fx.tsx";
@@ -18,13 +19,6 @@ const CREW: { id: CompanionId; name: string; animal: string }[] = [
 ];
 const nameOf = (id: CompanionId) => CREW.find((c) => c.id === id)!;
 
-const MOODS: { id: CompanionMood; label: string; note: string }[] = [
-  { id: "thriving", label: "Thriving", note: "A good week: fed well, moving, sleeping." },
-  { id: "okay", label: "Okay", note: "An ordinary day. Nothing to fix." },
-  { id: "sluggish", label: "Sluggish", note: "Skipped meals. They droop a little." },
-  { id: "overfed", label: "Stuffed", note: "Sunday lunch at nonna's." },
-  { id: "inactive", label: "Asleep", note: "Nothing logged for a while." },
-];
 
 let can3d: boolean | null = null;
 const draw3d = () => (can3d ??= canDraw3d());
@@ -52,8 +46,8 @@ function Still({ id, stills, className = "" }: { id: CompanionId; stills: Record
 }
 
 /** One live low-poly companion from the app. Paused while off screen. */
-function Companion({ id, mood, framing = "full", interactive = false, plinth = false, className = "" }: {
-  id: CompanionId; mood: CompanionMood; framing?: Framing; interactive?: boolean; plinth?: boolean; className?: string;
+function Companion({ id, mood, input, framing = "full", interactive = false, plinth = false, className = "" }: {
+  id: CompanionId; mood: CompanionMood; input?: MoodInput; framing?: Framing; interactive?: boolean; plinth?: boolean; className?: string;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const stage = useRef<Stage | null>(null);
@@ -62,14 +56,16 @@ function Companion({ id, mood, framing = "full", interactive = false, plinth = f
   useEffect(() => {
     if (!ok || !host.current) return;
     const el = host.current;
-    const s = createStage(el, { companion: first.current, mood: moodInput(mood), framing, interactive, plinth });
+    const s = createStage(el, { companion: first.current, mood: input ?? moodInput(mood), framing, interactive, plinth });
     stage.current = s;
     const io = new IntersectionObserver(([e]) => s.setPaused(!e.isIntersecting), { rootMargin: "80px" });
     io.observe(el);
     return () => { io.disconnect(); s.dispose(); stage.current = null; };
   }, [ok, framing, interactive, plinth]);
   useEffect(() => { stage.current?.setCompanion(id); }, [id]);
-  useEffect(() => { stage.current?.setMood(moodInput(mood)); }, [mood]);
+  const key = input ? `${input.score}|${input.overfed}|${input.overAlcohol}` : mood;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { stage.current?.setMood(input ?? moodInput(mood)); }, [key]);
   return <div ref={host} className={`companion ${className}`} aria-hidden="true">{!ok && <Badge id={id} />}</div>;
 }
 
@@ -271,12 +267,22 @@ function Hero() {
 
 /* ---------- Crew: one hero, the rest waiting their turn ---------- */
 
+const MOOD_NOTE: Record<string, string> = {
+  Thriving: "Fed well, moving, glowing.",
+  Okay: "An ordinary day. Nothing to fix.",
+  Sluggish: "Missed meals. They droop a little.",
+  Stuffed: "A few snacks too many.",
+  Tipsy: "A bit wobbly. Slow down on the drinks.",
+};
+
 function Crew() {
   const stills = useStills();
-  const [mood, setMood] = useState<CompanionMood>("thriving");
   const [pick, setPick] = useState<CompanionId>("zabaione");
   const c = nameOf(pick);
-  const note = MOODS.find((m) => m.id === mood)!.note;
+  const g = useRhythm();
+  const v = g.verdict;
+  const progress = Math.max(0, Math.min(100, (g.now / (DAYS * DAY_MS)) * 100));
+  const funLeft = g.stats.fun < FUN_WIN;
   return (
     <section className="crew" id="crew" aria-labelledby="crew-h">
       <div className="wrap crew-grid">
@@ -291,20 +297,48 @@ function Crew() {
               </button>
             ))}
           </div>
-          <p className="hint">Tap one to meet them. Drag to turn, tap the companion to give it a pat.</p>
+          <div className="howto">
+            <h3>Two weeks with {c.name}</h3>
+            <p>Fourteen days roll by in a minute, and time doesn't stop. Tap <b>🍝 Food</b> when a meal reaches the line and <b>🏃 Move</b> for a workout. Save <b>🍷 Drinks</b> for the gold social slots on Friday and Saturday to fill the Fun meter.</p>
+            <p>Skip meals and {c.name} gets sluggish, snack between them and they're stuffed, drink out of turn and they're tipsy. Finish day 14 <b>Thriving</b>, with Fun at least half full.</p>
+          </div>
         </div>
-        <div className="stage-card raised" style={{ ["--fur" as string]: SPECIES[pick].fur }}>
-          <div className="stage-well inset">
-            <Companion id={pick} mood={mood} interactive plinth framing="full" />
+        <div className={`stage-card game-card raised ${g.phase}`} style={{ ["--fur" as string]: SPECIES[pick].fur }}>
+          <div className="g-top">
+            <div className="stage-well g-well inset">
+              <Companion id={pick} mood="okay" input={g.phase === "idle" ? moodInput("thriving") : v.input} interactive={g.phase !== "play"} plinth framing="full" />
+            </div>
+            <div className="g-hud">
+              <div aria-live="polite" className="g-mood"><b>{c.name}</b><span className={`m-${v.label.toLowerCase()}`}>{g.phase === "idle" ? "Ready to play" : v.label}</span><small>{g.phase === "idle" ? c.animal : MOOD_NOTE[v.label]}</small></div>
+              <Meter label="Fun" value={g.stats.fun} />
+              <div className="g-day"><span>{g.phase === "idle" ? "14 days" : g.phase === "done" ? "Day 14 done" : dayLabel(g.now)}</span><div className="meter-bar inset-sm"><i className="time" style={{ width: `${progress}%` }} /></div></div>
+              {g.stats.combo > 2 && g.phase === "play" && <div className="g-combo">Combo ×{g.stats.combo}</div>}
+            </div>
           </div>
-          <div className="stage-foot">
-            <div aria-live="polite"><b>{c.name}</b><span>{c.animal} · {note}</span></div>
+          <div className="g-field">
+            <Highway g={g} sway={v.tipsy && g.phase === "play" && !reduceMotion()} />
+            {g.phase !== "play" && (
+              <div className="g-over">
+                {g.phase === "idle" ? (
+                  <>
+                    <p className="g-title">Two weeks with {c.name}</p>
+                    <p>Get them to Thriving by day 14.</p>
+                    <button className="btn primary" onClick={g.start}>Play</button>
+                  </>
+                ) : (
+                  <>
+                    <p className="g-title">{g.won ? `${c.name} is thriving!` : `${c.name} finished ${v.label.toLowerCase()}`}</p>
+                    <p>{g.won ? `Two great weeks. Best combo ×${g.stats.best}.` : v.label !== "Thriving" ? MOOD_NOTE[v.label] : funLeft ? "Balanced, but no fun. Enjoy a drink in the social slots next time." : ""}</p>
+                    <div className="g-actions">
+                      <button className="btn primary" onClick={g.start}>Play again</button>
+                      <a className="btn ghost" href="#waitlist">Meet the real one</a>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
-          <div className="moods" role="group" aria-label="Try a mood">
-            {MOODS.map((m) => (
-              <button key={m.id} aria-pressed={mood === m.id} className={`chip ${mood === m.id ? "on" : ""}`} onClick={() => setMood(m.id)}>{m.label}</button>
-            ))}
-          </div>
+          <Pads g={g} />
         </div>
       </div>
     </section>
