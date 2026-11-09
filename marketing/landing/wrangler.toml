@@ -7,8 +7,8 @@ pages_build_output_dir = "dist"
 [[d1_databases]]
 binding = "DB"
 database_name = "zabaione-waitlist"
-# Fill in after `npx wrangler d1 create zabaione-waitlist`.
-database_id = "00000000-0000-0000-0000-000000000000"
+# Created 2026-11-09 in WEUR (Western Europe).
+database_id = "890683bd-9f32-43f5-ad4a-043b71a9d127"
 
 # Secret, set with `npx wrangler pages secret put EXPORT_TOKEN`:
 #   EXPORT_TOKEN  guards GET /api/waitlist?format=csv (the export)

@@ -23,7 +23,9 @@ Call wrangler as `../../node_modules/.bin/wrangler` (or `npx` from this folder's
 
 Stored per sign-up: email, time, which form, the "heard" answer, UTM tags, the referring site's host only, country (from Cloudflare) and browser language. No cookies. `schema.sql` has the table.
 
-## First deploy (once, needs the Cloudflare account)
+## First deploy (steps 1-5 done 2026-11-09; D1 in WEUR, live at zabaione-waitlist.pages.dev)
+
+Redeploy after changes: `node build.mjs && wrangler pages deploy --branch main`. In cloud sessions wrangler uses the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID env vars instead of `wrangler login`.
 
 1. `wrangler login`
 2. `wrangler d1 create zabaione-waitlist`, then paste the printed `database_id` into `wrangler.toml`.
@@ -39,7 +41,7 @@ Download the list: `curl -H "Authorization: Bearer $TOKEN" https://zabaione.app/
 
 ```
 wrangler d1 execute zabaione-waitlist --local --file=schema.sql
-wrangler pages dev --port 8788 --d1 DB=00000000-0000-0000-0000-000000000000 --binding EXPORT_TOKEN=dev
+wrangler pages dev --port 8788 --d1 DB=890683bd-9f32-43f5-ad4a-043b71a9d127 --binding EXPORT_TOKEN=dev
 ```
 
 The `--d1` flag points local dev at the same local database the `d1 execute --local` command created.
