@@ -1,0 +1,14 @@
+# Cloudflare Pages project for the public waitlist page at zabaione.app.
+# Build: node build.mjs (writes dist/). Deploy: npx wrangler pages deploy.
+name = "zabaione-waitlist"
+compatibility_date = "2026-10-01"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "zabaione-waitlist"
+# Fill in after `npx wrangler d1 create zabaione-waitlist`.
+database_id = "00000000-0000-0000-0000-000000000000"
+
+# Secret, set with `npx wrangler pages secret put EXPORT_TOKEN`:
+#   EXPORT_TOKEN  guards GET /api/waitlist?format=csv (the export)
