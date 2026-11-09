@@ -251,15 +251,15 @@ function Hero() {
       <DotGrid />
       <div className="wrap hero-grid">
         <div className="hero-copy">
-          <p className="kicker"><span className="live" aria-hidden="true" />Food &amp; fitness coach · invite-only beta</p>
-          <BlurText text="The coach that remembers." className="display" />
+          <p className="kicker"><span className="live" aria-hidden="true" />Your whole-health companion · invite-only beta</p>
+          <BlurText text="The companion that knows you." className="display" />
           <blockquote className="why">
-            <p>“My parents got their blood test back and had no idea what to change at dinner. Every app wanted them to weigh rice. I wanted something that would just listen, and remember.”</p>
-            <footer>Bin, founder</footer>
+            <p>“Every app knew one slice of me: calories here, runs there, blood tests in a drawer. I wanted one companion that sees the whole picture, and notices what’s missing before the numbers do.”</p>
+            <footer>Davide, founder</footer>
           </blockquote>
           <p className="lede">
             Tell it your day in one sentence. It remembers{" "}
-            <RotatingText items={["what you ate on Tuesday", "your knee after squats", "your cholesterol results", "that you hate fish"]} />.
+            <RotatingText items={["what you ate on Tuesday", "Sunday’s long run", "your iron levels", "your knee after squats", "that you hate fish"]} />.
           </p>
         </div>
         <div className="hero-demo"><PhoneDemo /></div>
@@ -331,7 +331,7 @@ function Features() {
   return (
     <section className="features" aria-labelledby="f-h">
       <div className="wrap">
-        <h2 id="f-h" className="h2">Not every day starts fresh.</h2>
+        <h2 id="f-h" className="h2">You are what you eat and do.</h2>
         <div className="f-rows">
           <div className="f-row">
             <div className="f-text">
@@ -349,10 +349,17 @@ function Features() {
           </div>
           <div className="f-row">
             <div className="f-text">
-              <h3>Reads your results</h3>
-              <p>Add a blood test and it explains how your plate relates to the numbers, in plain words. Coaching, never a diagnosis.</p>
+              <h3>Spots gaps early</h3>
+              <p>It keeps an eye on iron, vitamin D, protein and fibre across your weeks, and nudges you before a blood test has to. Add your results and it explains them in plain words. Coaching, never a diagnosis.</p>
             </div>
-            <div className="f-art raised-sm"><div className="lab"><span>LDL cholesterol</span><b>3.4 <small>mmol/L</small></b></div><p className="lab-tip">Try olive oil instead of butter twice this week.</p></div>
+            <div className="f-art raised-sm"><div className="lab"><span>Iron, last 3 weeks</span><b>62% <small>of target</small></b></div><p className="lab-tip">Lentils or spinach twice this week would close the gap.</p></div>
+          </div>
+          <div className="f-row">
+            <div className="f-text">
+              <h3>Trains with you</h3>
+              <p>A first marathon, more muscle at the gym, or keeping your strength into your fifties and beyond. It fuels the goal and plans around how your body actually feels.</p>
+            </div>
+            <div className="f-art raised-sm"><div className="say">“long run tomorrow, what should I eat tonight?”</div><div className="say-out"><span>Salmon + rice</span><span>Extra carbs</span><span>Rest the legs</span></div></div>
           </div>
         </div>
       </div>

@@ -296,7 +296,7 @@ function App() {
       <section id="about" className="about wrap">
         <blockquote className="why">
           <p>“My parents got their blood test back and had no idea what to change at dinner. I wanted a coach that would just listen, and remember.”</p>
-          <footer>Bin, founder of Zabaione</footer>
+          <footer>Davide, founder of Zabaione</footer>
         </blockquote>
         <p className="fine">Food values are typical portions, rounded, from UK CoFID and USDA tables. The heart, gut and energy meters are a playful model to show direction, not a health assessment.</p>
       </section>

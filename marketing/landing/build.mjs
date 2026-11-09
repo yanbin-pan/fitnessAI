@@ -10,7 +10,7 @@ const r = await esbuild.build({
 const js = r.outputFiles[0].text.replace(/<\/script/gi, "<\\/script");
 const css = fs.readFileSync(path.join(here, "src/page.css"), "utf8");
 const html = `<title>Zabaione Waitlist</title>
-<meta name="description" content="Zabaione: the AI food and fitness coach that remembers. Join the waitlist.">
+<meta name="description" content="Zabaione: the health companion that knows you, from what you eat to how you train. Join the waitlist.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,500..600,100&family=Inter:wght@400;500;600&display=swap">
 <style>${css}</style>
