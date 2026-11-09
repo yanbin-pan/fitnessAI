@@ -1,7 +1,8 @@
 import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createStage, companionStills, type Framing, type Stage } from "@app/companions/stage.ts";
-import { moodInput, canDraw3d } from "@app/companions/mood.ts";
+import { moodInput, canDraw3d, type MoodInput } from "@app/companions/mood.ts";
+import { useFortnight, Sky, MeterBar, Buttons, clockLabel, METERS, DAYS, DAY_MS, WIN_SHARE } from "./fortnight.tsx";
 import { SPECIES } from "@app/companions/species.ts";
 import type { CompanionId, CompanionMood } from "@app/shared.ts";
 import { BlurText, ClickSpark, CountUp, DotGrid, RotatingText, TextType, reduceMotion, useInView } from "./fx.tsx";
@@ -18,13 +19,6 @@ const CREW: { id: CompanionId; name: string; animal: string }[] = [
 ];
 const nameOf = (id: CompanionId) => CREW.find((c) => c.id === id)!;
 
-const MOODS: { id: CompanionMood; label: string; note: string }[] = [
-  { id: "thriving", label: "Thriving", note: "A good week: fed well, moving, sleeping." },
-  { id: "okay", label: "Okay", note: "An ordinary day. Nothing to fix." },
-  { id: "sluggish", label: "Sluggish", note: "Skipped meals. They droop a little." },
-  { id: "overfed", label: "Stuffed", note: "Sunday lunch at nonna's." },
-  { id: "inactive", label: "Asleep", note: "Nothing logged for a while." },
-];
 
 let can3d: boolean | null = null;
 const draw3d = () => (can3d ??= canDraw3d());
@@ -52,8 +46,8 @@ function Still({ id, stills, className = "" }: { id: CompanionId; stills: Record
 }
 
 /** One live low-poly companion from the app. Paused while off screen. */
-function Companion({ id, mood, framing = "full", interactive = false, plinth = false, className = "" }: {
-  id: CompanionId; mood: CompanionMood; framing?: Framing; interactive?: boolean; plinth?: boolean; className?: string;
+function Companion({ id, mood, input, framing = "full", interactive = false, plinth = false, className = "" }: {
+  id: CompanionId; mood: CompanionMood; input?: MoodInput; framing?: Framing; interactive?: boolean; plinth?: boolean; className?: string;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const stage = useRef<Stage | null>(null);
@@ -62,14 +56,15 @@ function Companion({ id, mood, framing = "full", interactive = false, plinth = f
   useEffect(() => {
     if (!ok || !host.current) return;
     const el = host.current;
-    const s = createStage(el, { companion: first.current, mood: moodInput(mood), framing, interactive, plinth });
+    const s = createStage(el, { companion: first.current, mood: input ?? moodInput(mood), framing, interactive, plinth });
     stage.current = s;
     const io = new IntersectionObserver(([e]) => s.setPaused(!e.isIntersecting), { rootMargin: "80px" });
     io.observe(el);
     return () => { io.disconnect(); s.dispose(); stage.current = null; };
   }, [ok, framing, interactive, plinth]);
   useEffect(() => { stage.current?.setCompanion(id); }, [id]);
-  useEffect(() => { stage.current?.setMood(moodInput(mood)); }, [mood]);
+  const key = input ? `${input.score}|${input.overfed}|${input.overAlcohol}` : mood;
+  useEffect(() => { stage.current?.setMood(input ?? moodInput(mood)); }, [key]);
   return <div ref={host} className={`companion ${className}`} aria-hidden="true">{!ok && <Badge id={id} />}</div>;
 }
 
@@ -251,15 +246,15 @@ function Hero() {
       <DotGrid />
       <div className="wrap hero-grid">
         <div className="hero-copy">
-          <p className="kicker"><span className="live" aria-hidden="true" />Food &amp; fitness coach · invite-only beta</p>
-          <BlurText text="The coach that remembers." className="display" />
+          <p className="kicker"><span className="live" aria-hidden="true" />Your whole-health companion · invite-only beta</p>
+          <BlurText text="The companion that knows you." className="display" />
           <blockquote className="why">
-            <p>“My parents got their blood test back and had no idea what to change at dinner. Every app wanted them to weigh rice. I wanted something that would just listen, and remember.”</p>
-            <footer>Bin, founder</footer>
+            <p>“Every app knew one slice of me: calories here, runs there, blood tests in a drawer. I wanted one companion that sees the whole picture, and notices what’s missing before the numbers do.”</p>
+            <footer>Davide, founder</footer>
           </blockquote>
           <p className="lede">
             Tell it your day in one sentence. It remembers{" "}
-            <RotatingText items={["what you ate on Tuesday", "your knee after squats", "your cholesterol results", "that you hate fish"]} />.
+            <RotatingText items={["what you ate on Tuesday", "Sunday’s long run", "your iron levels", "your knee after squats", "that you hate fish"]} />.
           </p>
         </div>
         <div className="hero-demo"><PhoneDemo /></div>
@@ -271,12 +266,54 @@ function Hero() {
 
 /* ---------- Crew: one hero, the rest waiting their turn ---------- */
 
+/** Tipsy turns the whole page woozy: 2 tilts and blurs, 3 rolls, double-visions and hiccups. Off when the game ends. */
+function useTipsyPage(level: number) {
+  const [hics, setHics] = useState<{ id: number; x: number; y: number }[]>([]);
+  useEffect(() => {
+    const root = document.documentElement;
+    if (level >= 2) root.dataset.tipsy = String(level); else delete root.dataset.tipsy;
+    if (level < 2) return;
+    let id = 0, alive = true, timer = 0;
+    const hic = () => {
+      if (!alive) return;
+      const n = ++id;
+      root.classList.add("hic");
+      setTimeout(() => root.classList.remove("hic"), 650);
+      setHics((h) => [...h.slice(-3), { id: n, x: 10 + Math.random() * 75, y: 15 + Math.random() * 60 }]);
+      setTimeout(() => setHics((h) => h.filter((x) => x.id !== n)), 1400);
+      timer = window.setTimeout(hic, (level >= 3 ? 1400 : 2600) + Math.random() * 1800);
+    };
+    timer = window.setTimeout(hic, 700);
+    return () => { alive = false; clearTimeout(timer); delete root.dataset.tipsy; root.classList.remove("hic"); };
+  }, [level]);
+  useEffect(() => () => setHics([]), []);
+  return hics;
+}
+
+/** Training gives the page a short boost: a punch-in zoom, speed lines and a big +GAINS. */
+function useBoostPage(boosts: number, on: boolean) {
+  const first = useRef(boosts);
+  useEffect(() => {
+    if (!on || boosts === first.current) return;
+    const root = document.documentElement;
+    root.classList.remove("boost"); void root.offsetWidth; root.classList.add("boost");
+    const t = setTimeout(() => root.classList.remove("boost"), 950);
+    return () => clearTimeout(t);
+  }, [boosts, on]);
+  useEffect(() => () => document.documentElement.classList.remove("boost"), []);
+}
+
 function Crew() {
   const stills = useStills();
-  const [mood, setMood] = useState<CompanionMood>("thriving");
   const [pick, setPick] = useState<CompanionId>("zabaione");
   const c = nameOf(pick);
-  const note = MOODS.find((m) => m.id === mood)!.note;
+  const g = useFortnight();
+  const v = g.verdict;
+  const motion = g.phase === "play" && !reduceMotion();
+  const hics = useTipsyPage(motion ? v.tipsy : 0);
+  useBoostPage(g.s.boosts, motion);
+  const progress = Math.max(0, Math.min(100, (g.now / (DAYS * DAY_MS)) * 100));
+  const pct = (x: number) => `${Math.round(x * 100)}%`;
   return (
     <section className="crew" id="crew" aria-labelledby="crew-h">
       <div className="wrap crew-grid">
@@ -291,20 +328,56 @@ function Crew() {
               </button>
             ))}
           </div>
-          <p className="hint">Tap one to meet them. Drag to turn, tap the companion to give it a pat.</p>
+          <div className="howto">
+            <h3>Two weeks with {c.name}</h3>
+            <p>Two weeks fly by in about a minute. Keep <b>Fuel</b>, <b>Looksmaxxing</b> and <b>Vibes</b> in the green: everything drains as the day goes on, and going over is just as bad as running low.</p>
+            <p><b>🍝 Eat</b> at mealtimes (snacks count for less), <b>🏋️ Train</b> to mog but it burns fuel, and <b>🍷 Drink</b> for vibes, best after 6pm and not too many. Every day brings a surprise.</p>
+          </div>
         </div>
-        <div className="stage-card raised" style={{ ["--fur" as string]: SPECIES[pick].fur }}>
-          <div className="stage-well inset">
-            <Companion id={pick} mood={mood} interactive plinth framing="full" />
+        {v.tipsy >= 2 && motion && (
+          <div className="booze" aria-hidden="true">
+            {Array.from({ length: v.tipsy >= 3 ? 14 : 8 }, (_, i) => <span key={i} style={{ left: `${(i * 37) % 100}%`, animationDelay: `${(i * 0.37) % 3}s` }}>{i % 3 ? "🫧" : "✨"}</span>)}
+            {hics.map((h) => <b key={h.id} className="hic-pop" style={{ left: `${h.x}%`, top: `${h.y}%` }}>hic!</b>)}
           </div>
-          <div className="stage-foot">
-            <div aria-live="polite"><b>{c.name}</b><span>{c.animal} · {note}</span></div>
+        )}
+        <div className={`stage-card game-card raised ${g.phase}`} style={{ ["--fur" as string]: SPECIES[pick].fur }}>
+          <div className="g-top">
+            <div className="stage-well g-well inset">
+              <Companion id={pick} mood="okay" input={g.phase === "idle" ? moodInput("thriving") : v.input} interactive={g.phase !== "play"} plinth framing="full" />
+            </div>
+            <div className="g-hud">
+              <div aria-live="polite" className="g-mood"><b>{c.name}</b><span className={`m-${v.label.toLowerCase()}`}>{g.phase === "idle" ? "Ready to play" : v.label}</span><small>{g.phase === "idle" ? c.animal : v.note}</small></div>
+              {METERS.map((m) => <MeterBar key={m.id} id={m.id} label={m.label} value={g.s[m.id]} />)}
+            </div>
           </div>
-          <div className="moods" role="group" aria-label="Try a mood">
-            {MOODS.map((m) => (
-              <button key={m.id} aria-pressed={mood === m.id} className={`chip ${mood === m.id ? "on" : ""}`} onClick={() => setMood(m.id)}>{m.label}</button>
-            ))}
+          <div className="g-field">
+            <div className="g-day"><span>{g.phase === "idle" ? "14 days" : g.phase === "done" ? "Two weeks done" : clockLabel(g.now)}</span><div className="meter-bar inset-sm"><i className="time" style={{ width: `${progress}%` }} /></div></div>
+            <Sky g={g} />
+            {g.phase !== "play" && (
+              <div className="g-over">
+                {g.phase === "idle" ? (
+                  <>
+                    <p className="g-title">Two weeks with {c.name}</p>
+                    <p>Max out all three. Don't overdo any.</p>
+                    <button className="btn primary" onClick={g.start}>Play</button>
+                  </>
+                ) : (
+                  <>
+                    <p className="g-title">{g.won ? `${c.name} is thriving!` : `So close, ${c.name}`}</p>
+                    <div className="g-scores">
+                      {METERS.map((m) => <span key={m.id} className={g.shares[m.id] >= WIN_SHARE ? "ok" : ""}><b>{pct(g.shares[m.id])}</b>{m.label}</span>)}
+                    </div>
+                    <p>{g.won ? "Time in the green on all three. Full main character energy." : `You need ${pct(WIN_SHARE)} of the time in the green on each one.`}</p>
+                    <div className="g-actions">
+                      <button className="btn primary" onClick={g.start}>Play again</button>
+                      <a className="btn ghost" href="#waitlist">Meet the real one</a>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
+          <Buttons g={g} />
         </div>
       </div>
     </section>
@@ -331,7 +404,7 @@ function Features() {
   return (
     <section className="features" aria-labelledby="f-h">
       <div className="wrap">
-        <h2 id="f-h" className="h2">Not every day starts fresh.</h2>
+        <h2 id="f-h" className="h2">You are what you eat and do.</h2>
         <div className="f-rows">
           <div className="f-row">
             <div className="f-text">
@@ -349,10 +422,17 @@ function Features() {
           </div>
           <div className="f-row">
             <div className="f-text">
-              <h3>Reads your results</h3>
-              <p>Add a blood test and it explains how your plate relates to the numbers, in plain words. Coaching, never a diagnosis.</p>
+              <h3>Spots gaps early</h3>
+              <p>It keeps an eye on iron, vitamin D, protein and fibre across your weeks, and nudges you before a blood test has to. Add your results and it explains them in plain words. Coaching, never a diagnosis.</p>
             </div>
-            <div className="f-art raised-sm"><div className="lab"><span>LDL cholesterol</span><b>3.4 <small>mmol/L</small></b></div><p className="lab-tip">Try olive oil instead of butter twice this week.</p></div>
+            <div className="f-art raised-sm"><div className="lab"><span>Iron, last 3 weeks</span><b>62% <small>of target</small></b></div><p className="lab-tip">Lentils or spinach twice this week would close the gap.</p></div>
+          </div>
+          <div className="f-row">
+            <div className="f-text">
+              <h3>Trains with you</h3>
+              <p>A first marathon, more muscle at the gym, or keeping your strength into your fifties and beyond. It fuels the goal and plans around how your body actually feels.</p>
+            </div>
+            <div className="f-art raised-sm"><div className="say">“long run tomorrow, what should I eat tonight?”</div><div className="say-out"><span>Salmon + rice</span><span>Extra carbs</span><span>Rest the legs</span></div></div>
           </div>
         </div>
       </div>
