@@ -64,7 +64,6 @@ function Companion({ id, mood, input, framing = "full", interactive = false, pli
   }, [ok, framing, interactive, plinth]);
   useEffect(() => { stage.current?.setCompanion(id); }, [id]);
   const key = input ? `${input.score}|${input.overfed}|${input.overAlcohol}` : mood;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { stage.current?.setMood(input ?? moodInput(mood)); }, [key]);
   return <div ref={host} className={`companion ${className}`} aria-hidden="true">{!ok && <Badge id={id} />}</div>;
 }
