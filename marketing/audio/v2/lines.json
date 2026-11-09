@@ -1,0 +1,326 @@
+[
+ {
+  "id": "s1_l1",
+  "speaker": "narrator",
+  "text": "Tired for weeks. She thought it was just work.",
+  "direction": ""
+ },
+ {
+  "id": "s1_l2",
+  "speaker": "emma",
+  "text": "Huh. So that's why the wall feels taller.",
+  "direction": "surprised then curious"
+ },
+ {
+  "id": "s1_l3",
+  "speaker": "narrator",
+  "text": "Zabaione noticed, before her blood test had to.",
+  "direction": ""
+ },
+ {
+  "id": "s2_l1",
+  "speaker": "jack",
+  "text": "Turns out carbs are training too.",
+  "direction": "mouth full, happy"
+ },
+ {
+  "id": "s2_l2",
+  "speaker": "narrator",
+  "text": "Every kilometre starts in the kitchen.",
+  "direction": ""
+ },
+ {
+  "id": "s3_l1",
+  "speaker": "emma",
+  "text": "Oh. There you are.",
+  "direction": "quiet, proud, to her reflection"
+ },
+ {
+  "id": "s3_l2",
+  "speaker": "narrator",
+  "text": "Muscle is built at the table too.",
+  "direction": ""
+ },
+ {
+  "id": "s4_l1",
+  "speaker": "narrator",
+  "text": "After thirty, we lose a little muscle every year. Quietly.",
+  "direction": ""
+ },
+ {
+  "id": "s4_l2",
+  "speaker": "david",
+  "text": "Still got it. And I plan to keep it.",
+  "direction": "laughing, lifting a planter"
+ },
+ {
+  "id": "s5_l1",
+  "speaker": "helen",
+  "text": "Salmon on Friday, then. And a walk, you and me.",
+  "direction": "warmly, to the dog"
+ },
+ {
+  "id": "s5_l2",
+  "speaker": "narrator",
+  "text": "Small changes, before the numbers ask for them.",
+  "direction": ""
+ },
+ {
+  "id": "s6_l1",
+  "speaker": "jack",
+  "text": "How do you always know?",
+  "direction": "amused, to the dog"
+ },
+ {
+  "id": "A1_l1",
+  "speaker": "david",
+  "text": "Third helping. It's Sunday, it doesn't count.",
+  "direction": "jolly"
+ },
+ {
+  "id": "A1_l2",
+  "speaker": "emma",
+  "text": "Dad, everything counts. That's kind of the point.",
+  "direction": "laughing"
+ },
+ {
+  "id": "A1_l3",
+  "speaker": "helen",
+  "text": "Point of what?",
+  "direction": "curious"
+ },
+ {
+  "id": "A1_l4",
+  "speaker": "emma",
+  "text": "The app. It's not a diet. It just... gets to know you.",
+  "direction": ""
+ },
+ {
+  "id": "A1_l5",
+  "speaker": "jack",
+  "text": "Like a friend who remembers what you had for lunch.",
+  "direction": "playful"
+ },
+ {
+  "id": "A1_l6",
+  "speaker": "david",
+  "text": "I don't remember what I had for lunch.",
+  "direction": "deadpan"
+ },
+ {
+  "id": "A1_l7",
+  "speaker": "jack",
+  "text": "Exactly.",
+  "direction": "grinning"
+ },
+ {
+  "id": "A2_l1",
+  "speaker": "narrator",
+  "text": "You are what you eat, and what you do. Most of us just never see it all in one place.",
+  "direction": ""
+ },
+ {
+  "id": "A3_l1",
+  "speaker": "helen",
+  "text": "It says I barely eat any fibre. I thought I ate so well.",
+  "direction": "surprised, gentle"
+ },
+ {
+  "id": "A3_l2",
+  "speaker": "emma",
+  "text": "You do. Just more beans, more oats. Small things.",
+  "direction": "reassuring"
+ },
+ {
+  "id": "A3_l3",
+  "speaker": "helen",
+  "text": "Small things I can do.",
+  "direction": "smiling"
+ },
+ {
+  "id": "A4_l1",
+  "speaker": "jack",
+  "text": "Two more. Slow.",
+  "direction": "coaching"
+ },
+ {
+  "id": "A4_l2",
+  "speaker": "david",
+  "text": "Since when does my son give me orders?",
+  "direction": "puffing, grinning"
+ },
+ {
+  "id": "A4_l3",
+  "speaker": "jack",
+  "text": "Since you asked Zabaione how to stay strong at fifty-six.",
+  "direction": "teasing"
+ },
+ {
+  "id": "A5_l1",
+  "speaker": "david",
+  "text": "Second helping. Of salad. Who am I?",
+  "direction": "amused at himself"
+ },
+ {
+  "id": "A5_l2",
+  "speaker": "emma",
+  "text": "Someone who knows himself a bit better.",
+  "direction": "warm"
+ },
+ {
+  "id": "B1_l1",
+  "speaker": "helen",
+  "text": "Cholesterol, a little high. Iron, a little low. The doctor said eat better.",
+  "direction": "reading, thoughtful"
+ },
+ {
+  "id": "B1_l2",
+  "speaker": "david",
+  "text": "Eat better how? Nobody ever says.",
+  "direction": "exasperated but kind"
+ },
+ {
+  "id": "B1_l3",
+  "speaker": "emma",
+  "text": "That's what I wanted to show you.",
+  "direction": "arriving, bright"
+ },
+ {
+  "id": "B2_l1",
+  "speaker": "emma",
+  "text": "Just take a photo of what you eat. It does the rest.",
+  "direction": ""
+ },
+ {
+  "id": "B2_l2",
+  "speaker": "david",
+  "text": "And then what? It tells me off?",
+  "direction": "sceptical, joking"
+ },
+ {
+  "id": "B2_l3",
+  "speaker": "emma",
+  "text": "No. It explains. Like a friend who happens to know nutrition.",
+  "direction": "warm"
+ },
+ {
+  "id": "B3_l1",
+  "speaker": "narrator",
+  "text": "It doesn't wait for a blood test. It notices the patterns in your plate, every day.",
+  "direction": ""
+ },
+ {
+  "id": "B4_l1",
+  "speaker": "helen",
+  "text": "Look, it says my iron could use some help. Lentils on Thursday?",
+  "direction": "curious"
+ },
+ {
+  "id": "B4_l2",
+  "speaker": "david",
+  "text": "With your sauce? I'll eat lentils every Thursday.",
+  "direction": "delighted"
+ },
+ {
+  "id": "B5_l1",
+  "speaker": "doctor",
+  "text": "Whatever you've been doing, keep doing it.",
+  "direction": "off screen, pleased"
+ },
+ {
+  "id": "B5_l2",
+  "speaker": "david",
+  "text": "Six months of small things.",
+  "direction": "quiet, moved"
+ },
+ {
+  "id": "B5_l3",
+  "speaker": "helen",
+  "text": "And a little help from Zabaione.",
+  "direction": "smiling"
+ },
+ {
+  "id": "C1_l1",
+  "speaker": "jack",
+  "text": "I did it. Sixteen weeks to my first marathon.",
+  "direction": "excited"
+ },
+ {
+  "id": "C1_l2",
+  "speaker": "emma",
+  "text": "You've never run more than ten k.",
+  "direction": "teasing, on a video call"
+ },
+ {
+  "id": "C1_l3",
+  "speaker": "jack",
+  "text": "That's why I've got a coach.",
+  "direction": "confident"
+ },
+ {
+  "id": "C2_l1",
+  "speaker": "narrator",
+  "text": "Training isn't just the running. It's the sleep, the food, the rest days you want to skip.",
+  "direction": ""
+ },
+ {
+  "id": "C3_l1",
+  "speaker": "jack",
+  "text": "Long run on Sunday. Tonight: proper carbs and some protein... Pasta it is.",
+  "direction": "tired, reading his phone, then decides"
+ },
+ {
+  "id": "C3_l2",
+  "speaker": "jack",
+  "text": "You really pay attention, don't you?",
+  "direction": "smiling, to the dog"
+ },
+ {
+  "id": "C4_l1",
+  "speaker": "emma",
+  "text": "You're faster than last month.",
+  "direction": "running, a bit breathless"
+ },
+ {
+  "id": "C4_l2",
+  "speaker": "jack",
+  "text": "I'm eating more than last month.",
+  "direction": "running"
+ },
+ {
+  "id": "C4_l3",
+  "speaker": "emma",
+  "text": "That's how it works?",
+  "direction": "running"
+ },
+ {
+  "id": "C4_l4",
+  "speaker": "jack",
+  "text": "That's how it works.",
+  "direction": "running, smug"
+ },
+ {
+  "id": "C5_l1",
+  "speaker": "david",
+  "text": "Nervous?",
+  "direction": ""
+ },
+ {
+  "id": "C5_l2",
+  "speaker": "jack",
+  "text": "Ready. Breakfast at six, just like we practised.",
+  "direction": "calm"
+ },
+ {
+  "id": "C6_l1",
+  "speaker": "jack",
+  "text": "Sixteen weeks ago I couldn't do ten k.",
+  "direction": "out of breath, emotional"
+ },
+ {
+  "id": "C6_l2",
+  "speaker": "emma",
+  "text": "Sixteen weeks ago you didn't know yourself this well.",
+  "direction": "proud"
+ }
+]

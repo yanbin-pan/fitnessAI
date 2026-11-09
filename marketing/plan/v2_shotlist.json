@@ -1,0 +1,1605 @@
+{
+ "style": "Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+ "characters": {
+  "emma": "Emma, woman about 30, long dark wavy hair, warm brown eyes",
+  "jack": "Jack, Emma's brother, late 20s, short tousled brown hair, light stubble, lean runner's build",
+  "helen": "Helen, the mother, early 50s, shoulder-length dark hair, soft cardigan, kind eyes",
+  "david": "David, the father, mid 50s, dark hair greying at the temples, broad shoulders, friendly face",
+  "zabaione": "Zabaione, a lean, sharp-eyed Shiba Inu with amber eyes and a fox-like muzzle (smart, not cute)",
+  "doctor": "(off screen)"
+ },
+ "voices": {
+  "emma": "ElevenLabs Jessica, eleven_v4 + Zabaione dictionary",
+  "jack": "Will, eleven_v4 + dictionary",
+  "david": "Chris, eleven_v4 + dictionary",
+  "helen": "Matilda, eleven_v4 + dictionary",
+  "narrator": "George, eleven_multilingual_v2",
+  "doctor": "Daniel, eleven_v4"
+ },
+ "notes": "Long films: shots play in list order; talking shots use their audio for lip sync and for the edit; voiceover shots carry narration over picture. Silent shots without audio fill reactions and wides; trim to taste. Captions burned in, end cards from captions on the last shot.",
+ "shots": [
+  {
+   "id": "s1_01",
+   "reel": "short1_before_the_blood_test",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "emma"
+   ],
+   "setting": "indoor climbing gym",
+   "image_prompt": "Emma halfway up a colourful climbing wall, pausing, breathing hard, chalky hands. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "She hangs on, catches her breath, looks up at the remaining wall. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "s1_02",
+   "reel": "short1_before_the_blood_test",
+   "seconds": 3.5,
+   "type": "still_motion",
+   "characters": [
+    "emma",
+    "zabaione"
+   ],
+   "setting": "living room sofa, evening",
+   "image_prompt": "Emma on a sofa in the evening, tired, phone glowing in her hand; Zabaione rests its chin on her knee. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "She scrolls slowly; the Shiba glances up at her. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/s1_l1_narrator.wav",
+   "audio_role": "voiceover",
+   "caption": "Tired for weeks."
+  },
+  {
+   "id": "s1_03",
+   "reel": "short1_before_the_blood_test",
+   "seconds": 2.5,
+   "type": "still_motion",
+   "characters": [],
+   "setting": "phone close-up",
+   "image_prompt": "Close-up of a phone in a hand showing a friendly nutrition app card with a small iron icon and a soft bar trending low (no readable brand). Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Subtle screen glow, the hand tilts slightly. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": "Iron has been low most days this month"
+  },
+  {
+   "id": "s1_04",
+   "reel": "short1_before_the_blood_test",
+   "seconds": 3.6,
+   "type": "talking",
+   "characters": [
+    "emma"
+   ],
+   "setting": "living room sofa, evening",
+   "image_prompt": "Close-up of Emma on the sofa, surprised then curious, phone light on her face. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Emma speaks to herself, eyebrows rising. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/s1_l2_emma.wav",
+   "audio_role": "lipsync",
+   "caption": "Huh. So that's why the wall feels taller."
+  },
+  {
+   "id": "s1_05",
+   "reel": "short1_before_the_blood_test",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "emma",
+    "zabaione"
+   ],
+   "setting": "kitchen",
+   "image_prompt": "Emma cooking lentils with spinach and squeezing a lemon in a bright kitchen; Zabaione watching from the floor. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "She squeezes the lemon over the pan, steam rises, the Shiba's nose twitches. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "s1_06",
+   "reel": "short1_before_the_blood_test",
+   "seconds": 4,
+   "type": "still_motion",
+   "characters": [
+    "emma"
+   ],
+   "setting": "indoor climbing gym",
+   "image_prompt": "Emma at the top of the climbing wall, grinning down, strong and relaxed. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "She reaches the top hold and looks down with a big smile. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/s1_l3_narrator.wav",
+   "audio_role": "voiceover",
+   "caption": "Zabaione noticed before her blood test had to."
+  },
+  {
+   "id": "s2_01",
+   "reel": "short2_the_long_run",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "jack",
+    "zabaione"
+   ],
+   "setting": "flat hallway at dawn",
+   "image_prompt": "Jack lacing up running shoes at dawn by the front door; Zabaione already waiting at the door. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "He pulls the laces tight; the Shiba stands, tail up. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "s2_02",
+   "reel": "short2_the_long_run",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "jack"
+   ],
+   "setting": "riverside path, morning",
+   "image_prompt": "Jack running along a riverside path, slowing down, checking his sports watch, tired. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "He slows, glances at the watch, exhales. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": "Km 25"
+  },
+  {
+   "id": "s2_03",
+   "reel": "short2_the_long_run",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "jack"
+   ],
+   "setting": "small kitchen, night",
+   "image_prompt": "A bowl of pasta with a banana beside it on a small kitchen table at night, Jack sitting down to eat. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "He twirls a forkful of pasta. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "s2_04",
+   "reel": "short2_the_long_run",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "jack"
+   ],
+   "setting": "small kitchen, night",
+   "image_prompt": "Close-up of Jack at the kitchen table, mouth half full, happy, talking to camera. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Jack speaks between bites, grinning. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/s2_l1_jack.wav",
+   "audio_role": "lipsync",
+   "caption": "Turns out carbs are training too."
+  },
+  {
+   "id": "s2_05",
+   "reel": "short2_the_long_run",
+   "seconds": 4,
+   "type": "still_motion",
+   "characters": [
+    "jack",
+    "zabaione"
+   ],
+   "setting": "riverside path, morning",
+   "image_prompt": "Jack running strong along the same riverside path, Zabaione trotting alongside. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Steady confident stride, the Shiba keeps pace. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/s2_l2_narrator.wav",
+   "audio_role": "voiceover",
+   "caption": "Every kilometre starts in the kitchen."
+  },
+  {
+   "id": "s3_01",
+   "reel": "short3_the_gym_finally",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "emma"
+   ],
+   "setting": "bright gym",
+   "image_prompt": "Emma at a cable machine in a bright gym, focused. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "She completes a controlled cable row. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "s3_02",
+   "reel": "short3_the_gym_finally",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [],
+   "setting": "breakfast table",
+   "image_prompt": "Breakfast: Greek yoghurt with berries and two boiled eggs, a phone beside the bowl showing a soft protein ring filling up. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Morning light moves slightly across the table. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": "Protein through the day"
+  },
+  {
+   "id": "s3_03",
+   "reel": "short3_the_gym_finally",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "emma"
+   ],
+   "setting": "gym mirror",
+   "image_prompt": "Emma in front of a gym mirror months later, a quiet proud smile, toned arms. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "She looks at her reflection and speaks softly. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/s3_l1_emma.wav",
+   "audio_role": "lipsync",
+   "caption": "Oh. There you are."
+  },
+  {
+   "id": "s3_04",
+   "reel": "short3_the_gym_finally",
+   "seconds": 3.5,
+   "type": "still_motion",
+   "characters": [
+    "zabaione"
+   ],
+   "setting": "gym bench",
+   "image_prompt": "Zabaione sitting on a gym bag on a bench, looking pleased. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "The Shiba gives a small satisfied nod. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/s3_l2_narrator.wav",
+   "audio_role": "voiceover",
+   "caption": "Muscle is built at the table too."
+  },
+  {
+   "id": "s4_01",
+   "reel": "short4_strong_at_56",
+   "seconds": 4.8,
+   "type": "still_motion",
+   "characters": [
+    "david"
+   ],
+   "setting": "house stairs",
+   "image_prompt": "David carrying heavy shopping bags up the stairs, a little out of breath. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "He pauses on a step, adjusts his grip. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/s4_l1_narrator.wav",
+   "audio_role": "voiceover",
+   "caption": "After 30, we lose a little muscle every year."
+  },
+  {
+   "id": "s4_02",
+   "reel": "short4_strong_at_56",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "david",
+    "zabaione"
+   ],
+   "setting": "garage home gym",
+   "image_prompt": "David on a home bench lifting light dumbbells; Zabaione sitting nearby supervising. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Slow controlled curls, the Shiba watches each rep. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "s4_03",
+   "reel": "short4_strong_at_56",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "david",
+    "helen"
+   ],
+   "setting": "dining table",
+   "image_prompt": "Dinner of grilled fish, beans and a big salad; Helen smiles across the table at David. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "They share a smile and start eating. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "s4_04",
+   "reel": "short4_strong_at_56",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "david"
+   ],
+   "setting": "garden",
+   "image_prompt": "David easily lifting a heavy garden planter, laughing, talking to camera. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "David lifts the planter and speaks with a laugh. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/s4_l2_david.wav",
+   "audio_role": "lipsync",
+   "caption": "Still got it. And I plan to keep it."
+  },
+  {
+   "id": "s5_01",
+   "reel": "short5_winter_sun",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "helen"
+   ],
+   "setting": "living room, grey winter day",
+   "image_prompt": "Helen wrapped in a blanket by a grey window holding a cup of tea. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Rain streaks the window, steam rises from the tea. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "s5_02",
+   "reel": "short5_winter_sun",
+   "seconds": 2.5,
+   "type": "still_motion",
+   "characters": [],
+   "setting": "phone close-up",
+   "image_prompt": "Phone screen with a friendly app card showing a small sun icon and a soft bar trending low. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Gentle screen glow. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": "Vitamin D has been low since October"
+  },
+  {
+   "id": "s5_03",
+   "reel": "short5_winter_sun",
+   "seconds": 3.9,
+   "type": "talking",
+   "characters": [
+    "helen",
+    "zabaione"
+   ],
+   "setting": "living room",
+   "image_prompt": "Close-up of Helen talking warmly to Zabaione, who sits beside her. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Helen speaks to the dog with a smile. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/s5_l1_helen.wav",
+   "audio_role": "lipsync",
+   "caption": "Salmon on Friday, then. And a walk, you and me."
+  },
+  {
+   "id": "s5_04",
+   "reel": "short5_winter_sun",
+   "seconds": 3.5,
+   "type": "still_motion",
+   "characters": [
+    "helen",
+    "zabaione"
+   ],
+   "setting": "park, bright winter day",
+   "image_prompt": "Bright crisp winter walk in a park, Zabaione leading Helen on its lead. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "They walk toward the low sun. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/s5_l2_narrator.wav",
+   "audio_role": "voiceover",
+   "caption": "Small changes, before the numbers ask for them."
+  },
+  {
+   "id": "s6_01",
+   "reel": "short6_it_knows_you",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "jack"
+   ],
+   "setting": "bedroom, morning",
+   "image_prompt": "Jack stretching sore legs on his bed in the morning, picking up his phone. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "He winces slightly, then opens the phone. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "s6_02",
+   "reel": "short6_it_knows_you",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [],
+   "setting": "phone close-up",
+   "image_prompt": "Phone card: friendly message bubble from a Shiba avatar about rest and eating a bit more today (no readable brand). Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Screen glow, slight hand tilt. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": "Big run yesterday, short sleep. Eat a bit more today and keep it easy."
+  },
+  {
+   "id": "s6_03",
+   "reel": "short6_it_knows_you",
+   "seconds": 2,
+   "type": "talking",
+   "characters": [
+    "jack",
+    "zabaione"
+   ],
+   "setting": "bedroom, morning",
+   "image_prompt": "Close-up of Jack looking at Zabaione, amused. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Jack asks the dog a question with a smile. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/s6_l1_jack.wav",
+   "audio_role": "lipsync",
+   "caption": "How do you always know?"
+  },
+  {
+   "id": "s6_04",
+   "reel": "short6_it_knows_you",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "zabaione"
+   ],
+   "setting": "bedroom, morning",
+   "image_prompt": "Zabaione on the bed, head tilted, sharp amber eyes. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "The Shiba tilts its head slowly. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": "Zabaione. A coach that knows you."
+  },
+  {
+   "id": "A1_00",
+   "reel": "filmA",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "emma",
+    "jack",
+    "helen",
+    "david",
+    "zabaione"
+   ],
+   "setting": "family dining room, January",
+   "image_prompt": "Wide of a loud, happy family Sunday dinner, plates piled high with pasta and roast, Emma, Jack, Helen and David laughing; Zabaione on a cushion watching. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Family laughing and passing plates. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "A1_01",
+   "reel": "filmA",
+   "seconds": 3.4,
+   "type": "talking",
+   "characters": [
+    "david"
+   ],
+   "setting": "family dining room, January",
+   "image_prompt": "Close-up of David in the family dining room, January, jolly. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "David speaks naturally, jolly. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/A1_l1_david.wav",
+   "audio_role": "lipsync",
+   "caption": "Third helping. It's Sunday, it doesn't count."
+  },
+  {
+   "id": "A1_02",
+   "reel": "filmA",
+   "seconds": 4.3,
+   "type": "talking",
+   "characters": [
+    "emma"
+   ],
+   "setting": "family dining room, January",
+   "image_prompt": "Close-up of Emma in the family dining room, January, laughing. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Emma speaks naturally, laughing. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/A1_l2_emma.wav",
+   "audio_role": "lipsync",
+   "caption": "Dad, everything counts. That's kind of the point."
+  },
+  {
+   "id": "A1_03",
+   "reel": "filmA",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "helen"
+   ],
+   "setting": "family dining room, January",
+   "image_prompt": "Close-up of Helen in the family dining room, January, curious. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Helen speaks naturally, curious. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/A1_l3_helen.wav",
+   "audio_role": "lipsync",
+   "caption": "Point of what?"
+  },
+  {
+   "id": "A1_04",
+   "reel": "filmA",
+   "seconds": 4.4,
+   "type": "talking",
+   "characters": [
+    "emma"
+   ],
+   "setting": "family dining room, January",
+   "image_prompt": "Close-up of Emma in the family dining room, January, natural. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Emma speaks naturally, warm. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/A1_l4_emma.wav",
+   "audio_role": "lipsync",
+   "caption": "The app. It's not a diet. It just... gets to know you."
+  },
+  {
+   "id": "A1_05",
+   "reel": "filmA",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "jack"
+   ],
+   "setting": "family dining room, January",
+   "image_prompt": "Close-up of Jack in the family dining room, January, playful. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Jack speaks naturally, playful. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/A1_l5_jack.wav",
+   "audio_role": "lipsync",
+   "caption": "Like a friend who remembers what you had for lunch."
+  },
+  {
+   "id": "A1_06",
+   "reel": "filmA",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "david"
+   ],
+   "setting": "family dining room, January",
+   "image_prompt": "Close-up of David in the family dining room, January, deadpan. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "David speaks naturally, deadpan. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/A1_l6_david.wav",
+   "audio_role": "lipsync",
+   "caption": "I don't remember what I had for lunch."
+  },
+  {
+   "id": "A1_07",
+   "reel": "filmA",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "jack"
+   ],
+   "setting": "family dining room, January",
+   "image_prompt": "Close-up of Jack in the family dining room, January, grinning. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Jack speaks naturally, grinning. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/A1_l7_jack.wav",
+   "audio_role": "lipsync",
+   "caption": "Exactly."
+  },
+  {
+   "id": "A1_r",
+   "reel": "filmA",
+   "seconds": 2,
+   "type": "still_motion",
+   "characters": [
+    "zabaione"
+   ],
+   "setting": "family dining room, January",
+   "image_prompt": "Zabaione on its cushion, eyes following a passing plate. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "The Shiba's eyes track the plate. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "A2_00",
+   "reel": "filmA",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "emma",
+    "jack",
+    "david",
+    "zabaione"
+   ],
+   "setting": "montage, spring",
+   "image_prompt": "Emma photographing a colourful lunch bowl with her phone, Zabaione peeking into frame. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "She snaps the photo, the Shiba sniffs the bowl. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "A2_v1",
+   "reel": "filmA",
+   "seconds": 5.7,
+   "type": "still_motion",
+   "characters": [
+    "emma",
+    "jack",
+    "david",
+    "zabaione"
+   ],
+   "setting": "montage, spring",
+   "image_prompt": "Emma photographing a colourful lunch bowl with her phone, Zabaione peeking in. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "She snaps the photo. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/A2_l1_narrator.wav",
+   "audio_role": "voiceover",
+   "caption": "You are what you eat, and what you do. Most of us just never see it all in one place."
+  },
+  {
+   "id": "A2_v2",
+   "reel": "filmA",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "emma",
+    "jack",
+    "david",
+    "zabaione"
+   ],
+   "setting": "montage, spring",
+   "image_prompt": "Jack running across a bridge in spring, Zabaione trotting beside him. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Steady running stride. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "A2_v3",
+   "reel": "filmA",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "emma",
+    "jack",
+    "david",
+    "zabaione"
+   ],
+   "setting": "montage, spring",
+   "image_prompt": "David doing push-ups on a living-room rug, Zabaione lying beside him. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "He completes a push-up, the Shiba watches. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "A3_00",
+   "reel": "filmA",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "helen",
+    "emma",
+    "zabaione"
+   ],
+   "setting": "bright kitchen, summer",
+   "image_prompt": "Helen and Emma cooking together in a bright summer kitchen, Helen holding her phone. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "They chop vegetables side by side. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "A3_01",
+   "reel": "filmA",
+   "seconds": 4.9,
+   "type": "talking",
+   "characters": [
+    "helen"
+   ],
+   "setting": "bright kitchen, summer",
+   "image_prompt": "Close-up of Helen in the bright kitchen, summer, surprised, gentle. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Helen speaks naturally, surprised, gentle. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/A3_l1_helen.wav",
+   "audio_role": "lipsync",
+   "caption": "It says I barely eat any fibre. I thought I ate so well."
+  },
+  {
+   "id": "A3_02",
+   "reel": "filmA",
+   "seconds": 4.5,
+   "type": "talking",
+   "characters": [
+    "emma"
+   ],
+   "setting": "bright kitchen, summer",
+   "image_prompt": "Close-up of Emma in the bright kitchen, summer, reassuring. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Emma speaks naturally, reassuring. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/A3_l2_emma.wav",
+   "audio_role": "lipsync",
+   "caption": "You do. Just more beans, more oats. Small things."
+  },
+  {
+   "id": "A3_03",
+   "reel": "filmA",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "helen"
+   ],
+   "setting": "bright kitchen, summer",
+   "image_prompt": "Close-up of Helen in the bright kitchen, summer, smiling. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Helen speaks naturally, smiling. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/A3_l3_helen.wav",
+   "audio_role": "lipsync",
+   "caption": "Small things I can do."
+  },
+  {
+   "id": "A3_r",
+   "reel": "filmA",
+   "seconds": 2,
+   "type": "still_motion",
+   "characters": [
+    "zabaione"
+   ],
+   "setting": "bright kitchen, summer",
+   "image_prompt": "Zabaione on the kitchen floor looking up at them, ears forward. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Ears perk up. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "A4_00",
+   "reel": "filmA",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "david",
+    "jack",
+    "zabaione"
+   ],
+   "setting": "back garden, autumn",
+   "image_prompt": "David doing squats in the autumn garden while Jack coaches, leaves falling, Zabaione nearby. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "David squats slowly, Jack counts. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "A4_01",
+   "reel": "filmA",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "jack"
+   ],
+   "setting": "back garden, autumn",
+   "image_prompt": "Close-up of Jack in the back garden, autumn, coaching. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Jack speaks naturally, coaching. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/A4_l1_jack.wav",
+   "audio_role": "lipsync",
+   "caption": "Two more. Slow."
+  },
+  {
+   "id": "A4_02",
+   "reel": "filmA",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "david"
+   ],
+   "setting": "back garden, autumn",
+   "image_prompt": "Close-up of David in the back garden, autumn, puffing, grinning. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "David speaks naturally, puffing, grinning. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/A4_l2_david.wav",
+   "audio_role": "lipsync",
+   "caption": "Since when does my son give me orders?"
+  },
+  {
+   "id": "A4_03",
+   "reel": "filmA",
+   "seconds": 4.0,
+   "type": "talking",
+   "characters": [
+    "jack"
+   ],
+   "setting": "back garden, autumn",
+   "image_prompt": "Close-up of Jack in the back garden, autumn, teasing. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Jack speaks naturally, teasing. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/A4_l3_jack.wav",
+   "audio_role": "lipsync",
+   "caption": "Since you asked Zabaione how to stay strong at fifty-six."
+  },
+  {
+   "id": "A5_00",
+   "reel": "filmA",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "emma",
+    "jack",
+    "helen",
+    "david",
+    "zabaione"
+   ],
+   "setting": "family dining room, January",
+   "image_prompt": "Same family dinner wide as before but plates colourful and balanced, salad bowls, everyone lighter and laughing; Zabaione on its cushion. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Family laughing, passing salad. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "A5_01",
+   "reel": "filmA",
+   "seconds": 3.6,
+   "type": "talking",
+   "characters": [
+    "david"
+   ],
+   "setting": "family dining room, January",
+   "image_prompt": "Close-up of David in the family dining room, January, amused at himself. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "David speaks naturally, amused at himself. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/A5_l1_david.wav",
+   "audio_role": "lipsync",
+   "caption": "Second helping. Of salad. Who am I?"
+  },
+  {
+   "id": "A5_02",
+   "reel": "filmA",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "emma"
+   ],
+   "setting": "family dining room, January",
+   "image_prompt": "Close-up of Emma in the family dining room, January, warm. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Emma speaks naturally, warm. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/A5_l2_emma.wav",
+   "audio_role": "lipsync",
+   "caption": "Someone who knows himself a bit better."
+  },
+  {
+   "id": "A5_r",
+   "reel": "filmA",
+   "seconds": 2,
+   "type": "still_motion",
+   "characters": [
+    "zabaione"
+   ],
+   "setting": "family dining room, January",
+   "image_prompt": "Close-up of Zabaione giving a slow satisfied blink. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Slow blink. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "A5_x1",
+   "reel": "filmA",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "emma",
+    "jack",
+    "helen",
+    "david",
+    "zabaione"
+   ],
+   "setting": "family dining room, January",
+   "image_prompt": "Zabaione on its cushion in the warm dining room, soft focus family behind. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Gentle drift toward the dog. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": "Zabaione. Understand yourself."
+  },
+  {
+   "id": "B1_00",
+   "reel": "filmB",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "helen",
+    "david",
+    "emma"
+   ],
+   "setting": "parents' kitchen, evening",
+   "image_prompt": "Helen at the kitchen table reading last year's blood results; a calendar on the fridge marked 'Check-up'; David beside her. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Helen reads, David leans in. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "B1_01",
+   "reel": "filmB",
+   "seconds": 6.4,
+   "type": "talking",
+   "characters": [
+    "helen"
+   ],
+   "setting": "parents' kitchen, evening",
+   "image_prompt": "Close-up of Helen in the parents' kitchen, evening, reading, thoughtful. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Helen speaks naturally, reading, thoughtful. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/B1_l1_helen.wav",
+   "audio_role": "lipsync",
+   "caption": "Cholesterol, a little high. Iron, a little low. The doctor said eat better."
+  },
+  {
+   "id": "B1_02",
+   "reel": "filmB",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "david"
+   ],
+   "setting": "parents' kitchen, evening",
+   "image_prompt": "Close-up of David in the parents' kitchen, evening, exasperated but kind. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "David speaks naturally, exasperated but kind. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/B1_l2_david.wav",
+   "audio_role": "lipsync",
+   "caption": "Eat better how? Nobody ever says."
+  },
+  {
+   "id": "B1_03",
+   "reel": "filmB",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "emma"
+   ],
+   "setting": "parents' kitchen, evening",
+   "image_prompt": "Close-up of Emma in the parents' kitchen, evening, arriving, bright. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Emma speaks naturally, arriving, bright. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/B1_l3_emma.wav",
+   "audio_role": "lipsync",
+   "caption": "That's what I wanted to show you."
+  },
+  {
+   "id": "B2_00",
+   "reel": "filmB",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "emma",
+    "helen",
+    "david",
+    "zabaione"
+   ],
+   "setting": "parents' living room sofa",
+   "image_prompt": "Emma between Helen and David on a sofa showing an app on Helen's phone; Zabaione hops up between them. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Emma points at the phone, the Shiba settles in. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "B2_01",
+   "reel": "filmB",
+   "seconds": 3.5,
+   "type": "talking",
+   "characters": [
+    "emma"
+   ],
+   "setting": "parents' living room sofa",
+   "image_prompt": "Close-up of Emma in the parents' living room sofa, natural. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Emma speaks naturally, warm. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/B2_l1_emma.wav",
+   "audio_role": "lipsync",
+   "caption": "Just take a photo of what you eat. It does the rest."
+  },
+  {
+   "id": "B2_02",
+   "reel": "filmB",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "david"
+   ],
+   "setting": "parents' living room sofa",
+   "image_prompt": "Close-up of David in the parents' living room sofa, sceptical, joking. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "David speaks naturally, sceptical, joking. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/B2_l2_david.wav",
+   "audio_role": "lipsync",
+   "caption": "And then what? It tells me off?"
+  },
+  {
+   "id": "B2_03",
+   "reel": "filmB",
+   "seconds": 4.9,
+   "type": "talking",
+   "characters": [
+    "emma"
+   ],
+   "setting": "parents' living room sofa",
+   "image_prompt": "Close-up of Emma in the parents' living room sofa, warm. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Emma speaks naturally, warm. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/B2_l3_emma.wav",
+   "audio_role": "lipsync",
+   "caption": "No. It explains. Like a friend who happens to know nutrition."
+  },
+  {
+   "id": "B2_r",
+   "reel": "filmB",
+   "seconds": 2,
+   "type": "still_motion",
+   "characters": [
+    "zabaione"
+   ],
+   "setting": "parents' living room sofa",
+   "image_prompt": "Zabaione between them on the sofa, looking from face to face. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "The Shiba looks up at David. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "B3_00",
+   "reel": "filmB",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "helen",
+    "david",
+    "zabaione"
+   ],
+   "setting": "montage, three months",
+   "image_prompt": "A breakfast bowl of oats with walnuts on a sunny table. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Light moves across the bowl. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "B3_v1",
+   "reel": "filmB",
+   "seconds": 5.4,
+   "type": "still_motion",
+   "characters": [
+    "helen",
+    "david",
+    "zabaione"
+   ],
+   "setting": "montage, three months",
+   "image_prompt": "A breakfast bowl of oats with walnuts on a sunny table. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Light moves across the bowl. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/B3_l1_narrator.wav",
+   "audio_role": "voiceover",
+   "caption": "It doesn't wait for a blood test. It notices the patterns in your plate, every day."
+  },
+  {
+   "id": "B3_v2",
+   "reel": "filmB",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "helen",
+    "david",
+    "zabaione"
+   ],
+   "setting": "montage, three months",
+   "image_prompt": "Helen drizzling olive oil over a bean salad. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Oil drizzles slowly. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "B3_v3",
+   "reel": "filmB",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "helen",
+    "david",
+    "zabaione"
+   ],
+   "setting": "montage, three months",
+   "image_prompt": "Helen and David walking Zabaione in a park, autumn trees. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "They walk side by side. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "B3_x1",
+   "reel": "filmB",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "helen",
+    "david",
+    "zabaione"
+   ],
+   "setting": "montage, three months",
+   "image_prompt": "Phone close-up: friendly app card with a fibre icon and a rising bar. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Screen glow. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": "Fibre up 40% this month. Lovely."
+  },
+  {
+   "id": "B4_00",
+   "reel": "filmB",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "helen",
+    "david"
+   ],
+   "setting": "parents' breakfast table",
+   "image_prompt": "Helen and David at breakfast, Helen looking at her phone curiously. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Helen scrolls, David sips coffee. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "B4_01",
+   "reel": "filmB",
+   "seconds": 4.6,
+   "type": "talking",
+   "characters": [
+    "helen"
+   ],
+   "setting": "parents' breakfast table",
+   "image_prompt": "Close-up of Helen in the parents' breakfast table, curious. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Helen speaks naturally, curious. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/B4_l1_helen.wav",
+   "audio_role": "lipsync",
+   "caption": "Look, it says my iron could use some help. Lentils on Thursday?"
+  },
+  {
+   "id": "B4_02",
+   "reel": "filmB",
+   "seconds": 3.9,
+   "type": "talking",
+   "characters": [
+    "david"
+   ],
+   "setting": "parents' breakfast table",
+   "image_prompt": "Close-up of David in the parents' breakfast table, delighted. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "David speaks naturally, delighted. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/B4_l2_david.wav",
+   "audio_role": "lipsync",
+   "caption": "With your sauce? I'll eat lentils every Thursday."
+  },
+  {
+   "id": "B5_00",
+   "reel": "filmB",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "helen",
+    "david"
+   ],
+   "setting": "clinic corridor",
+   "image_prompt": "Helen and David in a bright clinic corridor holding a results letter. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "They read the letter together. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "B5_01",
+   "reel": "filmB",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "helen",
+    "david"
+   ],
+   "setting": "clinic corridor",
+   "image_prompt": "Helen and David in a clinic corridor holding a results letter, listening to someone off screen, relieved. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "They listen, then smile at each other. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/B5_l1_doctor.wav",
+   "audio_role": "voiceover",
+   "caption": "Whatever you've been doing, keep doing it."
+  },
+  {
+   "id": "B5_02",
+   "reel": "filmB",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "david"
+   ],
+   "setting": "clinic corridor",
+   "image_prompt": "Close-up of David in the clinic corridor, quiet, moved. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "David speaks naturally, quiet, moved. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/B5_l2_david.wav",
+   "audio_role": "lipsync",
+   "caption": "Six months of small things."
+  },
+  {
+   "id": "B5_03",
+   "reel": "filmB",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "helen"
+   ],
+   "setting": "clinic corridor",
+   "image_prompt": "Close-up of Helen in the clinic corridor, smiling. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Helen speaks naturally, smiling. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/B5_l3_helen.wav",
+   "audio_role": "lipsync",
+   "caption": "And a little help from Zabaione."
+  },
+  {
+   "id": "B5_x1",
+   "reel": "filmB",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "helen",
+    "david"
+   ],
+   "setting": "clinic corridor",
+   "image_prompt": "Zabaione waiting by the front door at home, tail wagging, warm hallway light. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Tail wags, ears perk at the door. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": "Act before the numbers ask you to."
+  },
+  {
+   "id": "C1_00",
+   "reel": "filmC",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "jack",
+    "emma",
+    "zabaione"
+   ],
+   "setting": "Jack's flat",
+   "image_prompt": "Jack at his laptop in his flat having just signed up for a marathon, Emma on a video call on the screen; Zabaione on the floor. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Jack leans back, pleased. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "C1_01",
+   "reel": "filmC",
+   "seconds": 3.7,
+   "type": "talking",
+   "characters": [
+    "jack"
+   ],
+   "setting": "Jack's flat",
+   "image_prompt": "Close-up of Jack in the Jack's flat, excited. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Jack speaks naturally, excited. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/C1_l1_jack.wav",
+   "audio_role": "lipsync",
+   "caption": "I did it. Sixteen weeks to my first marathon."
+  },
+  {
+   "id": "C1_02",
+   "reel": "filmC",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "emma"
+   ],
+   "setting": "Jack's flat",
+   "image_prompt": "Close-up of Emma in the Jack's flat, teasing, on a video call. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Emma speaks naturally, teasing, on a video call. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/C1_l2_emma.wav",
+   "audio_role": "lipsync",
+   "caption": "You've never run more than ten k."
+  },
+  {
+   "id": "C1_03",
+   "reel": "filmC",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "jack"
+   ],
+   "setting": "Jack's flat",
+   "image_prompt": "Close-up of Jack in the Jack's flat, confident. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Jack speaks naturally, confident. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/C1_l3_jack.wav",
+   "audio_role": "lipsync",
+   "caption": "That's why I've got a coach."
+  },
+  {
+   "id": "C1_r",
+   "reel": "filmC",
+   "seconds": 2,
+   "type": "still_motion",
+   "characters": [
+    "zabaione"
+   ],
+   "setting": "Jack's flat",
+   "image_prompt": "Zabaione sitting up straight, alert, looking at the phone held toward it. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "The Shiba straightens up proudly. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "C2_00",
+   "reel": "filmC",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "jack",
+    "zabaione"
+   ],
+   "setting": "montage, weeks 2-8",
+   "image_prompt": "Jack running in the rain on a city street. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Rain falls, steady stride. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "C2_v1",
+   "reel": "filmC",
+   "seconds": 5.5,
+   "type": "still_motion",
+   "characters": [
+    "jack",
+    "zabaione"
+   ],
+   "setting": "montage, weeks 2-8",
+   "image_prompt": "Jack running in the rain on a city street. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Rain falls, steady stride. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/C2_l1_narrator.wav",
+   "audio_role": "voiceover",
+   "caption": "Training isn't just the running. It's the sleep, the food, the rest days you want to skip."
+  },
+  {
+   "id": "C2_v2",
+   "reel": "filmC",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "jack",
+    "zabaione"
+   ],
+   "setting": "montage, weeks 2-8",
+   "image_prompt": "Jack running at sunrise on a hill, breath visible. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "He crests the hill. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "C2_v3",
+   "reel": "filmC",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "jack",
+    "zabaione"
+   ],
+   "setting": "montage, weeks 2-8",
+   "image_prompt": "Jack asleep, Zabaione curled at the foot of the bed. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Gentle breathing. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "C3_00",
+   "reel": "filmC",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "jack",
+    "zabaione"
+   ],
+   "setting": "small kitchen, late night",
+   "image_prompt": "Jack exhausted at a small kitchen counter late at night with a bowl of cereal, phone buzzing; Zabaione watching. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "He stares at the cereal, the phone lights up. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "C3_01",
+   "reel": "filmC",
+   "seconds": 5.8,
+   "type": "talking",
+   "characters": [
+    "jack"
+   ],
+   "setting": "small kitchen, late night",
+   "image_prompt": "Close-up of Jack in the small kitchen, late night, tired, reading his phone, then decides. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Jack speaks naturally, tired, reading his phone, then decides. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/C3_l1_jack.wav",
+   "audio_role": "lipsync",
+   "caption": "Long run on Sunday. Tonight: proper carbs and some protein... Pasta it is."
+  },
+  {
+   "id": "C3_02",
+   "reel": "filmC",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "jack"
+   ],
+   "setting": "small kitchen, late night",
+   "image_prompt": "Close-up of Jack in the small kitchen, late night, smiling, to the dog. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Jack speaks naturally, smiling, to the dog. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/C3_l2_jack.wav",
+   "audio_role": "lipsync",
+   "caption": "You really pay attention, don't you?"
+  },
+  {
+   "id": "C3_r",
+   "reel": "filmC",
+   "seconds": 2,
+   "type": "still_motion",
+   "characters": [
+    "zabaione"
+   ],
+   "setting": "small kitchen, late night",
+   "image_prompt": "Zabaione's head tilted at Jack, amber eyes bright. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Head tilt. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "C4_00",
+   "reel": "filmC",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "emma",
+    "jack"
+   ],
+   "setting": "park, week 14",
+   "image_prompt": "Emma and Jack running side by side through a green park on a long run. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Side-by-side running, matched stride. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "C4_01",
+   "reel": "filmC",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "emma"
+   ],
+   "setting": "park, week 14",
+   "image_prompt": "Close-up of Emma in the park, week 14, running, a bit breathless. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Emma speaks naturally, running, a bit breathless. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/C4_l1_emma.wav",
+   "audio_role": "lipsync",
+   "caption": "You're faster than last month."
+  },
+  {
+   "id": "C4_02",
+   "reel": "filmC",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "jack"
+   ],
+   "setting": "park, week 14",
+   "image_prompt": "Close-up of Jack in the park, week 14, running. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Jack speaks naturally, running. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/C4_l2_jack.wav",
+   "audio_role": "lipsync",
+   "caption": "I'm eating more than last month."
+  },
+  {
+   "id": "C4_03",
+   "reel": "filmC",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "emma"
+   ],
+   "setting": "park, week 14",
+   "image_prompt": "Close-up of Emma in the park, week 14, running. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Emma speaks naturally, running. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/C4_l3_emma.wav",
+   "audio_role": "lipsync",
+   "caption": "That's how it works?"
+  },
+  {
+   "id": "C4_04",
+   "reel": "filmC",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "jack"
+   ],
+   "setting": "park, week 14",
+   "image_prompt": "Close-up of Jack in the park, week 14, running, smug. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Jack speaks naturally, running, smug. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/C4_l4_jack.wav",
+   "audio_role": "lipsync",
+   "caption": "That's how it works."
+  },
+  {
+   "id": "C5_00",
+   "reel": "filmC",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "jack",
+    "emma",
+    "helen",
+    "david",
+    "zabaione"
+   ],
+   "setting": "marathon start line",
+   "image_prompt": "Marathon start line crowd; Jack calm in a race bib; Emma, Helen and David behind the barrier, Helen holding Zabaione's lead. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Crowd shuffles, Jack shakes out his legs. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "C5_01",
+   "reel": "filmC",
+   "seconds": 3,
+   "type": "talking",
+   "characters": [
+    "david"
+   ],
+   "setting": "marathon start line",
+   "image_prompt": "Close-up of David in the marathon start line, natural. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "David speaks naturally, warm. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/C5_l1_david.wav",
+   "audio_role": "lipsync",
+   "caption": "Nervous?"
+  },
+  {
+   "id": "C5_02",
+   "reel": "filmC",
+   "seconds": 3.8,
+   "type": "talking",
+   "characters": [
+    "jack"
+   ],
+   "setting": "marathon start line",
+   "image_prompt": "Close-up of Jack in the marathon start line, calm. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Jack speaks naturally, calm. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/C5_l2_jack.wav",
+   "audio_role": "lipsync",
+   "caption": "Ready. Breakfast at six, just like we practised."
+  },
+  {
+   "id": "C6_00",
+   "reel": "filmC",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "jack",
+    "emma",
+    "helen",
+    "david",
+    "zabaione"
+   ],
+   "setting": "marathon finish line",
+   "image_prompt": "Slow motion: Jack crossing the finish line arms raised, family cheering, Zabaione pulling toward him. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Slow-motion arms up, confetti in the air. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": null
+  },
+  {
+   "id": "C6_01",
+   "reel": "filmC",
+   "seconds": 3.2,
+   "type": "talking",
+   "characters": [
+    "jack"
+   ],
+   "setting": "marathon finish line",
+   "image_prompt": "Close-up of Jack in the marathon finish line, out of breath, emotional. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Jack speaks naturally, out of breath, emotional. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/C6_l1_jack.wav",
+   "audio_role": "lipsync",
+   "caption": "Sixteen weeks ago I couldn't do ten k."
+  },
+  {
+   "id": "C6_02",
+   "reel": "filmC",
+   "seconds": 3.3,
+   "type": "talking",
+   "characters": [
+    "emma"
+   ],
+   "setting": "marathon finish line",
+   "image_prompt": "Close-up of Emma in the marathon finish line, proud. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Emma speaks naturally, proud. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": "marketing/audio/v2/C6_l2_emma.wav",
+   "audio_role": "lipsync",
+   "caption": "Sixteen weeks ago you didn't know yourself this well."
+  },
+  {
+   "id": "C6_x1",
+   "reel": "filmC",
+   "seconds": 3,
+   "type": "still_motion",
+   "characters": [
+    "jack",
+    "emma",
+    "helen",
+    "david",
+    "zabaione"
+   ],
+   "setting": "marathon finish line",
+   "image_prompt": "Emma and Jack hugging past the finish line, Zabaione jumping up at them. Soft 3D animated feature-film look, warm natural light, 9:16 vertical, no text, no logos, no brand names.",
+   "motion_prompt": "Warm hug, sunlight. Camera almost still, slight drift, keep full framing, no cuts.",
+   "audio": null,
+   "audio_role": null,
+   "caption": "Zabaione. For whatever you're training for."
+  }
+ ]
+}
